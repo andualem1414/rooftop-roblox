@@ -9,9 +9,25 @@
 		"ServerScriptService": {
 			"Race": { "$path": "src/server/race" }
 		},
+		"Players": {
+			"$properties": { "CharacterAutoLoads": false }
+		},
 		"StarterPlayer": {
+			"$properties": {
+				"CharacterWalkSpeed": 16,
+				"CharacterUseJumpPower": false,
+				"CharacterJumpHeight": 3.9,
+				"DevCameraOcclusionMode": "Invisicam",
+				"EnableMouseLockOption": false,
+				"CameraMaxZoomDistance": 28,
+				"CameraMinZoomDistance": 6,
+				"AutoJumpEnabled": false
+			},
 			"StarterPlayerScripts": {
 				"Race": { "$path": "src/client/race" }
+			},
+			"StarterCharacterScripts": {
+				"$path": "src/character"
 			}
 		}
 	}

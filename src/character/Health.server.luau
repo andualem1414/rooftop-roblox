@@ -1,0 +1,2 @@
+-- Replaces Roblox's default health regeneration (a script named Health in StarterCharacterScripts takes
+-- its place). The race server heals climbers itself: 5 hp a second after 5 s without being hit.
