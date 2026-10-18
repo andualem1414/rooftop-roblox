@@ -1,0 +1,7 @@
+* text=auto eol=lf
+*.rbxl binary
+*.rbxm binary
+*.png binary
+*.ogg binary
+*.mp3 binary
+*.wav binary
