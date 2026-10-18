@@ -1,0 +1,21 @@
+# Built places (made from the source with `rojo build`; Studio saves them here too)
+/build/
+*.rbxl
+*.rbxlx
+*.rbxm
+*.rbxmx
+*.rbxl.lock
+*.rbxlx.lock
+
+# Generated
+sourcemap.json
+
+# Secrets: an Open Cloud key lives in an environment variable, never in a file here
+.env
+.env.*
+
+# Editors / OS
+.vscode/settings.json
+.idea/
+Thumbs.db
+.DS_Store
