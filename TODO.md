@@ -15,7 +15,7 @@ Phase 1 — Setup (playtest: Rojo syncs into Studio, both "hello" lines show in 
   (`claude mcp add --transport stdio Roblox_Studio -- cmd.exe /c C:\Users\Andualem\AppData\Local\Roblox\mcp.bat`,
   run from PowerShell: Git Bash turns `/c` into `C:/`). Tools load in the next Claude session
 - [x] 2026-10-18 — Rojo plugin in Studio, connected to `rojo serve race.project.json` on a Baseplate
-- [ ] Hello lines in Output on Play (or Claude checks them through the MCP)
+- [x] 2026-10-18 — Playtest passed: both hello lines in Output on Play (server and client)
 - [ ] Private GitHub repo (the user creates it), `git push`
 
 ## Roadmap
