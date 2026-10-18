@@ -30,6 +30,27 @@ local shoulder = Vector3.zero
 local locked = false
 local mouseMode = false
 local lastChar: Model? = nil
+local kickPitch = 0 -- recoil: the view jumps up and settles most of the way back
+local shakeAmt = 0 -- being hit (or hitting): a short tremble
+local rng = Random.new()
+
+-- a gun's kick: the view jumps up by `rad`, and part of it stays (you pull the aim back down)
+function CameraAim.kick(rad: number)
+	kickPitch += rad
+	pitch = math.clamp(pitch + rad * 0.35, PITCH_MIN, PITCH_MAX)
+end
+
+-- a short tremble (0..1-ish)
+function CameraAim.shake(amount: number)
+	shakeAmt = math.max(shakeAmt, amount)
+end
+
+local function shakeRot(dt: number): CFrame
+	kickPitch *= math.exp(-dt * 14)
+	shakeAmt *= math.exp(-dt * 9)
+	local s = shakeAmt * 0.03
+	return CFrame.Angles(kickPitch + rng:NextNumber(-s, s), rng:NextNumber(-s, s), rng:NextNumber(-s, s) * 0.5)
+end
 
 -- true while the mouse steers the camera
 function CameraAim.mouseLook(): boolean
@@ -128,6 +149,10 @@ local function update(dt: number)
 		if hum then
 			hum.AutoRotate = true
 		end
+		-- (Roblox's own camera: the tremble goes on top of its view)
+		if shakeAmt > 0.01 or kickPitch > 0.001 then
+			camera.CFrame *= shakeRot(dt)
+		end
 		return
 	end
 	-- a new body: start looking the way it faces
@@ -159,7 +184,7 @@ local function update(dt: number)
 	local side = clearTo(eye, eye + rot:VectorToWorldSpace(shoulder), skip)
 	local pos = clearTo(side, side + rot:VectorToWorldSpace(Vector3.new(0, 0, zoom)), skip)
 	camera.CameraType = Enum.CameraType.Scriptable
-	camera.CFrame = CFrame.new(pos) * rot
+	camera.CFrame = CFrame.new(pos) * rot * shakeRot(dt)
 	camera.Focus = CFrame.new(eye)
 
 	-- you face where the camera looks (your client owns your body)

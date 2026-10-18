@@ -33,6 +33,7 @@ local CHEST = 1.5 * Config.M -- melee line of sight is checked at chest height (
 
 local KnockEvent = Net.event("Knock")
 local ShotFx = Net.event("ShotFx")
+local SwingFx = Net.event("SwingFx")
 local HitFx = Net.event("HitFx")
 local Feed = Net.event("Feed")
 
@@ -119,7 +120,8 @@ local function landed(att: Climber, vic: Climber, r: Combat.HitResult, nx: numbe
 		hum.Health = vic.fighter.hp
 	end
 	knock(vic, Vector3.new(nx * r.knock, if r.blocked then 0 else 6, nz * r.knock))
-	HitFx:FireAllClients(at, r.dmg, if r.blocked then "block" elseif r.headshot then "head" else "hit")
+	local kind = if r.blocked then "block" elseif r.headshot then "head" else "hit"
+	HitFx:FireAllClients(at, r.dmg, kind, vic.model, att.model)
 	if r.killed then
 		CombatService.knockOut(vic, att)
 	end
@@ -147,22 +149,10 @@ local function landMelee(c: Climber, a: Combat.Attack)
 	end
 end
 
--- play the swing on the character (the default Animate script plays "Slash" for a tool that gets a
--- toolanim value; bots play theirs from Bots.luau)
-local function swingAnim(c: Climber)
-	local model = c.model
-	local tool = model and model:FindFirstChildOfClass("Tool")
-	if tool then
-		local v = Instance.new("StringValue")
-		v.Name = "toolanim"
-		v.Value = "Slash"
-		v.Parent = tool
-		task.delay(0.6, function()
-			v:Destroy()
-		end)
-	end
-	if c.kind == "bot" and c.brain and c.brain.onSwing then
-		c.brain.onSwing()
+-- every screen plays the swing on this climber's arms (client Poser), in step with the server's clock
+local function swingAnim(c: Climber, a: Combat.Attack)
+	if c.model then
+		SwingFx:FireAllClients(c.model, a.w.name, a.side)
 	end
 end
 
@@ -196,7 +186,7 @@ function CombatService.swing(c: Climber, yaw: number): boolean
 	end
 	local a = Combat.startAttack(f, snapHeading(c, yaw))
 	if a then
-		swingAnim(c)
+		swingAnim(c, a)
 	end
 	return a ~= nil
 end
@@ -228,7 +218,7 @@ local function fire(c: Climber, aimPoint: Vector3, err: number)
 		local hit = workspace:Raycast(start, dir * w.range, skip)
 		local stop = if hit then hit.Position else start + dir * w.range
 		local vic = if hit then Climbers.fromPart(hit.Instance) else nil
-		ShotFx:FireAllClients(c.model, start, stop, if vic then "body" elseif hit then "wall" else "none")
+		ShotFx:FireAllClients(c.model, start, stop, if vic then "body" elseif hit then "wall" else "none", w.name)
 		if not vic or vic == c or vic.frozen or vic.fighter.dead or vic.fighter.invuln > 0 or struck[vic] then
 			continue
 		end
@@ -295,6 +285,11 @@ function CombatService.botFire(c: Climber, at: Vector3, skill: number): boolean
 	if not root or not startShot(c, at - root.Position) then
 		return false
 	end
+	local head = headOf(c)
+	if head and c.model then
+		local d = at - head.Position
+		c.model:SetAttribute("Aim", math.atan2(d.Y, Vector3.new(d.X, 0, d.Z).Magnitude))
+	end
 	fire(c, at, 1.75 - skill)
 	return true
 end
@@ -341,6 +336,16 @@ local function step(dt: number)
 				CombatService.knockOut(c, nil, "fell out")
 			end
 		end
+		local model = c.model
+		if model then
+			if model:GetAttribute("Guard") ~= f.blocking then
+				model:SetAttribute("Guard", f.blocking)
+			end
+			local reloading = f.reloadT > 0
+			if model:GetAttribute("Reloading") ~= reloading then
+				model:SetAttribute("Reloading", reloading)
+			end
+		end
 		if publish then
 			Tools.publish(c)
 		end
@@ -356,6 +361,12 @@ function CombatService.init(h: Hooks)
 		end
 	end)
 	Net.event("Shoot").OnServerEvent:Connect(onShoot)
+	Net.unreliable("Look").OnServerEvent:Connect(function(player: Player, pitch: unknown)
+		local c = Climbers.forPlayer(player)
+		if c and c.model and type(pitch) == "number" and pitch == pitch then
+			c.model:SetAttribute("Aim", math.clamp(pitch, -1.3, 1.3))
+		end
+	end)
 	Net.event("Guard").OnServerEvent:Connect(function(player: Player, on: unknown)
 		local c = Climbers.forPlayer(player)
 		if c then

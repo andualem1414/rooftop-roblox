@@ -6,12 +6,15 @@
 -- Switching weapons is Roblox's backpack: 1 / 2, tapping the slot, or the controller.
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RunService = game:GetService("RunService")
 local StarterGui = game:GetService("StarterGui")
 local UserInputService = game:GetService("UserInputService")
 
 local Weapons = require(ReplicatedStorage.Shared.Weapons)
 local Net = require(ReplicatedStorage.Shared.Net)
 local CameraAim = require(script.Parent.CameraAim)
+local Fx = require(script.Parent.Fx)
+local Poser = require(script.Parent.Poser)
 
 local player = Players.LocalPlayer
 
@@ -19,12 +22,17 @@ local Swing = Net.event("Swing")
 local Shoot = Net.event("Shoot")
 local Guard = Net.event("Guard")
 local Reload = Net.event("Reload")
+local Look = Net.unreliable("Look")
 
 local Controls = {}
 
 local lastUse = 0
 local aimHeld = false
 local guarding = false
+-- your swings alternate forehand / backhand when one follows the last within the combo window (as the
+-- server counts them in shared/Combat), so your own arms can start the right one at once
+local COMBO_WINDOW = 0.45
+local lastSwing = { at = -math.huge, total = 0, side = -1 }
 
 local function toolInHand(): Tool?
 	local char = player.Character
@@ -51,12 +59,21 @@ local function use()
 	end
 	lastUse = now
 	if w.slot == "gun" then
+		-- a round in the gun: the kick and the flash show at once (the server decides what it hits)
+		local mag = player:GetAttribute("Mag")
+		if type(mag) == "number" and mag > 0 and player:GetAttribute("Reloading") ~= true then
+			Fx.ownShot(w)
+		end
 		local ray = CameraAim.ray()
 		Shoot:FireServer(ray.Origin, ray.Direction.Unit, CameraAim.aiming)
 	else
 		local look = root.CFrame.LookVector
 		-- toward the crosshair when the mouse steers the camera; else the way you face
 		local yaw = if CameraAim.aiming or CameraAim.mouseLook() then CameraAim.yaw() else math.atan2(look.X, look.Z)
+		local total = w.windup + w.strike + w.recover
+		local side = if now - (lastSwing.at + lastSwing.total) < COMBO_WINDOW then -lastSwing.side else 1
+		lastSwing.at, lastSwing.total, lastSwing.side = now, total, side
+		Poser.predictSwing(w.name, side)
 		Swing:FireServer(yaw)
 	end
 end
@@ -140,6 +157,21 @@ function Controls.init()
 	UserInputService.InputEnded:Connect(function(input: InputObject)
 		if input.UserInputType == Enum.UserInputType.MouseButton2 or input.KeyCode == Enum.KeyCode.ButtonL2 then
 			setAim(false)
+		end
+	end)
+
+	-- where you look up / down, for everyone's view of your arms and head (about 15 times a second)
+	local sent, acc = 0, 0
+	RunService.RenderStepped:Connect(function(dt: number)
+		acc += dt
+		if acc < 1 / 15 then
+			return
+		end
+		acc = 0
+		local pitch = math.asin(math.clamp(workspace.CurrentCamera.CFrame.LookVector.Y, -1, 1))
+		if math.abs(pitch - sent) > 0.01 then
+			sent = pitch
+			Look:FireServer(pitch)
 		end
 	end)
 

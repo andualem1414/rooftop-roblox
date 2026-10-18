@@ -5,8 +5,9 @@
 -- like the original's bots.js. With a gun and ammo they shoot from range; close up they swing the bat.
 -- They pick up ammo when low and swords over the bat.
 --
--- Bots are Roblox avatars built from HumanoidDescriptions, with Roblox's default animations (the ids are
--- read from the rig's own Animate script and played from the server).
+-- Bots are Roblox avatars built from HumanoidDescriptions, with Roblox's default animations for the legs
+-- and body (the ids are read from the rig's own Animate script and played from the server); their arms
+-- are posed on every client like a player's (client/race/Poser).
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
@@ -178,21 +179,7 @@ local function loadAnims(c: Climber, model: Model)
 			play("idle", 0.1)
 		end
 	end)
-	local hold = tracks.toolnone
-	if hold then
-		hold.Priority = Enum.AnimationPriority.Action
-		hold.Looped = true
-		hold:Play()
-	end
-	local slash = tracks.toolslash
-	if slash then
-		slash.Priority = Enum.AnimationPriority.Action2
-	end
-	c.brain.onSwing = function()
-		if slash then
-			slash:Play(0.05)
-		end
-	end
+	-- (the arms holding and swinging weapons are posed on every client: client/race/Poser)
 	play("idle")
 end
 
@@ -216,7 +203,6 @@ function Bots.create(i: number): Climber
 		wanderT = 0,
 		lastPos = Vector3.zero,
 		stuck = 0,
-		onSwing = nil :: (() -> ())?,
 	}
 	return c
 end
