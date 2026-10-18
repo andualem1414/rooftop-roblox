@@ -166,6 +166,68 @@ function Hud.init()
 		end)
 	end)
 
+	-- hit marker: four ticks flick out round the crosshair when your blow lands (yellow: a headshot)
+	local marker = Instance.new("Frame")
+	marker.Name = "HitMarker"
+	marker.BackgroundTransparency = 1
+	marker.Size = UDim2.fromOffset(34, 34)
+	marker.Position = UDim2.fromScale(0.5, 0.5)
+	marker.AnchorPoint = Vector2.new(0.5, 0.5)
+	marker.Parent = gui
+	local markerScale = Instance.new("UIScale")
+	markerScale.Parent = marker
+	local ticks = {}
+	for _, d in { { -1, -1 }, { 1, -1 }, { -1, 1 }, { 1, 1 } } do
+		local t = Instance.new("Frame")
+		t.BorderSizePixel = 0
+		t.AnchorPoint = Vector2.new(0.5, 0.5)
+		t.Size = UDim2.fromOffset(10, 3)
+		t.Position = UDim2.new(0.5, d[1] * 11, 0.5, d[2] * 11)
+		t.Rotation = d[1] * d[2] * 45
+		t.BackgroundTransparency = 1
+		t.Parent = marker
+		table.insert(ticks, t)
+	end
+	-- being hit: the screen's edges flash red (and pulse while you're low)
+	local vignette = Instance.new("Frame")
+	vignette.Name = "Hurt"
+	vignette.BackgroundTransparency = 1
+	vignette.Size = UDim2.fromScale(1, 1)
+	vignette.ZIndex = 0
+	vignette.Parent = gui
+	local edges = {}
+	for _, e in { { 0, 0, 1, 0.22, 90 }, { 0, 0.78, 1, 0.22, -90 }, { 0, 0, 0.16, 1, 0 }, { 0.84, 0, 0.16, 1, 180 } } do
+		local f = Instance.new("Frame")
+		f.BorderSizePixel = 0
+		f.BackgroundColor3 = Color3.fromRGB(200, 30, 40)
+		f.Position = UDim2.fromScale(e[1], e[2])
+		f.Size = UDim2.fromScale(e[3], e[4])
+		f.BackgroundTransparency = 1
+		local g = Instance.new("UIGradient")
+		g.Rotation = e[5]
+		g.Transparency = NumberSequence.new(0, 1)
+		g.Parent = f
+		f.Parent = vignette
+		table.insert(edges, f)
+	end
+	local hurtK = 0
+	Net.event("HitFx").OnClientEvent
+		:Connect(function(_at: Vector3, dmg: number, kind: string, victim: Instance?, attacker: Instance?)
+			local me = player.Character
+			if me and attacker == me and victim ~= me then
+				local color = if kind == "head" then Color3.fromRGB(255, 214, 60) else Color3.fromRGB(255, 255, 255)
+				for _, t in ticks do
+					t.BackgroundColor3 = color
+					t.BackgroundTransparency = 0
+					TweenService:Create(t, TweenInfo.new(0.25), { BackgroundTransparency = 1 }):Play()
+				end
+				markerScale.Scale = 0.6
+				TweenService:Create(markerScale, TweenInfo.new(0.15, Enum.EasingStyle.Back), { Scale = 1 }):Play()
+			elseif me and victim == me and kind ~= "block" then
+				hurtK = math.min(1, hurtK + 0.35 + dmg / 60)
+			end
+		end)
+
 	local state = ReplicatedStorage:WaitForChild("RaceState")
 	RunService.RenderStepped:Connect(function()
 		local phase = state:GetAttribute("Phase")
@@ -200,6 +262,13 @@ function Hud.init()
 			local k = math.clamp(hum.Health / math.max(1, hum.MaxHealth), 0, 1)
 			hpBar.Size = UDim2.fromScale(k, 1)
 			hpBar.BackgroundColor3 = if k < 0.3 then RED else CHALK
+			-- the red edges: a flash when hit, a slow pulse while low
+			local low = if k < 0.3 and hum.Health > 0 then 0.25 + 0.15 * math.sin(os.clock() * 5) else 0
+			hurtK = math.max(0, hurtK - 1.6 / 60)
+			local edge = math.max(hurtK, low)
+			for _, f in edges do
+				f.BackgroundTransparency = 1 - edge * 0.75
+			end
 			hpText.Text = if hum.Health <= 0 then "Knocked out" else `{math.ceil(hum.Health)}`
 		end
 

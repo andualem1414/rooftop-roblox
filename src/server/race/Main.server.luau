@@ -1,14 +1,28 @@
 --!strict
--- The race server: owns the race, the platforms, health, hits and the win.
+-- The race server: builds the world and owns the race, the platforms, health, hits and the win.
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RunService = game:GetService("RunService")
 
 local Version = require(ReplicatedStorage.Shared.Version)
+local Look = require(ReplicatedStorage.Shared.Look)
 local CollisionGroups = require(script.Parent.CollisionGroups)
 local Tower = require(script.Parent.Tower)
+local World = require(script.Parent.World)
 local RaceService = require(script.Parent.RaceService)
 
 CollisionGroups.init()
+
+-- the look; in Studio a Workspace attribute LookPreset ("Neon Night", "Golden Dusk", "Moonlit Ink")
+-- switches it live
+local function look()
+	local preset = workspace:GetAttribute("LookPreset")
+	Look.apply(if RunService:IsStudio() and type(preset) == "string" then preset else nil)
+end
+look()
+workspace:GetAttributeChangedSignal("LookPreset"):Connect(look)
+
 local tower = Tower.build()
+World.build()
 RaceService.start(tower)
 
 print(`[Rooftop] race server up, v{Version}`)

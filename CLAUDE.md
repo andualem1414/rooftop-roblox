@@ -45,6 +45,10 @@ rojo build race.project.json -o build/race.rbxl
 - Studio's built-in MCP server lets Claude run playtests, run Luau and read Output: in Studio, Assistant → … →
   Manage MCP Servers → *Enable Studio as MCP server*, then quick-connect Claude Code (Assistant Settings → MCP
   Servers). The MCP tools load when a Claude session starts. Docs: https://create.roblox.com/docs/studio/mcp
+- **Lighting → Technology = Future** in each place (set by hand in Studio's Properties; scripts, the MCP and
+  Rojo can't set it). Lamps and muzzle flashes cast real light with it.
+- Look presets (Studio only): a Workspace string attribute `LookPreset` = "Neon Night" (default), "Golden Dusk"
+  or "Moonlit Ink" switches the lighting live while playing.
 - Fewer bots for a test: select Workspace in Studio, Properties → Attributes → add a number attribute
   `TestBots` (e.g. 3; 0 = none). Studio only; delete the attribute for a full race of 20.
 - Skip the race clock in a test (Studio only): `game.ServerStorage.RooftopDev:Invoke("skip", seconds)` from the

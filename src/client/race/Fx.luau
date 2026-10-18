@@ -338,10 +338,25 @@ local function knockedOut(model: Model)
 	end)
 end
 
+-- an ink outline round every climber (one Highlight each: ~20, well under the 255 shown at once)
+local function outline(model: Model)
+	if model:FindFirstChild("Ink") then
+		return
+	end
+	local h = Instance.new("Highlight")
+	h.Name = "Ink"
+	h.FillTransparency = 1
+	h.OutlineColor = Color3.fromRGB(22, 19, 28)
+	h.OutlineTransparency = 0.1
+	h.DepthMode = Enum.HighlightDepthMode.Occluded
+	h.Parent = model
+end
+
 local function watch(model: Instance)
 	if not model:IsA("Model") then
 		return
 	end
+	outline(model)
 	local hum = model:WaitForChild("Humanoid", 5) :: Humanoid?
 	if hum then
 		hum.Died:Connect(function()

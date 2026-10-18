@@ -273,13 +273,9 @@ function Tower.build(): Tower
 	local root = Instance.new("Model")
 	root.Name = "Tower"
 
-	-- the ground round the tower, and the pit under the shaft where the platforms start
+	-- the pit under the shaft where the platforms start (the ground round the tower is terrain: World)
 	local ground = Instance.new("Model")
 	ground.Name = "Ground"
-	slabRing(ground, -4, 0, 400, F, Color3.fromRGB(58, 66, 54), "Ground")
-	for _, g in ground:GetChildren() do
-		(g :: Part).Material = Enum.Material.Grass
-	end
 	box(ground, "Pit", -H, H, -2 * FH - 2, -2 * FH - 1, -H, H, CONCRETE_DARK)
 	ground:SetAttribute("Floor", -1)
 	ground.Parent = root
