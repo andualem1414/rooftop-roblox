@@ -11,8 +11,11 @@ Phase 1 — Setup (playtest: Rojo syncs into Studio, both "hello" lines show in 
 - [x] 2026-10-18 — Toolchain with Rokit: Rojo 7.7.1, StyLua 2.5.2, Selene 0.32.0, Lune 0.10.5 (`rokit.toml`)
 - [x] 2026-10-18 — Rojo project: two places (`race.project.json`, `lobby.project.json`) sharing `src/shared`
 - [x] 2026-10-18 — Lune test runner (`lune run tests`), `Config.luau` with the original's numbers
-- [ ] Studio MCP connected (Studio → Assistant → Manage MCP Servers), so Claude can run playtests
-- [ ] Rojo plugin installed, `rojo serve race.project.json` connected to an empty Baseplate, hello lines in Output
+- [x] 2026-10-18 — Studio MCP: enabled in Studio, added to Claude Code for this folder
+  (`claude mcp add --transport stdio Roblox_Studio -- cmd.exe /c C:\Users\Andualem\AppData\Local\Roblox\mcp.bat`,
+  run from PowerShell: Git Bash turns `/c` into `C:/`). Tools load in the next Claude session
+- [x] 2026-10-18 — Rojo plugin in Studio, connected to `rojo serve race.project.json` on a Baseplate
+- [ ] Hello lines in Output on Play (or Claude checks them through the MCP)
 - [ ] Private GitHub repo (the user creates it), `git push`
 
 ## Roadmap
