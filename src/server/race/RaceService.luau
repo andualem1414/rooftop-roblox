@@ -203,7 +203,13 @@ local function runRace()
 	for _, p in Players:GetPlayers() do
 		table.insert(list, Climbers.add(p.DisplayName, "player", p))
 	end
-	for i = 1, Rules.botsFor(#list) do
+	-- Studio only: a Workspace attribute TestBots (a number) sets how many bots join, for small tests
+	local bots = Rules.botsFor(#list)
+	local testBots = workspace:GetAttribute("TestBots")
+	if RunService:IsStudio() and type(testBots) == "number" then
+		bots = math.clamp(math.floor(testBots), 0, bots)
+	end
+	for i = 1, bots do
 		table.insert(list, Bots.create(i))
 	end
 	shuffle(list)

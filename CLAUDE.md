@@ -45,6 +45,10 @@ rojo build race.project.json -o build/race.rbxl
 - Studio's built-in MCP server lets Claude run playtests, run Luau and read Output: in Studio, Assistant → … →
   Manage MCP Servers → *Enable Studio as MCP server*, then quick-connect Claude Code (Assistant Settings → MCP
   Servers). The MCP tools load when a Claude session starts. Docs: https://create.roblox.com/docs/studio/mcp
+- Fewer bots for a test: select Workspace in Studio, Properties → Attributes → add a number attribute
+  `TestBots` (e.g. 3; 0 = none). Studio only; delete the attribute for a full race of 20.
+- Skip the race clock in a test (Studio only): `game.ServerStorage.RooftopDev:Invoke("skip", seconds)` from the
+  server command bar or the MCP's execute_luau.
 - Multiplayer test: Test → Clients and Servers (2–4 clients). Teleports and reserved servers don't work in Studio;
   the race place is playable on its own there (bots fill the round), the lobby → race move is tested in the
   published, still-private game.

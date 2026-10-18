@@ -79,10 +79,23 @@ local function hideAbove(cutY: number)
 			each(p.Character)
 		end
 	end
-	for _, name in { "Bots", "Pickups", "Platforms" } do
+	for _, name in { "Bots", "Pickups" } do
 		local f = workspace:FindFirstChild(name)
 		if f then
 			each(f)
+		end
+	end
+	-- a platform goes by its deck's top: it fades out as it rises into your ceiling (and one stopped at
+	-- the floor above, sitting in your ceiling's hole, isn't drawn)
+	local platforms = workspace:FindFirstChild("Platforms")
+	if platforms then
+		local ceiling = cutY - 0.5 -- the underside of the slab above you
+		for _, deck in platforms:GetChildren() do
+			if deck:IsA("BasePart") then
+				local top = deck.Position.Y + deck.Size.Y / 2
+				-- fully faded once its top reaches the floor above (ceiling + SLAB), starting 3 studs before
+				deck.LocalTransparencyModifier = math.clamp((top - (ceiling - 3)) / (3 + Config.SLAB), 0, 1)
+			end
 		end
 	end
 end
