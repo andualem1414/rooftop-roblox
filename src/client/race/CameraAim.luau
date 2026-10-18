@@ -124,6 +124,7 @@ local function update(dt: number)
 		if UserInputService.MouseBehavior == Enum.MouseBehavior.LockCenter then
 			UserInputService.MouseBehavior = Enum.MouseBehavior.Default
 		end
+		UserInputService.MouseIconEnabled = true
 		if hum then
 			hum.AutoRotate = true
 		end
@@ -139,6 +140,7 @@ local function update(dt: number)
 
 	locked = hum.Health > 0 and not cursorWanted()
 	UserInputService.MouseBehavior = if locked then Enum.MouseBehavior.LockCenter else Enum.MouseBehavior.Default
+	UserInputService.MouseIconEnabled = not locked -- (the crosshair takes its place)
 	if locked then
 		local delta = UserInputService:GetMouseDelta()
 		local sens = TURN * math.max(0.1, gameSettings.MouseSensitivity)

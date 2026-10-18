@@ -82,7 +82,7 @@ function Pickups.spawn(kind: string, cf: CFrame, carrier: BasePart?, floor: numb
 	tag.Name = "Tag"
 	tag.Size = UDim2.fromOffset(80, 20)
 	tag.StudsOffset = Vector3.new(0, 1.6, 0)
-	tag.MaxDistance = 40
+	tag.MaxDistance = 28
 	tag.AlwaysOnTop = false
 	local text = Instance.new("TextLabel")
 	text.Name = "Text"

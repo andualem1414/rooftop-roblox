@@ -3,6 +3,9 @@
 	"servePort": 34872,
 	"tree": {
 		"$className": "DataModel",
+		"Workspace": {
+			"$properties": { "StreamingEnabled": false }
+		},
 		"ReplicatedStorage": {
 			"Shared": { "$path": "src/shared" }
 		},

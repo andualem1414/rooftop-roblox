@@ -234,9 +234,9 @@ local function buildFloor(root: Model, i: number): (Model, { Rect }, BasePart)
 	lamp.CanQuery = false
 	local light = Instance.new("PointLight")
 	light.Color = Color3.fromRGB(255, 200, 140)
-	light.Range = 40
-	light.Brightness = 1.4
-	light.Shadows = true
+	light.Range = 36
+	light.Brightness = 0.8
+	light.Shadows = false
 	light.Parent = lamp
 	-- the shaft gate: climbers can't step into the shaft unless a platform is near; crates never can
 	local gate = box(floor, "ShaftGate", -H, H, y0, y1, -H, H, Color3.new())
