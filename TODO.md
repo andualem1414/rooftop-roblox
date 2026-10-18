@@ -6,6 +6,30 @@ Ask Claude "what's on the todo list?" or "do the next todo" any time.
 
 ## Next up
 
+Phase 2 — First playable (playtest: the user, with 2–4 players in Studio's "Clients and Servers" test)
+
+- [x] 2026-10-18 — Shared logic with tests (39): platform timetable, combat (melee, blocks, guns, ammo, headshots
+  1.5×, regen), rules (start floors 1–5, come to 2–5 lower, loot, only one can escape, phases)
+- [x] 2026-10-18 — Tower: 20 floors of 24 × 24 m (1 m = 3 studs), windows, cover (half walls, barriers, loose
+  crates), a lamp per floor, roof with a sliding hatch; shaft gates so nobody falls down the shaft
+- [x] 2026-10-18 — Platforms on the original's timetable (every 17 s, 0.6 s a floor, 3 s stops), physical decks
+  that carry riders; the roof rule: more than one rider as it leaves the top floor → all thrown off, "Only one
+  can escape!"; alone → up through the roof → wins. Each platform carries a gun, a sword or ammo
+- [x] 2026-10-18 — Weapons as Roblox tools (1 = bat, 2 = pistol): server-timed swings, server-checked shots
+  (rate, ammo, camera ray near your head, line of sight from your gun, range), guard on right mouse with a
+  melee weapon, aim over the shoulder on right mouse with a gun, R reloads, E picks up / swaps
+- [x] 2026-10-18 — Bots fill to 20: catch platforms, ride, fight back, shoot at range, swing up close, pick up
+  ammo and swords, fight other riders on the top-floor platform once the roof is open
+- [x] 2026-10-18 — Race flow: ready (5 s frozen) → climb → roof opens 4:00 → over (a winner, or 8:00) → 15 s →
+  next race (Studio; phase 3 sends players back to the lobby). Knock-outs: down 3.4 s, come to 2–5 floors lower
+- [x] 2026-10-18 — Plain HUD: clock, floor, next platform, health, ammo, crosshair, banners, kill feed;
+  floors above you cut away; muzzle flash, streak, impact marks, damage numbers
+- [x] 2026-10-18 — Checked through the Studio MCP: a full race to a bot's escape, the throw-off, the next race,
+  player shots reaching the server (12 → 9 rounds); no errors in Output
+- [ ] **Playtest by the user** with 2–4 players (below), then fixes
+- [ ] Studio-only helpers to remove or keep behind `IsStudio()`: `ServerStorage.RooftopDev` (skip the clock), the
+  `BotMode` attribute on bots, the "went down" log line
+
 Phase 1 — Setup (playtest: Rojo syncs into Studio, both "hello" lines show in Output, MCP connected)
 
 - [x] 2026-10-18 — Toolchain with Rokit: Rojo 7.7.1, StyLua 2.5.2, Selene 0.32.0, Lune 0.10.5 (`rokit.toml`)
