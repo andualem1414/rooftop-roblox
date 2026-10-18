@@ -39,7 +39,9 @@ rojo build race.project.json -o build/race.rbxl
 
 ## Studio
 
-- Rojo plugin: `rojo plugin install` (Rojo 7). In Studio: Plugins → Rojo → Connect while `rojo serve` runs.
+- Rojo plugin: `rojo plugin install` (Rojo 7). On this machine that can't find Studio's registry keys, so the
+  plugin was put in by hand: `Rojo.rbxm` from the matching Rojo release into `%LOCALAPPDATA%\Roblox\Plugins`
+  (update it with the CLI version). In Studio: Plugins → Rojo → Connect while `rojo serve` runs.
 - Studio's built-in MCP server lets Claude run playtests, run Luau and read Output: in Studio, Assistant → … →
   Manage MCP Servers → *Enable Studio as MCP server*, then quick-connect Claude Code (Assistant Settings → MCP
   Servers). The MCP tools load when a Claude session starts. Docs: https://create.roblox.com/docs/studio/mcp
