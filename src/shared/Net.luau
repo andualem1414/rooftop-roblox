@@ -8,6 +8,7 @@
 --   Reload()
 --   Look(pitch)                    (unreliable, ~15 a second) where you look up / down, so everyone sees
 --                                  your arms and head follow it
+--   Ready()                        this client's scripts are running (the race waits for it)
 -- Server -> clients:
 --   Knock(velocity)                you were hit: get pushed this way (your client owns your body)
 --   ShotFx(model, from, to, kind, weapon)  draw a shot: muzzle flash, streak, impact (kind: "body",
@@ -23,7 +24,7 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 
-local NAMES = { "Swing", "Shoot", "Guard", "Reload", "Knock", "ShotFx", "SwingFx", "HitFx", "Notice", "Feed" }
+local NAMES = { "Swing", "Shoot", "Guard", "Reload", "Ready", "Knock", "ShotFx", "SwingFx", "HitFx", "Notice", "Feed" }
 local UNRELIABLE = { "Look" }
 
 local Net = {}

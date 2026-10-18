@@ -37,6 +37,8 @@ local startAt = math.huge
 local roofOpen = false
 local finished = false
 local winner: Climber? = nil
+local skipCelebration = false -- (Studio test hook)
+local readyPlayers: { [Player]: boolean } = {} -- clients that are running
 
 local Notice = Net.event("Notice")
 local Feed = Net.event("Feed")
@@ -182,6 +184,7 @@ local function runRace()
 	state:SetAttribute("RoofOpen", false)
 	state:SetAttribute("Winner", "")
 	state:SetAttribute("StartAt", 0)
+	state:SetAttribute("RoofSceneAt", nil)
 	setPhase("waiting")
 	while #Players:GetPlayers() == 0 do
 		task.wait(0.5)
@@ -226,6 +229,20 @@ local function runRace()
 		waited += task.wait(0.1)
 	end
 
+	-- wait for every player's client to be running (a slow loader shouldn't miss the intro), at most 20 s
+	local waitedReady = 0
+	while waitedReady < 20 do
+		local all = true
+		for _, p in Players:GetPlayers() do
+			if not readyPlayers[p] then
+				all = false
+			end
+		end
+		if all then
+			break
+		end
+		waitedReady += task.wait(0.2)
+	end
 	startAt = now() + Config.GET_READY
 	state:SetAttribute("StartAt", startAt)
 	setPhase("ready")
@@ -246,6 +263,15 @@ local function runRace()
 			setPhase("roof")
 			tower.openHatch()
 			Notice:FireAllClients("The roof is open!", "roof")
+			-- everyone stops for a moment to watch it open (every camera goes to the roof)
+			state:SetAttribute("RoofSceneAt", now())
+			freezeAll(true)
+			local race = raceNo
+			task.delay(Config.ROOF_SCENE, function()
+				if race == raceNo and not finished then
+					freezeAll(false)
+				end
+			end)
 		end
 		PlatformService.step(t, roofOpen)
 		if finished or t >= Config.RACE_LIMIT then
@@ -267,7 +293,12 @@ local function runRace()
 		Notice:FireAllClients("Nobody got out.", "over")
 	end
 	setPhase("over")
-	task.wait(Config.CELEBRATION)
+	if skipCelebration then
+		skipCelebration = false
+		task.wait(1)
+	else
+		task.wait(Config.CELEBRATION)
+	end
 end
 
 function RaceService.start(t: Tower.Tower)
@@ -297,6 +328,17 @@ function RaceService.start(t: Tower.Tower)
 			if cmd == "skip" and startAt < math.huge then
 				startAt -= arg or 0
 				state:SetAttribute("StartAt", startAt)
+			elseif cmd == "win" then
+				-- the first player gets out (to see the celebration)
+				local p = Players:GetPlayers()[1]
+				local c = p and Climbers.forPlayer(p)
+				if c then
+					onEscape(c)
+				end
+			elseif cmd == "restart" then
+				-- end this race at once (no winner, no celebration): the next one starts
+				skipCelebration = true
+				finished = true
 			end
 			return { phase = state:GetAttribute("Phase"), t = RaceService.time(), winner = winner and winner.name }
 		end
@@ -304,7 +346,13 @@ function RaceService.start(t: Tower.Tower)
 	end
 
 	Players.PlayerAdded:Connect(playerAdded)
-	Players.PlayerRemoving:Connect(playerRemoving)
+	Players.PlayerRemoving:Connect(function(p: Player)
+		readyPlayers[p] = nil
+		playerRemoving(p)
+	end)
+	Net.event("Ready").OnServerEvent:Connect(function(p: Player)
+		readyPlayers[p] = true
+	end)
 
 	task.spawn(function()
 		while true do

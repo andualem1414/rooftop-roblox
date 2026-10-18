@@ -12,6 +12,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Config = require(ReplicatedStorage.Shared.Config)
 local Themes = require(script.Parent.Themes)
+local Roof = require(script.Parent.Roof)
 
 local FLOORS = Config.FLOORS
 local FH = Config.FLOOR_HEIGHT
@@ -420,7 +421,7 @@ function Tower.build(): Tower
 	local closedAt = { doors[1].CFrame, doors[2].CFrame }
 	roof.Parent = root
 	floors[FLOORS] = roof
-	covers[FLOORS] = {}
+	covers[FLOORS] = Roof.dress(roof, ry)
 
 	root.Parent = workspace
 

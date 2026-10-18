@@ -16,6 +16,7 @@ local gameSettings = UserSettings():GetService("UserGameSettings")
 
 local CameraAim = {}
 CameraAim.aiming = false
+CameraAim.cinematic = false -- a set piece (Cinematic.luau) has the camera
 
 local SHOULDER = Vector3.new(1.9, 0.4, 0) -- right, up (studs, in the camera's frame)
 local AIM_SHOULDER = Vector3.new(2.2, 0.6, 0)
@@ -131,7 +132,44 @@ local function others(): { Instance }
 	return skip
 end
 
+-- a new body: start looking the way it faces
+local function adopt(char: Model, root: BasePart)
+	if char ~= lastChar then
+		lastChar = char
+		local look = root.CFrame.LookVector
+		yaw = math.atan2(-look.X, -look.Z)
+		pitch = math.rad(-18)
+	end
+end
+
+-- where the camera sits behind your shoulder right now (kept clear of walls), or nil without a body
+local function resting(root: BasePart): CFrame
+	local rot = CFrame.fromOrientation(pitch, yaw, 0)
+	local eye = root.Position + Vector3.new(0, EYE, 0)
+	local skip = others()
+	local side = clearTo(eye, eye + rot:VectorToWorldSpace(shoulder), skip)
+	local pos = clearTo(side, side + rot:VectorToWorldSpace(Vector3.new(0, 0, zoom)), skip)
+	return CFrame.new(pos) * rot
+end
+
+function CameraAim.restingCFrame(): CFrame?
+	local char = player.Character
+	local root = char and char:FindFirstChild("HumanoidRootPart") :: BasePart?
+	if not char or not root then
+		return nil
+	end
+	adopt(char, root)
+	if shoulder.Magnitude < 0.1 then
+		shoulder = SHOULDER
+	end
+	return resting(root)
+end
+
 local function update(dt: number)
+	if CameraAim.cinematic then
+		UserInputService.MouseIconEnabled = false
+		return
+	end
 	local camera = workspace.CurrentCamera
 	local char = player.Character
 	local hum = char and char:FindFirstChildOfClass("Humanoid")
@@ -155,13 +193,7 @@ local function update(dt: number)
 		end
 		return
 	end
-	-- a new body: start looking the way it faces
-	if char ~= lastChar then
-		lastChar = char
-		local look = root.CFrame.LookVector
-		yaw = math.atan2(-look.X, -look.Z)
-		pitch = math.rad(-18)
-	end
+	adopt(char, root)
 
 	locked = hum.Health > 0 and not cursorWanted()
 	UserInputService.MouseBehavior = if locked then Enum.MouseBehavior.LockCenter else Enum.MouseBehavior.Default
@@ -178,14 +210,9 @@ local function update(dt: number)
 	local wantShoulder = if CameraAim.aiming then AIM_SHOULDER else SHOULDER
 	shoulder = shoulder:Lerp(wantShoulder, math.min(1, dt * 14))
 
-	local rot = CFrame.fromOrientation(pitch, yaw, 0)
-	local eye = root.Position + Vector3.new(0, EYE, 0)
-	local skip = others()
-	local side = clearTo(eye, eye + rot:VectorToWorldSpace(shoulder), skip)
-	local pos = clearTo(side, side + rot:VectorToWorldSpace(Vector3.new(0, 0, zoom)), skip)
 	camera.CameraType = Enum.CameraType.Scriptable
-	camera.CFrame = CFrame.new(pos) * rot * shakeRot(dt)
-	camera.Focus = CFrame.new(eye)
+	camera.CFrame = resting(root) * shakeRot(dt)
+	camera.Focus = CFrame.new(root.Position + Vector3.new(0, EYE, 0))
 
 	-- you face where the camera looks (your client owns your body)
 	if hum.Health > 0 then

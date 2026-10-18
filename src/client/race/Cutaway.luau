@@ -15,6 +15,7 @@ local FH = Config.FLOOR_HEIGHT
 local Cutaway = {}
 
 local shown = math.huge -- the highest floor shown (everything above it is hidden)
+local suspended = false -- a set piece wants the whole tower shown
 local saved: { [BasePart]: number } = {} -- hidden parts' own transparency
 
 local function setPart(d: Instance, hidden: boolean)
@@ -114,6 +115,11 @@ local function watch(tower: Instance)
 	end)
 end
 
+-- show the whole tower for a while (the intro's opening shot, the roof opening, the win)
+function Cutaway.suspend(on: boolean)
+	suspended = on
+end
+
 function Cutaway.init()
 	local tower = workspace:FindFirstChild("Tower")
 	if tower then
@@ -137,7 +143,9 @@ function Cutaway.init()
 		local root = char and char:FindFirstChild("HumanoidRootPart") :: BasePart?
 		local hum = char and char:FindFirstChildOfClass("Humanoid")
 		local top = Config.FLOORS
-		if root and hum and hum.Health > 0 then
+		if suspended then
+			top = Config.FLOORS
+		elseif root and hum and hum.Health > 0 then
 			local feet = root.Position.Y - root.Size.Y / 2 - hum.HipHeight
 			top = math.clamp(math.floor(feet / FH + 0.3), 0, Config.FLOORS)
 		elseif shown ~= math.huge then
