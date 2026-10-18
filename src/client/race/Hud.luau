@@ -206,17 +206,18 @@ function Hud.init()
 		local tool = char and char:FindFirstChildOfClass("Tool")
 		local wname = tool and tool:GetAttribute("Weapon")
 		local w = if type(wname) == "string" then Weapons[wname] else nil
+		-- the crosshair: wide with a gun, tight while aiming, small with a melee weapon (you swing where it is)
+		cross.Visible = w ~= nil and (w.slot == "gun" or CameraAim.mouseLook())
 		if w and w.slot == "gun" then
 			weapon.Text = w.label
 			ammo.Text = if player:GetAttribute("Reloading")
 				then "Reloading…"
 				else `{player:GetAttribute("Mag") or 0} / {player:GetAttribute("Reserve") or 0}`
-			cross.Visible = true
 			cross.Size = if CameraAim.aiming then UDim2.fromOffset(18, 18) else UDim2.fromOffset(28, 28)
 		else
 			weapon.Text = if w then w.label else ""
 			ammo.Text = ""
-			cross.Visible = false
+			cross.Size = UDim2.fromOffset(12, 12)
 		end
 	end)
 end

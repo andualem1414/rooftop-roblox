@@ -1,7 +1,7 @@
 --!strict
 -- What you do, sent to the server as intent (the server decides what really happens):
---   use the tool in hand (click / tap / R2): swing the melee weapon, or fire the gun along the camera ray
---   aim button (right mouse / L2): with a gun, aim over the shoulder; with a melee weapon, guard
+--   use the tool in hand (click / tap / R2): swing the melee weapon, or fire the gun, toward the crosshair
+--   aim button (right mouse / L2): with a gun, aim (tighter view, steadier shot); with a melee weapon, guard
 --   R / X button: reload
 -- Switching weapons is Roblox's backpack: 1 / 2, tapping the slot, or the controller.
 local Players = game:GetService("Players")
@@ -55,7 +55,8 @@ local function use()
 		Shoot:FireServer(ray.Origin, ray.Direction.Unit, CameraAim.aiming)
 	else
 		local look = root.CFrame.LookVector
-		local yaw = if CameraAim.aiming then CameraAim.yaw() else math.atan2(look.X, look.Z)
+		-- toward the crosshair when the mouse steers the camera; else the way you face
+		local yaw = if CameraAim.aiming or CameraAim.mouseLook() then CameraAim.yaw() else math.atan2(look.X, look.Z)
 		Swing:FireServer(yaw)
 	end
 end

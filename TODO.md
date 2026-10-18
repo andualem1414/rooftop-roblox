@@ -26,6 +26,9 @@ Phase 2 — First playable (playtest: the user, with 2–4 players in Studio's "
   floors above you cut away; muzzle flash, streak, impact marks, damage numbers
 - [x] 2026-10-18 — Checked through the Studio MCP: a full race to a bot's escape, the throw-off, the next race,
   player shots reaching the server (12 → 9 rounds); no errors in Output
+- [x] 2026-10-18 — Shooter camera for mouse players (see Decisions). Checked through the MCP: Scriptable camera,
+  over the right shoulder, you face where it looks; turning with the mouse needs a real mouse (the MCP's
+  simulated mouse can't move a locked cursor)
 - [ ] **Playtest by the user** with 2–4 players (below), then fixes
 - [ ] Studio-only helpers to remove or keep behind `IsStudio()`: `ServerStorage.RooftopDev` (skip the clock), the
   `BotMode` attribute on bots, the "went down" log line
@@ -83,6 +86,11 @@ Weapons
 
 Camera, look, sound
 - **Third person** with over-the-shoulder aim; the floors above you are **cut away** like the original.
+- 2026-10-18: **Shooter camera with a mouse** (our own camera, `CameraAim.luau`): the mouse always turns the
+  view (cursor hidden, crosshair in the middle), you face where you look, you swing and shoot toward the
+  crosshair, the wheel zooms; right mouse = aim with a gun, guard with a melee weapon (no more conflict with
+  Roblox's hold-right-click-to-look). The cursor comes back in menus / chat / while Left Alt is held. Touch
+  and controller keep Roblox's own camera.
 - Setting: the **forest valley** of the original (pines, mountains, cold moon), not a city.
 - Music: **replace the soundtrack for now** (rights unclear). Sound effects: a **mix** of the original's sounds
   rendered to files and Roblox's own audio library.
