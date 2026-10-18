@@ -17,6 +17,7 @@ local Combat = require(ReplicatedStorage.Shared.Combat)
 local Rules = require(ReplicatedStorage.Shared.Rules)
 local Net = require(ReplicatedStorage.Shared.Net)
 local Climbers = require(script.Parent.Climbers)
+local CollisionGroups = require(script.Parent.CollisionGroups)
 local Tools = require(script.Parent.Tools)
 local Pickups = require(script.Parent.Pickups)
 local PlatformService = require(script.Parent.PlatformService)
@@ -55,6 +56,7 @@ end
 -- everything a fresh body needs, for players and bots alike
 local function setup(c: Climber, model: Model)
 	Climbers.setModel(c, model)
+	CollisionGroups.climber(model)
 	CombatService.register(c)
 	local hum = c.humanoid
 	if not hum then

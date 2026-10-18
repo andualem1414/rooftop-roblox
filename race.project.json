@@ -20,7 +20,7 @@
 				"CharacterWalkSpeed": 16,
 				"CharacterUseJumpPower": false,
 				"CharacterJumpHeight": 3.9,
-				"DevCameraOcclusionMode": "Invisicam",
+				"DevCameraOcclusionMode": "Zoom",
 				"EnableMouseLockOption": false,
 				"CameraMaxZoomDistance": 28,
 				"CameraMinZoomDistance": 6,

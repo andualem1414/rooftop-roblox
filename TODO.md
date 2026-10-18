@@ -85,7 +85,8 @@ Weapons
 - **Ammo:** generous at the start, it runs out, and ammo is found on different floors.
 
 Camera, look, sound
-- **Third person** with over-the-shoulder aim; the floors above you are **cut away** like the original.
+- **Third person** with over-the-shoulder aim; the floors above you are **cut away** like the original. Camera
+  occlusion is Roblox's "Zoom" (Invisicam faded the floor under your feet, 2026-10-18).
 - 2026-10-18: **Shooter camera with a mouse** (our own camera, `CameraAim.luau`): the mouse always turns the
   view (cursor hidden, crosshair in the middle), you face where you look, you swing and shoot toward the
   crosshair, the wheel zooms; right mouse = aim with a gun, guard with a melee weapon (no more conflict with

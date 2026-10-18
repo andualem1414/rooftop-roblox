@@ -262,6 +262,13 @@ function Tower.build(): Tower
 	if baseplate then
 		baseplate:Destroy()
 	end
+	-- nobody spawns at a SpawnLocation here (the race places everyone), and Studio's template has one
+	-- sitting right in the shaft
+	for _, d in workspace:GetDescendants() do
+		if d:IsA("SpawnLocation") then
+			d:Destroy()
+		end
+	end
 
 	local root = Instance.new("Model")
 	root.Name = "Tower"
