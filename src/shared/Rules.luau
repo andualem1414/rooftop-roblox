@@ -7,8 +7,8 @@ local Config = require("./Config")
 
 local Rules = {}
 
--- the floor climber i of n starts on: spread evenly over START_FLOORS, then shuffled by the caller
-function Rules.startFloor(i: number, n: number): number
+-- the floor the i-th climber starts on: spread evenly over START_FLOORS (the caller shuffles who is i)
+function Rules.startFloor(i: number): number
 	local lo, hi = Config.START_FLOORS[1], Config.START_FLOORS[2]
 	local span = hi - lo + 1
 	return lo + ((i - 1) % span)

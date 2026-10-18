@@ -9,7 +9,7 @@ describe("Rules", function()
 	it("spreads 20 climbers over floors 1-5, four each", function()
 		local count = {}
 		for i = 1, 20 do
-			local f = Rules.startFloor(i, 20)
+			local f = Rules.startFloor(i)
 			count[f] = (count[f] or 0) + 1
 		end
 		for f = 0, 4 do
