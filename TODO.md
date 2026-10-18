@@ -29,6 +29,16 @@ Phase 2 — First playable (playtest: the user, with 2–4 players in Studio's "
 - [x] 2026-10-18 — Shooter camera for mouse players (see Decisions). Checked through the MCP: Scriptable camera,
   over the right shoulder, you face where it looks; turning with the mouse needs a real mouse (the MCP's
   simulated mouse can't move a locked cursor)
+- [x] 2026-10-18 — **Feel and look overhaul** (the user asked for it before phase 3; it pulls most of phase 4
+  forward): posed arms for every climber (guns aimed in both hands with recoil, real bat / sword swings with
+  trails, guard, reload, flinch, run lean, banking) on an IK solver over Roblox's animations; muzzle flashes
+  that light the room, tracers, brass, sparks, impact stars, popping damage numbers, knock-out bursts, camera
+  recoil and shake, hit markers, hurt vignette; ink outlines on climbers; three look presets (Neon Night
+  default, Golden Dusk, Moonlit Ink); the forest valley (terrain, mountains, pond, track, 260 pines, the
+  tower's foot and entrance, ROOFTOP letters on the hill); 20 themed floors with furniture as cover; a
+  dressed roof; the intro (orbit / crane / rocket, then the dive), the roof-opening shot, fireworks and
+  confetti for the win
+- [ ] **The user's look at it** (screenshots), and the pick of a look preset
 - [ ] **Playtest by the user** with 2–4 players (below), then fixes
 - [ ] Studio-only helpers to remove or keep behind `IsStudio()`: `ServerStorage.RooftopDev` (skip the clock), the
   `BotMode` attribute on bots, the "went down" log line
@@ -98,6 +108,11 @@ Camera, look, sound
 - Maturity target: **Mild**. Owner: the user's **personal account**. Name: **Rooftop**.
 
 ## Inbox
+
+- Lighting → Technology = Future has to be set by hand in Studio (scripts can't); remember it for the
+  published places
+- Screen capture through the MCP comes back blank (3D isn't captured on this machine): visual checks need the
+  user's screenshots
 
 - Floors "double the size": read as 24 × 24 m (each side doubled; 4× the area). The other reading is double the
   area (~17 × 17 m). Confirm in the phase 2 playtest.
