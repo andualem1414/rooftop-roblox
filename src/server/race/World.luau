@@ -500,6 +500,67 @@ local function title()
 	end
 end
 
+---------------------------------------------------------------- the moon
+
+-- A big moon high behind the tower, where the opening shots look (the sky's own moon sits wherever the
+-- clock puts it): a pale disc, shaded, with craters, in a cold halo. Drawn as a billboard, so it always
+-- faces you and stays a clean circle however far away it is.
+local function circle(
+	parent: Instance,
+	size: number,
+	x: number,
+	y: number,
+	color: Color3,
+	transparency: number,
+	z: number
+): Frame
+	local f = Instance.new("Frame")
+	f.AnchorPoint = Vector2.new(0.5, 0.5)
+	f.Position = UDim2.fromScale(x, y)
+	f.Size = UDim2.fromScale(size, size)
+	f.BackgroundColor3 = color
+	f.BackgroundTransparency = transparency
+	f.BorderSizePixel = 0
+	f.ZIndex = z
+	local c = Instance.new("UICorner")
+	c.CornerRadius = UDim.new(0.5, 0)
+	c.Parent = f
+	f.Parent = parent
+	return f
+end
+
+local function moon()
+	local anchor =
+		part("Moon", Vector3.new(1, 1, 1), CFrame.new(-260, 720, -1500), Color3.new(), Enum.Material.SmoothPlastic)
+	anchor.Transparency = 1
+	anchor.CanCollide = false
+	anchor.CanQuery = false
+	anchor.CastShadow = false
+	local g = Instance.new("BillboardGui")
+	g.Size = UDim2.fromScale(560, 560) -- studs
+	g.LightInfluence = 0
+	g.Brightness = 1.6
+	g.AlwaysOnTop = false
+	g.MaxDistance = 100000
+	g.ClipsDescendants = false
+	-- the halo
+	circle(g, 1, 0.5, 0.5, Color3.fromRGB(150, 170, 255), 0.93, 1)
+	circle(g, 0.62, 0.5, 0.5, Color3.fromRGB(170, 190, 255), 0.86, 2)
+	-- the disc, lit from the upper left
+	local disc = circle(g, 0.4, 0.5, 0.5, Color3.fromRGB(236, 240, 255), 0, 3)
+	local shade = Instance.new("UIGradient")
+	shade.Color = ColorSequence.new(Color3.fromRGB(255, 255, 255), Color3.fromRGB(186, 196, 232))
+	shade.Rotation = 45
+	shade.Parent = disc
+	-- craters
+	for _, c in
+		{ { 0.3, 0.35, 0.18 }, { 0.62, 0.3, 0.1 }, { 0.55, 0.62, 0.22 }, { 0.28, 0.68, 0.09 }, { 0.75, 0.55, 0.07 } }
+	do
+		circle(disc, c[3], c[1], c[2], Color3.fromRGB(196, 204, 236), 0.35, 4)
+	end
+	g.Parent = anchor
+end
+
 ---------------------------------------------------------------- build
 
 function World.build()
@@ -516,6 +577,7 @@ function World.build()
 	base()
 	forest()
 	title()
+	moon()
 end
 
 return World
