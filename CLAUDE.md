@@ -100,7 +100,7 @@ powershell -ExecutionPolicy Bypass -File publish\publish.ps1   # publish both pl
 **The game is published** (private): experience Rooftop, universe 10771906434; lobby 96194017293551, race
 127585457284186 (`src/shared/Places.luau`). Updates: `publish\publish.ps1` (checks, then `rojo upload` of
 both places with the Open Cloud key in the user variable `ROBLOX_PUBLISH_KEY`; never read, print or log it).
-Publishing makes the change live for new servers: ask the user before running it. Details in
+When the user asks to publish, run it yourself (no extra confirmation); don't publish unasked. Details in
 `publish/RELEASE.md` → "Publishing from the terminal".
 
 The first-time list is in `publish/RELEASE.md`. In short (the owner does the Roblox side):
