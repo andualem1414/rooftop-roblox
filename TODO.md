@@ -13,8 +13,11 @@ What's left is mostly the user's: looking, playing and publishing. Claude's code
       (guns, full auto, touch / controller buttons, sounds, settings, looks on bots) and the lobby place
       (open `build/lobby.rbxl`; see CLAUDE.md → Studio), then fixes
 - [ ] Listen to the sounds and swap any that don't fit (`src/shared/Sounds.luau`: one table, ids and trims)
-- [ ] **Publish privately** (phase 7, `publish/RELEASE.md`), fill in `src/shared/Places.luau`, then the
-      release test in the published game: teleports, saving, leaderboards, friends together
+- [x] **Published privately** (2026-10-19): experience **Rooftop** (universe 10771906434), lobby place
+      96194017293551 (start place), race place 127585457284186 "Rooftop Race"; ids in `src/shared/Places.luau`;
+      R15 only, max 20 per place, Studio API access on, access private
+- [ ] **Release test** in the published game (`publish/RELEASE.md` §3): teleports, saving, leaderboards,
+      friends together
 - [ ] **Phase 6 boosters**: create the four Developer Products on Creator Hub (+1, +3, +5, +10 floors), put
       their ids in `src/shared/Booster.luau`; until then they're not for sale (Studio: free test boosts)
 - [ ] Then: the maturity questionnaire (expected Mild), the game page, icon and thumbnails, going public

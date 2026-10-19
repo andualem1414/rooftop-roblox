@@ -19,14 +19,18 @@ by hand. The Workspace attributes `LookPreset` and `TestBots` only work in Studi
 1. Open `build/lobby.rbxl` in Studio → File → **Publish to Roblox As…** → a new experience named
    **Rooftop**, owned by your personal account. This place is the **start place** (the lobby).
 2. Open `build/race.rbxl` → File → **Publish to Roblox As…** → pick the Rooftop experience → **add it as a
-   new place** named **Rooftop Race** (the name must contain "Race": until step 3 the servers find the
-   race place by name).
+   new place**. Studio creates it at once with an automatic name ("…'s Place: …"); rename it to **Rooftop
+   Race** on Creator Hub → the place → Basic Settings (until step 3 the servers find the race place by a
+   name containing "Race").
 3. Creator Hub → Rooftop → **Places**: copy both place ids into `src/shared/Places.luau` (`LOBBY`, `RACE`),
    commit, rebuild both places and publish each again (File → Publish to Roblox).
-4. Creator Hub → Rooftop → **Configure**:
-   - **Places**: Lobby and Rooftop Race: max players **20**.
-   - **Avatar**: avatar type **R15** (the arms are posed for R15 rigs).
-   - **Security**: optionally *Enable Studio Access to API Services*, to test saving in Studio.
+4. Settings (Studio's old *Game Settings* is now **File → Experience Settings**):
+   - **Max players 20**: Creator Hub → Rooftop → Places → each place → **Access** → *Maximum Visitor
+     Count* `20` → Save.
+   - **Avatar R15**: Studio → **File → Avatar Settings** → **⋯** (top right) → **R15 Only** (the arms are
+     posed for R15 rigs; new experiences already default to it).
+   - **Security**: File → Experience Settings → Security → *Enable Studio Access to API Services*, to test
+     saving in Studio.
    - **Devices**: Computer, Phone, Tablet, Console.
    - **Access**: keep it **private** until the release test below passes.
    - **Audio**: every sound is from Roblox's own licensed library or ships with Roblox: nothing to upload.
