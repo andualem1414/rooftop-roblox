@@ -8,6 +8,13 @@ Ask Claude "what's on the todo list?" or "do the next todo" any time.
 
 What's left is mostly the user's: looking, playing and publishing. Claude's code for every phase is in.
 
+- [ ] **Playtest the new movement** (2026-10-19, built but not yet seen in Studio): strafing and backing
+      off with a gun, turning on the spot, jumps and drops, a platform ride, every gun's stance, kick and
+      reload (the magazine drop, the shotgun's shells and pump), melee swings and guards, being shot from
+      each side, a boost and its landing, the skydive, a knock-out and coming to, the end of a race. The
+      numbers to tune are in `client/race/Poser` (STANCE, RELOADS, the springs) and `client/race/Gunwork`
+- [ ] **Check the camera in tight spots** (2026-10-19): backed against a wall, behind shelves, the roof's
+      units; props ghost, walls don't, your silhouette shows if a wall still hides you
 - [ ] **The user's look** (screenshots) and the pick of a look preset (Neon Night is the default)
 - [ ] **Playtest by the user** in Studio (Test → Clients and Servers, 2–4 players): the race place
       (guns, full auto, touch / controller buttons, sounds, settings, looks on bots) and the lobby place
@@ -67,7 +74,9 @@ Weapons
 
 Camera, look, sound
 - **Third person** with over-the-shoulder aim; the floors above you are **cut away** like the original. Camera
-  occlusion is Roblox's "Zoom" (Invisicam faded the floor under your feet, 2026-10-18).
+  occlusion is Roblox's "Zoom" (Invisicam faded the floor under your feet, 2026-10-18). 2026-10-19: walls
+  and floors keep the camera in front of them; furniture, crates and roof props ghost instead (only on your
+  screen), and your own silhouette shows through a wall that still hides you (nobody else's).
 - 2026-10-18: **Shooter camera with a mouse** (our own camera, `CameraAim.luau`): the mouse always turns the
   view (cursor hidden, crosshair in the middle), you face where you look, you swing and shoot toward the
   crosshair, the wheel zooms; right mouse = aim with a gun, guard with a melee weapon (no more conflict with
@@ -105,6 +114,13 @@ Camera, look, sound
   End game → main screen. The skydive never hits the ground: four floors up it stops, shows the rings taken,
   and goes to the main screen. Nothing restarts by itself (Studio: Play again on the card). Players who don't
   press are sent back after 90 s (the winner after 10 min). A Studio-only Win now button puts you on the roof.
+- **Bigger platforms** (the user, 2026-10-19): decks half again as big, 3.5 m -> 5.25 m across; the shaft
+  grows with them (one number: `DECK_HALF` in `shared/Config`).
+- **Bodies that move like they're alive** (the user, 2026-10-19): a procedural layer over Roblox's own
+  animations on every climber, players and bots: legs follow where you move (backing off runs in reverse),
+  stances, recoil and reloads per gun, flinches by where a hit lands, landings in the knees, breathing and
+  fidgets, set-piece poses (boost, skydive, knock-out, coming to, the end). All cosmetic: nothing changes
+  what the server decides.
 - **Phase 6: a paid booster** (the user's design; it replaces "cosmetic only" from 2026-10-18): a glowing
   pad beside the shaft on every floor (1–17); F / D-pad up / tap opens the choices: +1, +3, +5 or +10 floors,
   each a Developer Product. Bought, you fly up the shaft like Iron Man (jets from your feet) to that floor.
@@ -134,6 +150,20 @@ Camera, look, sound
 
 ## Done
 
+- [x] 2026-10-19 — A full read of the code and the fixes it found: bullets lifted their target (full auto
+  kept it floating); a held guard dropped for good after a swing; the crosshair never changed size; ammo
+  boxes from one race respawned into the next and full climbers used them up; drops hung in the shaft;
+  unsaved settings were undone by other saves; the winner was told apart by display name (not unique);
+  casings and confetti bumped climbers; the skydive reported twice; LoadCharacter (deprecated) in the lobby;
+  far climbers' poses could compound when Roblox throttled their animation
+- [x] 2026-10-19 — Platforms 1.5x (5.25 m decks), the shaft and everything sized from it following; the
+  roof's helipad moved clear of the hatch; furniture kept off booster pads
+- [x] 2026-10-19 — The camera: a sphere-cast instead of a ray (no clipping into walls and corners), in at
+  once and smoothly back out; ghosted props (`client/race/Sightline`); your silhouette through walls
+- [x] 2026-10-19 — The movement overhaul (`client/race/Poser`, `Gunwork`, `shared/Motion` with tests; bots'
+  run keeps pace and reverses on the server). The gun stances were tuned with the real arm solver run in
+  Lune on R15 arm lengths: both hands land exactly; the other hand sits 0.8+ studs along the rifle and
+  shotgun, 0.4+ on the SMG
 - [x] 2026-10-19 — Valley mountains written as voxels (`Valley.tiles` / `Valley.voxels`, `WriteVoxels`) instead
   of 126 big `FillBall`s and the replace sweeps: the same voxels from the floor up (all 21.9 M compared in
   Studio against the old build, occupancy within 1/255), nothing built below y = −20 (under the floor).
