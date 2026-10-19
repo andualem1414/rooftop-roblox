@@ -17,6 +17,9 @@ local Weapons = require(ReplicatedStorage.Shared.Weapons)
 local Net = require(ReplicatedStorage.Shared.Net)
 local CameraAim = require(script.Parent.CameraAim)
 local Poser = require(script.Parent.Poser)
+local Common = script.Parent.Parent:WaitForChild("Common")
+local Audio = require(Common:WaitForChild("Audio")) :: any
+local ClientSettings = require(Common:WaitForChild("ClientSettings")) :: any
 
 local player = Players.LocalPlayer
 
@@ -198,6 +201,7 @@ local function muzzle(model: Instance?, weapon: string?, fallback: Vector3?, fac
 		return
 	end
 	local color = ACCENT[weapon or ""] or ACCENT.pistol
+	Audio.play(weapon or "pistol", at)
 	star(at + (look :: Vector3) * 0.3, look :: Vector3, color, 1.3, 0.06)
 	flashLight(at, color, 7, 16, 0.09)
 	burst(at, Color3.fromRGB(120, 116, 112), 3, 4, 0.8, 0.5, SMOKE_TEX, -2)
@@ -250,8 +254,11 @@ local function shot(model: Instance, from: Vector3, to: Vector3, kind: string, w
 	end
 end
 
--- a damage number that pops up and drifts away
+-- a damage number that pops up and drifts away (unless they're switched off in the settings)
 local function number(at: Vector3, dmg: number, kind: string)
+	if not ClientSettings.get().numbers then
+		return
+	end
 	local anchor = Instance.new("Attachment")
 	anchor.WorldPosition = at
 		+ Vector3.new(rng:NextNumber(-0.8, 0.8), rng:NextNumber(0, 0.6), rng:NextNumber(-0.8, 0.8))
@@ -319,11 +326,16 @@ local function hit(at: Vector3, dmg: number, kind: string, victim: Instance?, at
 		burst(at, Color3.fromRGB(255, 200, 120), 12, 24, 0.35, 0.35)
 	end
 	number(at, dmg, kind)
+	Audio.play(if kind == "block" then "block" else "hit", at)
 	-- feel it when it's you
 	if victim and victim == me then
 		CameraAim.shake(if kind == "block" then 0.15 else 0.35 + dmg * 0.01)
+		if kind ~= "block" then
+			Audio.play("hurt")
+		end
 	elseif attacker and attacker == me then
 		CameraAim.shake(0.12)
+		Audio.play(if kind == "head" then "headshot" else "hitmarker")
 	end
 end
 
@@ -334,6 +346,7 @@ local function knockedOut(model: Model)
 		return
 	end
 	local at = root.Position
+	Audio.play("knockout", at)
 	star(at, Vector3.yAxis, Color3.fromRGB(255, 255, 255), 4, 0.18)
 	burst(at, Color3.fromRGB(190, 170, 255), 24, 30, 0.5, 0.6)
 	burst(at, Color3.fromRGB(60, 50, 80), 6, 4, 2, 1.2, SMOKE_TEX, -2)
@@ -366,6 +379,12 @@ local function watch(model: Instance)
 		return
 	end
 	outline(model)
+	-- a reload's clatter, from the gun
+	model:GetAttributeChangedSignal("Reloading"):Connect(function()
+		if model:GetAttribute("Reloading") == true then
+			Audio.play("reload", model:FindFirstChild("HumanoidRootPart"))
+		end
+	end)
 	local hum = model:WaitForChild("Humanoid", 5) :: Humanoid?
 	if hum then
 		hum.Died:Connect(function()

@@ -2,8 +2,10 @@
 -- One race, start to finish, owned by the server:
 --   waiting -> ready (everyone frozen on floors 1–5, bots fill to 20) -> climb -> roof (the roof opens
 --   at 4:00) -> over (someone got out alone, or 8:00 passed) -> 15 s celebration
--- After that the players go back to the lobby (phase 3); until the lobby exists, and always in Studio,
--- the next race starts here.
+-- In the live game each race has its own reserved server: the lobby sends a group here (its size rides
+-- in the teleport data), the race waits for them all (not forever), runs once, saves everyone's result
+-- (server/common/ProfileStore) and sends them all back to the lobby. Anyone who lands in a public race
+-- server is sent to the lobby. In Studio (no teleports) the next race starts here instead.
 --
 -- Clients follow along through attributes on ReplicatedStorage.RaceState:
 --   Phase ("waiting" / "ready" / "climb" / "roof" / "over"), StartAt (server time the climb starts),
@@ -14,10 +16,15 @@ local RunService = game:GetService("RunService")
 
 local Config = require(ReplicatedStorage.Shared.Config)
 local Combat = require(ReplicatedStorage.Shared.Combat)
+local Weapons = require(ReplicatedStorage.Shared.Weapons)
 local Rules = require(ReplicatedStorage.Shared.Rules)
+local Lobby = require(ReplicatedStorage.Shared.Lobby)
 local Net = require(ReplicatedStorage.Shared.Net)
 local Climbers = require(script.Parent.Climbers)
 local CollisionGroups = require(script.Parent.Parent.Common.CollisionGroups)
+local ProfileStore = require(script.Parent.Parent.Common.ProfileStore)
+local LookService = require(script.Parent.Parent.Common.LookService)
+local Travel = require(script.Parent.Parent.Common.Travel)
 local Tools = require(script.Parent.Tools)
 local Pickups = require(script.Parent.Pickups)
 local PlatformService = require(script.Parent.PlatformService)
@@ -39,6 +46,13 @@ local finished = false
 local winner: Climber? = nil
 local skipCelebration = false -- (Studio test hook)
 local readyPlayers: { [Player]: boolean } = {} -- clients that are running
+local winTime: number? = nil -- race time the winner got out
+local recorded: { [Player]: boolean } = {} -- this race's result is saved for them
+
+local STUDIO = RunService:IsStudio()
+-- a reserved server the lobby made for one group (the live game); else Studio, or a stray public server
+local RESERVED = not STUDIO and game.PrivateServerId ~= "" and game.PrivateServerOwnerId == 0
+local groupSize = 0 -- how many the lobby sent (from their teleport data)
 
 local Notice = Net.event("Notice")
 local Feed = Net.event("Feed")
@@ -103,6 +117,11 @@ local function spawnPlayer(c: Climber, floor: number)
 	setup(c, char)
 	local spot = tower.randomSpot(floor)
 	char:PivotTo(CFrame.new(spot) * CFrame.Angles(0, rng:NextNumber() * math.pi * 2, 0))
+	-- their look, once their avatar has loaded
+	task.spawn(function()
+		local profile = ProfileStore.load(p)
+		LookService.applyWhenLoaded(p, char, profile.look)
+	end)
 end
 
 local function spawn(c: Climber, floor: number)
@@ -137,6 +156,32 @@ local function onEscape(c: Climber)
 	end
 	finished = true
 	winner = c
+	winTime = RaceService.time()
+end
+
+-- save one player's race (once): their stats, and a line for each look it unlocked
+local function record(c: Climber)
+	local p = c.player
+	if not p or recorded[p] then
+		return
+	end
+	recorded[p] = true
+	local won = winner == c
+	local result = {
+		won = won,
+		time = if won then winTime else nil,
+		knockouts = c.knockouts,
+		highestFloor = c.highest + 1,
+	}
+	task.spawn(function()
+		local unlocked = ProfileStore.recordRound(p, result)
+		for _, look in unlocked do
+			if p.Parent then
+				Notice:FireClient(p, `New look unlocked: {look.name}!`, "win")
+				task.wait(3)
+			end
+		end
+	end)
 end
 
 local function onThrow(riders: { Climber }, _floor: number)
@@ -153,6 +198,18 @@ local function freezeAll(on: boolean)
 end
 
 local function playerAdded(p: Player)
+	task.spawn(ProfileStore.load, p)
+	if not STUDIO and not RESERVED then
+		-- a public race server: races start from the lobby
+		local lobby = Travel.lobbyPlace()
+		if lobby then
+			Travel.send({ p }, lobby, false)
+			return
+		end
+	end
+	if RESERVED and groupSize == 0 then
+		groupSize = Lobby.groupSize(p:GetJoinData().TeleportData)
+	end
 	local phase = state:GetAttribute("Phase")
 	if phase == "ready" or phase == "climb" or phase == "roof" then
 		-- (in Studio, or a straggler: in the live game the lobby sends everyone at once)
@@ -164,6 +221,10 @@ end
 
 local function playerRemoving(p: Player)
 	local c = Climbers.forPlayer(p)
+	local phase = state:GetAttribute("Phase")
+	if c and (phase == "climb" or phase == "roof" or phase == "over") then
+		record(c) -- (left mid-race: it still counts as a race played)
+	end
 	if c then
 		CombatService.unregister(c)
 		Climbers.remove(c) -- gone: one climber fewer (no bot takes their place)
@@ -179,7 +240,8 @@ end
 
 local function runRace()
 	raceNo += 1
-	finished, winner, roofOpen, startAt = false, nil, false, math.huge
+	finished, winner, roofOpen, startAt, winTime = false, nil, false, math.huge, nil
+	table.clear(recorded)
 	state:SetAttribute("Race", raceNo)
 	state:SetAttribute("RoofOpen", false)
 	state:SetAttribute("Winner", "")
@@ -189,8 +251,16 @@ local function runRace()
 	while #Players:GetPlayers() == 0 do
 		task.wait(0.5)
 	end
-	-- give Studio's other test clients a moment to arrive (phase 3: wait for the lobby's whole group)
-	task.wait(if RunService:IsStudio() then 2 else 5)
+	if RESERVED then
+		-- the whole group the lobby sent (not forever: stragglers join a race under way)
+		local waited = 0
+		while not Lobby.groupReady(#Players:GetPlayers(), groupSize, waited) do
+			waited += task.wait(0.25)
+		end
+	else
+		-- give Studio's other test clients a moment to arrive
+		task.wait(if STUDIO then 2 else 5)
+	end
 
 	-- a clean tower
 	for _, c in Climbers.all() do
@@ -292,11 +362,31 @@ local function runRace()
 		Notice:FireAllClients("Nobody got out.", "over")
 	end
 	setPhase("over")
+	for _, c in Climbers.all() do
+		record(c)
+	end
 	if skipCelebration then
 		skipCelebration = false
 		task.wait(1)
 	else
 		task.wait(Config.CELEBRATION)
+	end
+	if RESERVED then
+		-- back to the lobby, everyone together; anyone a teleport misses is sent again
+		local lobby = Travel.lobbyPlace()
+		setPhase("leaving")
+		Notice:FireAllClients("Back to the lobby…", "info")
+		while lobby do
+			Travel.send(Players:GetPlayers(), lobby, false)
+			task.wait(15)
+			if #Players:GetPlayers() == 0 then
+				break
+			end
+		end
+		-- (the server closes once it's empty)
+		while true do
+			task.wait(60)
+		end
 	end
 end
 
@@ -319,11 +409,12 @@ function RaceService.start(t: Tower.Tower)
 	})
 	Bots.prepare()
 
-	-- Studio only: a test hook to skip the race clock ahead (`RooftopDev:Invoke("skip", seconds)`)
+	-- Studio only: test hooks (`RooftopDev:Invoke(...)`): "skip" seconds of the race clock, "win" (the first
+	-- player gets out), "restart" the race, "give" the first player a weapon
 	if RunService:IsStudio() then
 		local dev = Instance.new("BindableFunction")
 		dev.Name = "RooftopDev"
-		dev.OnInvoke = function(cmd: string, arg: number?)
+		dev.OnInvoke = function(cmd: string, arg: any)
 			if cmd == "skip" and startAt < math.huge then
 				startAt -= arg or 0
 				state:SetAttribute("StartAt", startAt)
@@ -333,6 +424,20 @@ function RaceService.start(t: Tower.Tower)
 				local c = p and Climbers.forPlayer(p)
 				if c then
 					onEscape(c)
+				end
+			elseif cmd == "give" and type(arg) == "string" then
+				-- the first player gets a weapon (`RooftopDev:Invoke("give", "rifle")`)
+				local p = Players:GetPlayers()[1]
+				local c = p and Climbers.forPlayer(p)
+				local w = Weapons[arg]
+				if c and w then
+					if w.slot == "gun" then
+						Combat.giveGun(c.fighter, arg)
+					else
+						c.fighter.melee = arg
+					end
+					Tools.sync(c)
+					Tools.publish(c)
 				end
 			elseif cmd == "restart" then
 				-- end this race at once (no winner, no celebration): the next one starts

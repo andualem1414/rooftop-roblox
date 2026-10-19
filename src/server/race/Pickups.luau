@@ -12,6 +12,7 @@ local Config = require(ReplicatedStorage.Shared.Config)
 local Weapons = require(ReplicatedStorage.Shared.Weapons)
 local Combat = require(ReplicatedStorage.Shared.Combat)
 local Rules = require(ReplicatedStorage.Shared.Rules)
+local Net = require(ReplicatedStorage.Shared.Net)
 local Climbers = require(script.Parent.Climbers)
 local Tools = require(script.Parent.Tools)
 local Tower = require(script.Parent.Parent.Common.Tower)
@@ -30,6 +31,7 @@ export type Pickup = {
 local Pickups = {}
 
 local rng = Random.new()
+local Cue = Net.event("Cue")
 local all: { Pickup } = {}
 local folder: Folder
 local tower: Tower.Tower
@@ -207,6 +209,9 @@ function Pickups.take(c: Climber, pk: Pickup): boolean
 			pk.onTaken()
 		end
 		Tools.publish(c)
+		if c.player then
+			Cue:FireClient(c.player, "pickup")
+		end
 		return true
 	end
 	local w = Weapons[pk.kind]
@@ -232,6 +237,9 @@ function Pickups.take(c: Climber, pk: Pickup): boolean
 	end
 	Tools.sync(c)
 	Tools.publish(c)
+	if c.player then
+		Cue:FireClient(c.player, "pickup")
+	end
 	return true
 end
 

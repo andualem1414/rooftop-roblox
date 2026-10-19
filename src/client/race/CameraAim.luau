@@ -12,6 +12,8 @@ local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
 
+local ClientSettings = require(script.Parent.Parent:WaitForChild("Common"):WaitForChild("ClientSettings")) :: any
+
 local player = Players.LocalPlayer
 local gameSettings = UserSettings():GetService("UserGameSettings")
 
@@ -43,9 +45,11 @@ function CameraAim.kick(rad: number)
 	pitch = math.clamp(pitch + rad * 0.35, PITCH_MIN, PITCH_MAX)
 end
 
--- a short tremble (0..1-ish)
+-- a short tremble (0..1-ish), unless camera shake is off in the settings
 function CameraAim.shake(amount: number)
-	shakeAmt = math.max(shakeAmt, amount)
+	if ClientSettings.get().shake then
+		shakeAmt = math.max(shakeAmt, amount)
+	end
 end
 
 local function shakeRot(dt: number): CFrame
@@ -85,6 +89,7 @@ end
 
 local function cursorWanted(): boolean
 	return GuiService.MenuIsOpen
+		or player:GetAttribute("MenuOpen") == true
 		or UserInputService:GetFocusedTextBox() ~= nil
 		or UserInputService:IsKeyDown(Enum.KeyCode.LeftAlt)
 end
@@ -221,7 +226,7 @@ local function update(dt: number)
 		if justLocked or delta.Magnitude > 250 then
 			delta = Vector2.zero
 		end
-		local sens = TURN * math.max(0.1, gameSettings.MouseSensitivity)
+		local sens = TURN * math.max(0.1, gameSettings.MouseSensitivity) * ClientSettings.get().sensitivity
 		yaw -= delta.X * sens
 		pitch = math.clamp(pitch - delta.Y * sens, PITCH_MIN, PITCH_MAX)
 	end

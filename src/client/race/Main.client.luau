@@ -5,6 +5,7 @@ local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Version = require(ReplicatedStorage.Shared.Version)
+local Audio = require(script.Parent.Parent:WaitForChild("Common"):WaitForChild("Audio")) :: any
 local CameraAim = require(script.Parent.CameraAim)
 local Poser = require(script.Parent.Poser)
 local Fx = require(script.Parent.Fx)
@@ -14,6 +15,7 @@ local Hud = require(script.Parent.Hud)
 local Cinematic = require(script.Parent.Cinematic)
 local Ambience = require(script.Parent.Ambience)
 
+Audio.init()
 CameraAim.init()
 Poser.init()
 Fx.init()

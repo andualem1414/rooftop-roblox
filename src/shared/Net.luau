@@ -9,6 +9,8 @@
 --   Look(pitch)                    (unreliable, ~15 a second) where you look up / down, so everyone sees
 --                                  your arms and head follow it
 --   Ready()                        this client's scripts are running (the race waits for it)
+--   SetLook(id)                    wear this look (if your stats unlock it)
+--   SaveSettings(settings)         keep these settings with your profile
 -- Server -> clients:
 --   Knock(velocity)                you were hit: get pushed this way (your client owns your body)
 --   ShotFx(model, from, to, kind, weapon)  draw a shot: muzzle flash, streak, impact (kind: "body",
@@ -17,6 +19,7 @@
 --   HitFx(position, damage, kind, victim, attacker)  a hit landed (kind: "hit", "block", "head")
 --   Notice(text, kind)             a banner line for everyone (or one player)
 --   Feed(text, kind)               a kill-feed line
+--   Cue(name, position?)           play a sound cue (shared/Sounds) for everyone, or one player
 --
 -- Character attributes the server keeps up to date (for the poses): Aim (pitch, radians), Guard,
 -- Reloading.
@@ -24,7 +27,22 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 
-local NAMES = { "Swing", "Shoot", "Guard", "Reload", "Ready", "Knock", "ShotFx", "SwingFx", "HitFx", "Notice", "Feed" }
+local NAMES = {
+	"Swing",
+	"Shoot",
+	"Guard",
+	"Reload",
+	"Ready",
+	"Knock",
+	"ShotFx",
+	"SwingFx",
+	"HitFx",
+	"Notice",
+	"Feed",
+	"SetLook",
+	"SaveSettings",
+	"Cue",
+}
 local UNRELIABLE = { "Look" }
 
 local Net = {}

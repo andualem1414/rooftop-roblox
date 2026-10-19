@@ -19,6 +19,7 @@ local RunService = game:GetService("RunService")
 local Weapons = require(ReplicatedStorage.Shared.Weapons)
 local Net = require(ReplicatedStorage.Shared.Net)
 local Ik = require(script.Parent.Ik)
+local Audio = require(script.Parent.Parent:WaitForChild("Common"):WaitForChild("Audio")) :: any
 
 local player = Players.LocalPlayer
 
@@ -418,6 +419,10 @@ function Poser.swing(model: Instance?, weapon: string, side: number)
 	local r = rigOf(model)
 	if r and Weapons[weapon] then
 		r.swing = { weapon = weapon, side = if side < 0 then -1 else 1, t0 = os.clock() }
+		-- the whoosh, as the blow comes round
+		task.delay(Weapons[weapon].windup * 0.6, function()
+			Audio.play(weapon, r.root)
+		end)
 	end
 end
 

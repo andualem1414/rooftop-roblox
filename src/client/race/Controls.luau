@@ -21,6 +21,7 @@ local Net = require(ReplicatedStorage.Shared.Net)
 local CameraAim = require(script.Parent.CameraAim)
 local Fx = require(script.Parent.Fx)
 local Poser = require(script.Parent.Poser)
+local Audio = require(script.Parent.Parent:WaitForChild("Common"):WaitForChild("Audio")) :: any
 
 local player = Players.LocalPlayer
 
@@ -69,8 +70,11 @@ local function use()
 	if w.slot == "gun" then
 		-- a round in the gun: the kick and the flash show at once (the server decides what it hits)
 		local mag = player:GetAttribute("Mag")
-		if type(mag) == "number" and mag > 0 and player:GetAttribute("Reloading") ~= true then
+		local reloading = player:GetAttribute("Reloading") == true
+		if type(mag) == "number" and mag > 0 and not reloading then
 			Fx.ownShot(w)
+		elseif not reloading then
+			Audio.play("empty")
 		end
 		local ray = CameraAim.ray()
 		Shoot:FireServer(ray.Origin, ray.Direction.Unit, CameraAim.aiming)

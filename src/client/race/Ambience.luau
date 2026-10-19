@@ -4,12 +4,17 @@
 --   beacon blinks; low mist drifts round the foot of the tower; fireflies at the forest's edge
 --   the win: fireworks all round the tower (rockets with trails, coloured bursts that light up the
 --   valley), and confetti blown out over the roof
+--   the sound of it: the music (low while you climb, a drone once the roof is open, the fanfare for the
+--   win), a platform's clunk as it stops on your floor or near it, the roof grinding open, fireworks
 local Debris = game:GetService("Debris")
+local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
 
 local Config = require(ReplicatedStorage.Shared.Config)
+local Platforms = require(ReplicatedStorage.Shared.Platforms)
+local Audio = require(script.Parent.Parent:WaitForChild("Common"):WaitForChild("Audio")) :: any
 
 local Ambience = {}
 
@@ -119,6 +124,7 @@ end
 ---------------------------------------------------------------- the win
 
 local function burst(at: Vector3)
+	Audio.play("firework", at)
 	local a = attachmentAt(at)
 	local hue = rng:NextNumber()
 	local c1 = Color3.fromHSV(hue, 0.75, 1)
@@ -228,6 +234,57 @@ local function celebrate(seconds: number)
 	end)
 end
 
+---------------------------------------------------------------- sound
+
+-- a platform's clunk as it stops, on your floor or the ones next to it (from the shared timetable)
+local function platformClunks(state: Instance)
+	local stops: { [number]: number } = {}
+	RunService.Heartbeat:Connect(function()
+		local phase = state:GetAttribute("Phase")
+		if phase ~= "climb" and phase ~= "roof" then
+			return
+		end
+		local char = Players.LocalPlayer.Character
+		local root = char and char:FindFirstChild("HumanoidRootPart") :: BasePart?
+		if not root then
+			return
+		end
+		local mine = math.floor(root.Position.Y / Config.FLOOR_HEIGHT + 0.3)
+		local t = workspace:GetServerTimeNow() - ((state:GetAttribute("StartAt") :: number?) or 0)
+		local roofOpen = state:GetAttribute("RoofOpen") == true
+		local first, last = Platforms.launchRange(t)
+		for k = first, last do
+			local s = Platforms.state(Platforms.age(k, t), roofOpen)
+			local stop = s.stop
+			if stop and stops[k] ~= stop then
+				stops[k] = stop
+				if math.abs(stop - mine) <= 1 then
+					Audio.play("platform", Vector3.new(0, stop * Config.FLOOR_HEIGHT, 0))
+				end
+			end
+		end
+	end)
+end
+
+local function music(state: Instance)
+	local function pick()
+		local phase = state:GetAttribute("Phase")
+		local w = state:GetAttribute("Winner")
+		if phase == "over" and type(w) == "string" and w ~= "" then
+			Audio.music(nil)
+			Audio.play("win")
+		elseif phase == "roof" then
+			Audio.music("roofMusic")
+		elseif phase == "ready" or phase == "climb" then
+			Audio.music("raceMusic")
+		elseif phase == "over" or phase == "leaving" then
+			Audio.music(nil)
+		end
+	end
+	state:GetAttributeChangedSignal("Phase"):Connect(pick)
+	pick()
+end
+
 function Ambience.init()
 	folder = Instance.new("Folder")
 	folder.Name = "Ambience"
@@ -242,6 +299,14 @@ function Ambience.init()
 			celebrate(Config.CELEBRATION)
 		end
 	end)
+	-- the roof grinding open
+	state:GetAttributeChangedSignal("RoofSceneAt"):Connect(function()
+		if type(state:GetAttribute("RoofSceneAt")) == "number" then
+			Audio.play("roof", Vector3.new(0, H + 4, 0))
+		end
+	end)
+	platformClunks(state)
+	music(state)
 end
 
 return Ambience

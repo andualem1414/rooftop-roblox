@@ -8,9 +8,13 @@ local Look = require(ReplicatedStorage.Shared.Look)
 local CollisionGroups = require(script.Parent.Parent.Common.CollisionGroups)
 local Tower = require(script.Parent.Parent.Common.Tower)
 local World = require(script.Parent.Parent.Common.World)
+local ProfileStore = require(script.Parent.Parent.Common.ProfileStore)
+local Travel = require(script.Parent.Parent.Common.Travel)
 local RaceService = require(script.Parent.RaceService)
 
 CollisionGroups.init()
+ProfileStore.init()
+Travel.init()
 
 -- the look; in Studio a Workspace attribute LookPreset ("Neon Night", "Golden Dusk", "Moonlit Ink")
 -- switches it live

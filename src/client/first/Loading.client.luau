@@ -4,7 +4,7 @@
 -- content preloaded, and the camera
 -- parked for a moment on the intro's opening views behind the screen so the terrain and the tower are
 -- drawn before anyone sees them. Then it marks the player Loaded (the race client tells the server it's
--- ready, and the race waits for that) and fades out as the intro starts.
+-- ready, and the race waits for that) and fades out as the intro starts (in the lobby: at once).
 local ContentProvider = game:GetService("ContentProvider")
 local Players = game:GetService("Players")
 local ReplicatedFirst = game:GetService("ReplicatedFirst")
@@ -163,17 +163,35 @@ for i, cf in views do
 	progress(0.75 + 0.2 * i / #views, "Painting the valley…")
 end
 
--- 6. ready: the race client may tell the server now; the screen stays up until the intro starts
-progress(1, "Waiting for the race…")
-player:SetAttribute("Loaded", true)
-local state = ReplicatedStorage:WaitForChild("RaceState", 60)
-local waited = 0
-while state and waited < 45 do
-	local phase = state:GetAttribute("Phase")
-	if phase == "ready" or phase == "climb" or phase == "roof" or phase == "over" then
-		break
+-- 6. ready: the race client may tell the server now; in a race the screen stays up until the intro
+-- starts, in the lobby it goes at once (and hands the camera back)
+local race: Instance?, lobby: Instance? = nil, nil
+local looked = 0
+while not race and not lobby and looked < 60 do
+	race = ReplicatedStorage:FindFirstChild("RaceState")
+	lobby = ReplicatedStorage:FindFirstChild("LobbyState")
+	if not race and not lobby then
+		looked += task.wait(0.1)
 	end
-	waited += task.wait(0.1)
+end
+player:SetAttribute("Loaded", true)
+if lobby then
+	camera.CameraType = Enum.CameraType.Custom
+	local char = player.Character
+	local hum = char and char:FindFirstChildOfClass("Humanoid")
+	if hum then
+		camera.CameraSubject = hum
+	end
+else
+	progress(1, "Waiting for the race…")
+	local waited = 0
+	while race and waited < 45 do
+		local phase = race:GetAttribute("Phase")
+		if phase == "ready" or phase == "climb" or phase == "roof" or phase == "over" then
+			break
+		end
+		waited += task.wait(0.1)
+	end
 end
 
 -- fade out

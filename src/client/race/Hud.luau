@@ -4,6 +4,9 @@
 --   middle:       the crosshair (gun in hand), banners ("Only one can escape!")
 --   top right:    the kill feed
 --   bottom left:  health; bottom right: weapon and ammo
+--   bottom left:  Settings (or P / the controller's View button), above health: the settings panel
+-- With the countdown's last seconds ticking, and a chime under each banner.
+local ContextActionService = game:GetService("ContextActionService")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
@@ -16,6 +19,10 @@ local Rules = require(ReplicatedStorage.Shared.Rules)
 local Weapons = require(ReplicatedStorage.Shared.Weapons)
 local Net = require(ReplicatedStorage.Shared.Net)
 local CameraAim = require(script.Parent.CameraAim)
+local Common = script.Parent.Parent:WaitForChild("Common")
+local Ui = require(Common:WaitForChild("Ui")) :: any
+local Audio = require(Common:WaitForChild("Audio")) :: any
+local SettingsPanel = require(Common:WaitForChild("SettingsPanel")) :: any
 
 local player = Players.LocalPlayer
 
@@ -153,8 +160,26 @@ function Hud.init()
 		end)
 	end)
 
+	-- the settings: a button (with the cursor out: hold Left Alt), P, or the controller's View button
+	local menu = Ui.screen("RaceMenu", 20)
+	local settings = SettingsPanel.create(menu)
+	local gear = Ui.button(gui, "Settings", function()
+		Audio.play("click")
+		settings.toggle()
+	end)
+	gear.Size = UDim2.fromOffset(96, 32)
+	gear.Position = UDim2.new(0, 20, 1, -100) -- (above the health bar: the chat has the top left)
+	gear.TextSize = 15
+	ContextActionService:BindAction("RooftopSettings", function(_, s: Enum.UserInputState)
+		if s == Enum.UserInputState.Begin then
+			settings.toggle()
+		end
+		return Enum.ContextActionResult.Sink
+	end, false, Enum.KeyCode.P, Enum.KeyCode.ButtonSelect)
+
 	local bannerToken = 0
 	Net.event("Notice").OnClientEvent:Connect(function(text: string, kind: string)
+		Audio.play("notice")
 		bannerToken += 1
 		local mine = bannerToken
 		banner.Text = text
@@ -236,6 +261,7 @@ function Hud.init()
 
 	local state = ReplicatedStorage:WaitForChild("RaceState")
 	local hudShown = true
+	local lastCount = math.huge
 	RunService.RenderStepped:Connect(function()
 		-- the intro, the roof opening and the winner's orbit get a clean screen (no HUD, no hotbar)
 		local show = not CameraAim.cinematic and player:GetAttribute("Loaded") == true
@@ -248,6 +274,16 @@ function Hud.init()
 		local startAt = state:GetAttribute("StartAt") or 0
 		local roofOpen = state:GetAttribute("RoofOpen") == true
 		local t = workspace:GetServerTimeNow() - startAt
+		-- the last three seconds tick, the start goes "go"
+		local count = if phase == "ready" then math.ceil(-t) else 0
+		if count ~= lastCount then
+			if count >= 1 and count <= 3 then
+				Audio.play("tick")
+			elseif count == 0 and lastCount == 1 then
+				Audio.play("go")
+			end
+			lastCount = count
+		end
 		if phase == "ready" then
 			clock.Text = `Get ready  {Rules.clock(-t)}`
 		elseif phase == "climb" then
@@ -257,6 +293,8 @@ function Hud.init()
 		elseif phase == "over" then
 			local w = state:GetAttribute("Winner")
 			clock.Text = if w and w ~= "" then `{w} got out first` else "Nobody got out"
+		elseif phase == "leaving" then
+			clock.Text = "Back to the lobby…"
 		else
 			clock.Text = "Waiting for the race"
 		end
