@@ -176,6 +176,53 @@ local function watch(tower: Instance)
 	end)
 end
 
+-- is this part of the tower on a floor that's cut away right now?
+function Cutaway.hides(d: Instance): boolean
+	local f = floorOf(d)
+	return f ~= nil and hiddenFloors[f] == true
+end
+
+-- the building's own shell: walls, floors, glass and trim are never ghosted (client/race/Sightline)
+local SHELL = {
+	Slab = true,
+	Wall = true,
+	Skin = true,
+	Glass = true,
+	Lip = true,
+	LipGlow = true,
+	Parapet = true,
+	Hatch = true,
+	ShaftGate = true,
+	CrateFence = true,
+	Baseboard = true,
+	Band = true,
+	FloorPaint = true,
+	Pit = true,
+}
+
+-- What may turn see-through when it stands between the camera and you (client/race/Sightline), and the
+-- camera may pass through (client/race/CameraAim): a piece of furniture (the whole piece), a loose crate,
+-- or one of the roof's props. nil for the building itself and anything outside it.
+function Cutaway.ghostOf(part: BasePart): Instance?
+	if SHELL[part.Name] then
+		return nil
+	end
+	if part.CollisionGroup == "Crates" then
+		return part
+	end
+	local node: Instance? = part
+	while node and node ~= workspace do
+		local parent = node.Parent
+		if parent and parent.Name == "Furniture" then
+			return node -- (one piece: a Model under the floor's Furniture)
+		elseif parent and parent.Name == "Roof" and parent:GetAttribute("Floor") ~= nil then
+			return node -- (the roof's units, the water tower, the sign...)
+		end
+		node = parent
+	end
+	return nil
+end
+
 -- show the whole tower for a while (the intro's opening shot, the roof opening, the win)
 function Cutaway.suspend(on: boolean)
 	suspended = on

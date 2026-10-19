@@ -2,7 +2,10 @@
 -- The camera: a third-person shooter camera over your right shoulder.
 --   With a mouse it's our own camera: the mouse always turns the view (the cursor is hidden and the
 --   crosshair stays in the middle), you face where the camera looks, the wheel zooms, and the camera
---   slides in front of walls rather than through them (ignoring the floors cut away above you). Right
+--   keeps in front of walls rather than going through them: a sphere the camera's size is swept out from
+--   your head, so its edges never clip into a wall or a corner. It comes in at once when something is in
+--   the way and eases back out once it's clear. The floors cut away above you, glass, and furniture,
+--   crates and roof props (they turn see-through instead: client/race/Sightline) don't stop it. Right
 --   mouse / L2 aims: the view tightens over the shoulder and the shot steadies. The cursor comes back
 --   while a menu, the chat or a text box is open, or while Left Alt is held.
 --   On a touch screen or with a controller it's Roblox's own camera (drag / right stick to look); with a
@@ -13,6 +16,7 @@ local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
 
 local ClientSettings = require(script.Parent.Parent:WaitForChild("Common"):WaitForChild("ClientSettings")) :: any
+local Cutaway = require(script.Parent.Cutaway)
 
 local player = Players.LocalPlayer
 local gameSettings = UserSettings():GetService("UserGameSettings")
@@ -28,8 +32,12 @@ local ZOOM_MIN, ZOOM_MAX, ZOOM_START, AIM_ZOOM = 6, 24, 12, 7
 local PITCH_MIN, PITCH_MAX = math.rad(-75), math.rad(65)
 local TURN = 0.0032 -- radians per pixel of mouse movement (times Roblox's sensitivity setting)
 
+local CAM_RADIUS = 0.55 -- studs: the camera keeps this far off walls (its near plane never cuts into them)
+local EASE_OUT = 7 -- how quickly the camera slides back out once the way is clear (1/s)
+
 local yaw, pitch = 0, math.rad(-18)
 local zoom, zoomGoal = ZOOM_START, ZOOM_START
+local boom = ZOOM_START -- how far behind the shoulder the camera is now (less than zoom when it's pulled in)
 local shoulder = Vector3.zero
 local locked = false
 local mouseMode = false
@@ -107,27 +115,35 @@ local function usingMouse(): boolean
 	return UserInputService.MouseEnabled
 end
 
--- where the camera can be: pulled in front of anything solid between you and it. Parts you can see
--- through (the cut-away floors, glass) and parts nobody bumps into don't count.
+-- How far the camera can go from `from` toward `to` (studs): up to the first solid thing a sphere the
+-- camera's size would touch. Parts you can see through (the cut-away floors, glass), parts nobody bumps
+-- into, and furniture, crates and roof props (they're ghosted instead) don't count.
 local castParams = RaycastParams.new()
 castParams.FilterType = Enum.RaycastFilterType.Exclude
 castParams.RespectCanCollide = true
-local function clearTo(from: Vector3, to: Vector3, skip: { Instance }): Vector3
+local function clearance(from: Vector3, to: Vector3, skip: { Instance }): number
 	local d = to - from
-	for _ = 1, 6 do
+	local length = d.Magnitude
+	if length < 1e-3 then
+		return 0
+	end
+	for _ = 1, 8 do
 		castParams.FilterDescendantsInstances = skip
-		local hit = workspace:Raycast(from, d, castParams)
+		local hit = workspace:Spherecast(from, CAM_RADIUS, d, castParams)
 		if not hit then
-			return to
+			return length
 		end
 		local part = hit.Instance
-		if part:IsA("BasePart") and (part.Transparency > 0.5 or part.LocalTransparencyModifier > 0.5) then
+		if
+			part:IsA("BasePart")
+			and (part.Transparency > 0.5 or part.LocalTransparencyModifier > 0.5 or Cutaway.ghostOf(part) ~= nil)
+		then
 			table.insert(skip, part)
 		else
-			return hit.Position - d.Unit * 0.6
+			return math.max(0, hit.Distance - 0.05)
 		end
 	end
-	return to
+	return length
 end
 
 local function others(): { Instance }
@@ -156,14 +172,26 @@ local function adopt(char: Model, root: BasePart)
 	end
 end
 
--- where the camera sits behind your shoulder right now (kept clear of walls), or nil without a body
-local function resting(root: BasePart): CFrame
+-- where the camera sits behind your shoulder right now (kept clear of walls). dt: how long since the last
+-- frame, for the ease back out (nil: right where it can be, as the set pieces want it)
+local function resting(root: BasePart, dt: number?): CFrame
 	local rot = CFrame.fromOrientation(pitch, yaw, 0)
 	local eye = root.Position + Vector3.new(0, EYE, 0)
 	local skip = others()
-	local side = clearTo(eye, eye + rot:VectorToWorldSpace(shoulder), skip)
-	local pos = clearTo(side, side + rot:VectorToWorldSpace(Vector3.new(0, 0, zoom)), skip)
-	return CFrame.new(pos) * rot
+	-- over the shoulder (less of it against a wall on that side), then back along the view
+	local out = rot:VectorToWorldSpace(shoulder)
+	local side = if out.Magnitude > 1e-3
+		then eye + out.Unit * math.min(out.Magnitude, clearance(eye, eye + out, skip))
+		else eye
+	local back = rot:VectorToWorldSpace(Vector3.zAxis)
+	local free = math.min(zoom, clearance(side, side + back * zoom, skip))
+	-- in at once (never a frame looking through a wall), back out smoothly (no popping past a pillar)
+	if not dt or free < boom then
+		boom = free
+	else
+		boom += (free - boom) * math.min(1, dt * EASE_OUT)
+	end
+	return CFrame.new(side + back * boom) * rot
 end
 
 function CameraAim.restingCFrame(): CFrame?
@@ -242,7 +270,7 @@ local function update(dt: number)
 	shoulder = shoulder:Lerp(wantShoulder, math.min(1, dt * 14))
 
 	camera.CameraType = Enum.CameraType.Scriptable
-	camera.CFrame = resting(root) * shakeRot(dt)
+	camera.CFrame = resting(root, dt) * shakeRot(dt)
 	camera.Focus = CFrame.new(root.Position + Vector3.new(0, EYE, 0))
 
 	-- you face where the camera looks (your client owns your body)
