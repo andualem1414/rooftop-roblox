@@ -170,16 +170,19 @@ local function loadAnims(c: Climber, model: Model)
 		local tr = tracks[name]
 		if tr and not tr.IsPlaying then
 			tr:Play(fade or 0.2)
+			c.brain.gaitRate = 1 -- (a track starts at its own speed: gait() sets the pace again)
 		end
 	end
-	hum.Running:Connect(function(speed: number)
-		if hum.FloorMaterial == Enum.Material.Air then
-			return
-		end
+	local function moving(speed: number)
 		if speed > 0.75 then
 			play(if tracks.run then "run" else "walk")
 		else
 			play("idle")
+		end
+	end
+	hum.Running:Connect(function(speed: number)
+		if hum.FloorMaterial ~= Enum.Material.Air then
+			moving(speed)
 		end
 	end)
 	hum.StateChanged:Connect(function(_, new)
@@ -188,11 +191,39 @@ local function loadAnims(c: Climber, model: Model)
 		elseif new == Enum.HumanoidStateType.Freefall then
 			play("fall", 0.2)
 		elseif new == Enum.HumanoidStateType.Landed then
-			play("idle", 0.1)
+			-- (still running as it lands: Running needn't fire again)
+			local v = c.root and c.root.AssemblyLinearVelocity or Vector3.zero
+			moving(Vector3.new(v.X, 0, v.Z).Magnitude)
 		end
 	end)
 	-- (the arms holding and swinging weapons are posed on every client: client/race/Poser)
 	play("idle")
+	c.brain.tracks = tracks
+	c.brain.gaitRate = 1
+end
+
+-- The run cycle keeps pace with the body (it played at one speed whatever the pace), and runs backward
+-- while the bot backs off from someone it's fighting (it faces them; every client turns its legs to match:
+-- client/race/Poser). Only sent on a real change: the server's track speeds replicate.
+local function gait(c: Climber)
+	local b, root = c.brain, c.root
+	local tracks = b and b.tracks
+	if not tracks or not root then
+		return
+	end
+	local tr = tracks.run or tracks.walk
+	if not tr or not tr.IsPlaying then
+		return
+	end
+	local v = root.AssemblyLinearVelocity
+	local flat = Vector3.new(v.X, 0, v.Z)
+	local speed = flat.Magnitude
+	local backward = speed > 2 and flat.Unit:Dot(root.CFrame.LookVector) < -0.35
+	local rate = math.clamp(speed / Config.WALK_SPEED, 0.35, 1.4) * (if backward then -1 else 1)
+	if math.abs(rate - b.gaitRate) > 0.08 then
+		b.gaitRate = rate
+		tr:AdjustSpeed(rate)
+	end
 end
 
 -- a new bot climber (no body yet)
@@ -543,6 +574,11 @@ function Bots.init(context: Context)
 			if b.think <= 0 then
 				b.think = THINK
 				think(c)
+			end
+			b.gaitT = (b.gaitT or 0) - dt
+			if b.gaitT <= 0 then
+				b.gaitT = 0.1
+				gait(c)
 			end
 		end
 	end)

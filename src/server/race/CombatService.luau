@@ -408,16 +408,24 @@ function CombatService.init(h: Hooks)
 		end
 	end)
 	Net.event("Shoot").OnServerEvent:Connect(onShoot)
-	Net.unreliable("Look").OnServerEvent:Connect(function(player: Player, pitch: unknown)
+	Net.unreliable("Look").OnServerEvent:Connect(function(player: Player, pitch: unknown, aiming: unknown)
 		local c = Climbers.forPlayer(player)
 		if c and c.model and type(pitch) == "number" and pitch == pitch then
 			c.model:SetAttribute("Aim", math.clamp(pitch, -1.3, 1.3))
+			local ads = aiming == true and c.fighter.equipped == "gun"
+			if c.model:GetAttribute("ADS") ~= ads then
+				c.model:SetAttribute("ADS", ads)
+			end
 		end
 	end)
 	Net.event("Guard").OnServerEvent:Connect(function(player: Player, on: unknown)
 		local c = Climbers.forPlayer(player)
 		if c then
-			guardHeld[c] = if on == true then true else nil
+			if on == true then
+				guardHeld[c] = true
+			else
+				guardHeld[c] = nil
+			end
 			c.fighter.blocking = on == true and not c.frozen and Combat.canBlock(c.fighter)
 		end
 	end)

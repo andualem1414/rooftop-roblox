@@ -101,6 +101,55 @@ function Ik.arm(model: Model, side: string): Arm?
 	}
 end
 
+-- an arm's reach from the shoulder to the grip point, a little short of straight (what Ik.solve can get to)
+function Ik.reach(arm: Arm): number
+	return (arm.U.Magnitude + arm.L.Magnitude) * 0.97 + arm.G.Magnitude * 0.5
+end
+
+export type Leg = {
+	left: boolean,
+	hip: Joint,
+	knee: Joint,
+	ankle: Joint,
+	thigh: number, -- hip -> knee (studs)
+	shin: number, -- knee -> ankle
+}
+
+-- read a leg from a character ("Right" or "Left"); nil if it isn't an R15 rig. Legs bend about X like the
+-- elbow: + swings the thigh forward (the hip), - folds the shin back (the knee).
+function Ik.leg(model: Model, side: string): Leg?
+	local upper = model:FindFirstChild(side .. "UpperLeg")
+	local lower = model:FindFirstChild(side .. "LowerLeg")
+	local foot = model:FindFirstChild(side .. "Foot")
+	if not upper or not lower or not foot then
+		return nil
+	end
+	local function joint(part: Instance, name: string): Joint?
+		local j = part:FindFirstChild(name)
+		if j and (j:IsA("AnimationConstraint") or j:IsA("Motor6D")) then
+			return j
+		end
+		return nil
+	end
+	local hip = joint(upper, side .. "Hip")
+	local knee = joint(lower, side .. "Knee")
+	local ankle = joint(foot, side .. "Ankle")
+	if not hip or not knee or not ankle then
+		return nil
+	end
+	local _, h1 = frames(hip)
+	local k0, k1 = frames(knee)
+	local a0 = frames(ankle)
+	return {
+		left = side == "Left",
+		hip = hip,
+		knee = knee,
+		ankle = ankle,
+		thigh = (k0.Position - h1.Position).Magnitude,
+		shin = (a0.Position - k1.Position).Magnitude,
+	}
+end
+
 -- Solve one arm: the grip point at `target` (upper torso frame), the hand turned to `hand` (a rotation
 -- in the upper torso frame), the elbow pointing toward `pole`. Returns the three joint rotations.
 function Ik.solve(arm: Arm, target: Vector3, hand: CFrame, pole: Vector3): (CFrame, CFrame, CFrame)

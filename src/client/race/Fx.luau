@@ -8,12 +8,14 @@
 --   your own:  the flash, the kick and the camera recoil play the moment you shoot; being hit shakes the
 --              camera
 --   knock-out: a burst, and the body fades away
+--   coming to: a shimmer round the body while nobody can hit it (Config.WAKE_PROTECTION)
 --   a boost:   jets of fire from both feet and a warm light, while the Boosting attribute is on
 local Debris = game:GetService("Debris")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TweenService = game:GetService("TweenService")
 
+local Config = require(ReplicatedStorage.Shared.Config)
 local Weapons = require(ReplicatedStorage.Shared.Weapons)
 local Net = require(ReplicatedStorage.Shared.Net)
 local CameraAim = require(script.Parent.CameraAim)
@@ -208,7 +210,7 @@ local function muzzle(model: Instance?, weapon: string?, fallback: Vector3?, fac
 	flashLight(at, color, 7, 16, 0.09)
 	burst(at, Color3.fromRGB(120, 116, 112), 3, 4, 0.8, 0.5, SMOKE_TEX, -2)
 	casing(model)
-	Poser.shot(model)
+	Poser.shot(model, weapon)
 end
 
 -- your own shot, the moment you click
@@ -419,10 +421,32 @@ local function jets(model: Model, on: boolean)
 	end
 end
 
+-- a body just set down can't be hit for a moment: a shimmer shows it (only drawn here: the server keeps
+-- the protection)
+local function protected(model: Model)
+	local at = model:GetAttribute("SpawnedAt")
+	if type(at) ~= "number" then
+		return
+	end
+	local left = Config.WAKE_PROTECTION - (workspace:GetServerTimeNow() - at)
+	if left <= 0.2 or model:FindFirstChild("Shimmer") then
+		return
+	end
+	local ff = Instance.new("ForceField")
+	ff.Name = "Shimmer"
+	ff.Visible = true
+	ff.Parent = model
+	Debris:AddItem(ff, left)
+end
+
 local function watch(model: Instance)
 	if not model:IsA("Model") then
 		return
 	end
+	protected(model)
+	model:GetAttributeChangedSignal("SpawnedAt"):Connect(function()
+		protected(model)
+	end)
 	model:GetAttributeChangedSignal("Boosting"):Connect(function()
 		jets(model, model:GetAttribute("Boosting") == true)
 	end)

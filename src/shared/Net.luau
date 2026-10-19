@@ -6,8 +6,8 @@
 --   Shoot(origin, direction, aim)  fire the gun in hand along the camera ray; aim: aiming down sights
 --   Guard(on)                      hold up the melee weapon to block
 --   Reload()
---   Look(pitch)                    (unreliable, ~15 a second) where you look up / down, so everyone sees
---                                  your arms and head follow it
+--   Look(pitch, aiming)            (unreliable, ~15 a second) where you look up / down, and whether you aim
+--                                  down the sights, so everyone sees your arms and head follow it
 --   Ready()                        this client's scripts are running (the race waits for it)
 --   SetLook(id)                    wear this look (if your stats unlock it)
 --   SaveSettings(settings)         keep these settings with your profile
@@ -29,8 +29,9 @@
 --   Boost(from, to, seconds)       your boost starts: fly from floor `from` to `to` (shared/Booster)
 --   Skydive(model, x, y, z, yaw, seed)  the winner launched off the pad (everyone lays the same rings)
 --
--- Character attributes the server keeps up to date (for the poses): Aim (pitch, radians), Guard,
--- Reloading.
+-- Character attributes the server keeps up to date (for the poses): Aim (pitch, radians), ADS (aiming down
+-- the sights), Guard, Reloading, SpawnedAt (server time the body was set down: it comes to), Boosting,
+-- Gliding, Escaped (the winner).
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")

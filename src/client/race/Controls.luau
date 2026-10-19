@@ -271,8 +271,9 @@ function Controls.init()
 		end
 	end)
 
-	-- where you look up / down, for everyone's view of your arms and head (about 15 times a second)
-	local sent, acc = 0, 0
+	-- where you look up / down and whether you aim down the sights, for everyone's view of your arms and
+	-- head (about 15 times a second)
+	local sent, sentAiming, acc = 0, false, 0
 	RunService.RenderStepped:Connect(function(dt: number)
 		acc += dt
 		if acc < 1 / 15 then
@@ -280,9 +281,10 @@ function Controls.init()
 		end
 		acc = 0
 		local pitch = math.asin(math.clamp(workspace.CurrentCamera.CFrame.LookVector.Y, -1, 1))
-		if math.abs(pitch - sent) > 0.01 then
-			sent = pitch
-			Look:FireServer(pitch)
+		local aiming = CameraAim.aiming
+		if math.abs(pitch - sent) > 0.01 or aiming ~= sentAiming then
+			sent, sentAiming = pitch, aiming
+			Look:FireServer(pitch, aiming)
 		end
 	end)
 

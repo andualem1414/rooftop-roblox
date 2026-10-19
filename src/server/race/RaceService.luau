@@ -87,6 +87,7 @@ end
 -- everything a fresh body needs, for players and bots alike
 local function setup(c: Climber, model: Model)
 	Climbers.setModel(c, model)
+	model:SetAttribute("SpawnedAt", now()) -- (every screen plays them coming to: client/race/Poser)
 	CollisionGroups.climber(model)
 	CombatService.register(c)
 	local hum = c.humanoid
