@@ -11,6 +11,7 @@ local TweenService = game:GetService("TweenService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Config = require(ReplicatedStorage.Shared.Config)
+local Booster = require(ReplicatedStorage.Shared.Booster)
 local Themes = require(script.Parent.Themes)
 local Roof = require(script.Parent.Roof)
 
@@ -317,13 +318,20 @@ local function buildFloor(root: Model, i: number): (Model, { Rect }, BasePart)
 		)
 		decor(box(floor, "LipGlow", s * H, s * (H + 0.2), y0 + 0.15, y0 + 0.22, -H, H, th.accent, Enum.Material.Neon))
 	end
-	-- the floor's number and name, and the furniture
+	-- the floor's number and name, and the furniture (kept off the paint and the booster pad, which
+	-- reaches out past the walkway: server/race/BoostService)
 	local rects: { Rect } = {}
 	local paint = floorPaint(floor, i, y0, th)
+	local reserved = { paint }
+	if i < Booster.MAX_FLOOR then
+		local bx, _, bz = Booster.pad(i)
+		local r = Booster.PAD_R + 0.5
+		table.insert(reserved, { x0 = bx - r, x1 = bx + r, z0 = bz - r, z1 = bz + r })
+	end
 	local furniture = Instance.new("Model")
 	furniture.Name = "Furniture"
 	furniture.Parent = floor
-	for _, c in placeProps(th, y0, { paint }) do
+	for _, c in placeProps(th, y0, reserved) do
 		if c.kind == "crate" then
 			local crate = box(
 				floor,

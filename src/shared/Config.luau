@@ -4,6 +4,9 @@
 -- and stored in studs: M is studs per metre, set so a Roblox avatar (~5.5 studs) is a 1.8 m climber.
 
 local M = 3
+-- the platform deck's half size in metres: the original's 3.5 m deck, made half again as big (5.25 m), with
+-- the shaft round it a hand's width wider
+local DECK_HALF = 1.75 * 1.5
 
 local Config = {}
 
@@ -15,8 +18,8 @@ Config.FLOOR_HEIGHT = 3.2 * M -- from one floor's surface to the next
 Config.FLOOR_HALF = 12 * M -- half width: 24 × 24 m floors (the original's 12 × 12, doubled)
 Config.SLAB = 0.35 * M -- floor slab thickness
 Config.WALL = 0.3 * M -- outer wall thickness
-Config.SHAFT_HALF = 1.9 * M -- half size of the platform shaft in the middle
-Config.SHAFT_CLEAR = (1.9 + 1.2) * M -- no cover within this of the centre: a walkway round the shaft
+Config.SHAFT_HALF = (DECK_HALF + 0.15) * M -- half size of the platform shaft in the middle
+Config.SHAFT_CLEAR = (DECK_HALF + 0.15 + 1.2) * M -- no cover within this of the centre: a walkway round the shaft
 Config.LOW_COVER = 0.95 * M -- crates and barriers: low enough to jump over
 Config.HALF_WALL = 2.1 * M -- half walls: too high to jump
 
@@ -40,7 +43,7 @@ Config.PLATFORM_MOVE = 0.6 -- seconds to travel one floor
 Config.PLATFORM_STOP = 3 -- seconds it stops at each floor
 Config.PLATFORM_CYCLE = Config.PLATFORM_MOVE + Config.PLATFORM_STOP
 Config.PLATFORM_TRIP = Config.FLOORS * Config.PLATFORM_CYCLE -- bottom to the end of the top-floor stop
-Config.PLATFORM_HALF = (1.9 - 0.15) * M -- half size of the deck
+Config.PLATFORM_HALF = DECK_HALF * M -- half size of the deck
 Config.PLATFORM_THICK = 0.4 * M
 
 -- climbers

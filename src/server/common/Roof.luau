@@ -88,8 +88,8 @@ function Roof.dress(roof: Model, ry: number): { Rect }
 		end
 	end
 
-	-- the helipad, with green lights round its edge
-	local pad = CFrame.new(-17, ry + 0.06, -17)
+	-- the helipad, with green lights round its edge (in its corner, clear of the hatch's stripes)
+	local pad = CFrame.new(-19, ry + 0.06, -19)
 	part(roof, "Helipad", Vector3.new(0.12, 22, 22), pad * FLAT, rgb(46, 50, 62), nil, false, Enum.PartType.Cylinder)
 	part(
 		roof,
