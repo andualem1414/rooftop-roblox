@@ -112,8 +112,6 @@ Camera, look, sound
   area (~17 × 17 m). Confirm in the playtest.
 - The original's own sounds (wind, the platform's clunk, the hatch grinding, confetti cannons), made with Web
   Audio: render them to files for the user to upload, if the library sounds don't fit
-- Controller navigation in the menus (the panels work with a mouse and touch; a controller opens settings with
-  View, but moving through the panels needs Roblox's UI selection set up)
 - The winner's skydive (kept for a later phase in the 2026-10-18 decisions)
 
 ## Roblox limits to remember (checked 2026-10-18, create.roblox.com/docs)
@@ -143,6 +141,10 @@ Camera, look, sound
   settings; race: Settings / P / View)
 - [x] 2026-10-19 — Phase 4: the ten looks (worn over your avatar); bots wear them
 - [x] 2026-10-19 — Phase 5: profiles, leaderboards, Escapes / KOs in the player list
+- [x] 2026-10-19 — Controller in the menus: a panel opened with a controller starts on its first control, B
+  closes it, sliders move with D-pad left / right; the race HUD in the ink-and-chalk look
+- [x] 2026-10-19 — Phase 6: the paid booster (see Decisions), checked in Studio: pads on floors 1–17, F opens
+  the choices, +5 flew floor 4 → 9 up the shaft, +10 greyed out past floor 18, the feed line, no errors
 - [x] 2026-10-19 — Phase 7 kit: `publish/RELEASE.md` (steps, release test, questionnaire answers, game page)
 - [x] 2026-10-19 — Fixed: bots lost their spare weapon (it fell out of the world from a stash inside the
   character); the valley's grass lay 2 studs over the concrete at the tower's foot

@@ -2,6 +2,9 @@
 -- The game's own UI pieces, shared by the lobby and the race: chalk on ink like the loading screen, with
 -- the title's red-pink accent. Panels (one open at a time), buttons, sliders and switches. While a panel
 -- is open the player's MenuOpen attribute is true, so the race's mouse camera lets go of the cursor.
+-- With a controller: a panel opened selects its first control, B closes it, and a slider moves with
+-- left / right while it's selected (Roblox's own UI selection does the rest).
+local GuiService = game:GetService("GuiService")
 local Players = game:GetService("Players")
 local TweenService = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
@@ -22,6 +25,29 @@ Ui.TEXT = Enum.Font.GothamBold
 Ui.BODY = Enum.Font.GothamMedium
 
 local open: Frame? = nil -- the panel showing now
+local hideOpen: (() -> ())? = nil
+
+local function usingGamepad(): boolean
+	return string.find(UserInputService:GetLastInputType().Name, "Gamepad") ~= nil
+end
+
+-- the first control in a panel, top to bottom, left to right (for a controller to start on)
+local function firstControl(root: Instance): GuiObject?
+	local best: GuiObject? = nil
+	for _, d in root:GetDescendants() do
+		if d:IsA("GuiButton") and d.Selectable and d.Visible and d.Name ~= "Close" then
+			local p = d.AbsolutePosition
+			if
+				not best
+				or p.Y < best.AbsolutePosition.Y - 4
+				or (math.abs(p.Y - best.AbsolutePosition.Y) <= 4 and p.X < best.AbsolutePosition.X)
+			then
+				best = d
+			end
+		end
+	end
+	return best
+end
 
 function Ui.screen(name: string, order: number?): ScreenGui
 	local gui = Instance.new("ScreenGui")
@@ -161,7 +187,12 @@ function Ui.panel(gui: ScreenGui, title: string, width: number?, height: number?
 		frame.Visible = false
 		if open == frame then
 			open = nil
+			hideOpen = nil
 			setMenuOpen(false)
+			local sel = GuiService.SelectedObject
+			if sel and sel:IsDescendantOf(frame) then
+				GuiService.SelectedObject = nil
+			end
 		end
 	end
 	local function show()
@@ -169,8 +200,15 @@ function Ui.panel(gui: ScreenGui, title: string, width: number?, height: number?
 			open.Visible = false
 		end
 		open = frame
+		hideOpen = hide
 		frame.Visible = true
 		setMenuOpen(true)
+		-- a controller starts on its first control (B closes it: see the end of this file)
+		if usingGamepad() then
+			task.defer(function()
+				GuiService.SelectedObject = firstControl(body) or close
+			end)
+		end
 		local scale = frame:FindFirstChildOfClass("UIScale") or Instance.new("UIScale")
 		scale.Parent = frame
 		scale.Scale = 0.92
@@ -195,10 +233,8 @@ end
 
 -- close whatever panel is open
 function Ui.closeAll()
-	if open then
-		open.Visible = false
-		open = nil
-		setMenuOpen(false)
+	if hideOpen then
+		hideOpen()
 	end
 end
 
@@ -283,6 +319,26 @@ function Ui.slider(
 			dragging = false
 		end
 	end)
+	-- a controller: left / right moves it while it's selected (up / down still move between rows)
+	track.NextSelectionLeft = track
+	track.NextSelectionRight = track
+	UserInputService.InputBegan:Connect(function(input: InputObject)
+		if GuiService.SelectedObject ~= track then
+			return
+		end
+		local dir = if input.KeyCode == Enum.KeyCode.DPadRight
+			then 1
+			elseif input.KeyCode == Enum.KeyCode.DPadLeft then -1
+			else 0
+		if dir ~= 0 then
+			local v = math.clamp(value + dir * step, min, max)
+			if v ~= value then
+				value = v
+				show(v)
+				onChange(v)
+			end
+		end
+	end)
 	return row
 end
 
@@ -316,5 +372,13 @@ function Ui.toggle(parent: Instance, name: string, value: boolean, onChange: (bo
 	end)
 	return row
 end
+
+-- a controller's B closes the open panel (Roblox's UI selection may see B first, so it's watched here,
+-- whatever else handled it)
+UserInputService.InputBegan:Connect(function(input: InputObject)
+	if input.KeyCode == Enum.KeyCode.ButtonB and hideOpen then
+		hideOpen()
+	end
+end)
 
 return Ui
