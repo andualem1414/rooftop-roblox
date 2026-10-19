@@ -41,6 +41,41 @@ by hand. The Workspace attributes `LookPreset` and `TestBots` only work in Studi
    is 0 that size isn't for sale (in Studio the pads give free test boosts instead). Studio's purchases of
    real products are test purchases: nothing is charged.
 
+## Publishing from the terminal (every update)
+
+The game is published: experience **Rooftop** (universe 10771906434), lobby place 96194017293551 (the start
+place), race place 127585457284186 (**Rooftop Race**). Updates go out with one command, no Studio:
+
+```
+powershell -ExecutionPolicy Bypass -File publish\publish.ps1              # both places
+powershell -ExecutionPolicy Bypass -File publish\publish.ps1 -Place race  # only one
+```
+
+It runs the tests, lint and format check, then `rojo upload`s each place (built from this repo) as a new
+**published** version. New servers run it; running ones keep the old version until they empty (in a private
+game: leave and rejoin). Publish both places whenever `src/shared` or a `common` folder changed: they share
+that code. Bump `src/shared/Version.luau` for a release so the lobby corner shows which one you're in.
+
+The upload replaces the whole place with what this repo builds. Anything changed only in Studio is gone
+from the new version, and a Studio window still open on a published place (Team Create) holds the old copy:
+don't press Publish there afterwards; reopen it from Roblox instead.
+
+**The key, once.** An Open Cloud API key lives in the Windows user variable `ROBLOX_PUBLISH_KEY`, nowhere
+else (never in this repo, a file, chat or a command line you type):
+
+1. create.roblox.com → **Creator Hub** → **Open Cloud → API Keys** (create.roblox.com/dashboard/credentials)
+   → **Create API Key**.
+2. Name: `Rooftop publish`.
+3. **Access Permissions** → Select API System: **universe-places** → Add API → Restrict by Experience:
+   **Rooftop** → Select Operations: **Write**.
+4. Security: leave *Restrict IP addresses* off (or add your own IP). Expiration: none, or a date to renew it.
+5. **Save & Generate key** → **Copy Key to Clipboard** (it's shown once).
+6. Windows: Start → type *environment* → **Edit environment variables for your account** → under *User
+   variables* → **New…** → Name `ROBLOX_PUBLISH_KEY`, Value: paste → OK, OK.
+
+The script reads the variable straight from your account, so it works at once; other programs see it after
+they restart. A key that leaks: delete it on the API Keys page and make a new one.
+
 ## 3. Release test (in the published, private game)
 
 Teleports and data stores only work there. With 2–4 accounts (or friends) on different devices:

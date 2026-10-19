@@ -43,6 +43,7 @@ selene src                             # lint
 stylua src tests                       # format (stylua --check src tests to only check)
 rojo serve race.project.json           # live sync into Studio (port 34872; lobby uses 34873)
 rojo build race.project.json -o build/race.rbxl
+powershell -ExecutionPolicy Bypass -File publish\publish.ps1   # publish both places to Roblox (live)
 ```
 
 ## Studio
@@ -96,7 +97,13 @@ rojo build race.project.json -o build/race.rbxl
 
 ## Publishing
 
-The full list is in `publish/RELEASE.md`. In short (the owner does the Roblox side):
+**The game is published** (private): experience Rooftop, universe 10771906434; lobby 96194017293551, race
+127585457284186 (`src/shared/Places.luau`). Updates: `publish\publish.ps1` (checks, then `rojo upload` of
+both places with the Open Cloud key in the user variable `ROBLOX_PUBLISH_KEY`; never read, print or log it).
+Publishing makes the change live for new servers: ask the user before running it. Details in
+`publish/RELEASE.md` → "Publishing from the terminal".
+
+The first-time list is in `publish/RELEASE.md`. In short (the owner does the Roblox side):
 
 1. Build both places.
 2. Publish the lobby as a new experience **Rooftop** (the start place), then the race into the same
