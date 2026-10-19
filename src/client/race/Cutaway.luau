@@ -3,6 +3,9 @@
 -- above. Only on your screen: each client hides the floors above its own player, and anyone or
 -- anything up there (pickup labels included). Parts that reach the client late are hidden as they
 -- arrive, so this holds even with instance streaming on.
+-- Hidden floors are only not drawn (LocalTransparencyModifier): to the lighting they're still there,
+-- like the original's invisible-but-shadowing ceiling. Making them truly transparent changed the
+-- building's shape for the lighting, which took seconds to catch up: rooms started dark.
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
@@ -16,20 +19,13 @@ local Cutaway = {}
 
 local shown = math.huge -- the highest floor shown (everything above it is hidden)
 local suspended = false -- a set piece wants the whole tower shown
-local saved: { [BasePart]: number } = {} -- hidden parts' own transparency
 
 local function setPart(d: Instance, hidden: boolean)
 	if d:IsA("BasePart") then
-		if hidden then
-			if saved[d] == nil then
-				saved[d] = d.Transparency
-			end
-			d.Transparency = 1
-		elseif saved[d] ~= nil then
-			d.Transparency = saved[d]
-			saved[d] = nil
-		end
-	elseif d:IsA("PointLight") then
+		d.LocalTransparencyModifier = if hidden then 1 else 0
+	elseif d:IsA("Light") or d:IsA("SurfaceGui") then
+		-- (a light up there would shine down through the floors; painted numbers don't hide with
+		-- their part)
 		d.Enabled = not hidden
 	end
 end
@@ -102,7 +98,6 @@ local function hideAbove(cutY: number)
 end
 
 local function watch(tower: Instance)
-	table.clear(saved)
 	shown = math.huge
 	tower.DescendantAdded:Connect(function(d)
 		if shown == math.huge then
