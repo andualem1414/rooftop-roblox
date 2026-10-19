@@ -134,6 +134,11 @@ Camera, look, sound
 
 ## Done
 
+- [x] 2026-10-19 — Valley mountains written as voxels (`Valley.tiles` / `Valley.voxels`, `WriteVoxels`) instead
+  of 126 big `FillBall`s and the replace sweeps: the same voxels from the floor up (all 21.9 M compared in
+  Studio against the old build, occupancy within 1/255), nothing built below y = −20 (under the floor).
+  Measured in Studio (wall clock, real LocalScript, camera in the sky, then the race's first views): build
+  4.8–7.2 s → 2.9–4.0 s, build + views 8.1–12.7 s → 6.3–8.6 s; terrain cells 43.4 M → 19.1 M
 - [x] 2026-10-19 — Performance pass (measured in Studio, wall clock): loading the race 21.4 s → 14.9 s, the
   lobby 18.2 s → ~11 s (terrain sweeps only where their material can be, few frames during the build, the
   lobby warms its own views, preloads alongside the build, sounds preloaded, our screen on teleports); the

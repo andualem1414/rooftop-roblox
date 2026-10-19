@@ -166,106 +166,316 @@ function Valley.fills(): { Fill }
 	return out
 end
 
--- Where a replace fill can change anything: the boxes it has to sweep, each within one of the tiles the
--- terrain is swept in (a region can only be so big) and a multiple of 4 studs. The material it replaces
--- can only be inside the fills that made it (padded for the terrain's soft edges), so the rest of the
--- valley is skipped: the result is the same, only quicker (a sweep of the whole valley took seconds).
--- A replace above every fill of its material sweeps nothing.
-export type Box = { x0: number, y0: number, z0: number, x1: number, y1: number, z1: number }
-Valley.TILE = 400 -- a sweep's tile, across
-Valley.SLICE = 200 -- ...and up
-Valley.EXTENT = 1600 -- the tiles cover -EXTENT .. EXTENT in x and z
-local PAD = 8
+-- The mountains, voxel by voxel. FillBall writes every voxel of its ball, and the mountains' balls are big,
+-- overlap about four times round the rings and lie mostly under the floor: they were most of the build.
+-- So the client writes the mountains' footprint in tiles instead (Terrain:WriteVoxels), each voxel as the
+-- recipe's fills up to its last replace would have left it, from BOTTOM up only (below that is under the
+-- floor, out of sight). The mountains' balls and the replaces are made here (Valley.voxelled), every other
+-- fill by itself. How a fill writes the terrain, measured in Studio:
+--   a shape's occupancy of a voxel is 0.5 + s / 4, kept between 0 and 1, s the distance from the voxel's
+--   centre in to the shape's surface (negative outside)
+--   a fill sets a voxel's occupancy and material where its own occupancy is above 0 and at least the
+--   voxel's, and leaves it otherwise (so a run of balls of one material leaves what one fill of their
+--   union, the highest of their occupancies, would)
+--   a replace changes the material of the voxels whose cells lie between its heights
+Valley.BOTTOM = -20
+Valley.TILE = 64 -- a tile's size in x, in studs (twice that in z)
+local VOXELLED: { [string]: boolean } = { Rock = true, Slate = true }
 
-local function grid(v: number, up: boolean): number
-	return if up then math.ceil(v / 4) * 4 else math.floor(v / 4) * 4
+export type Tile = { x: number, y: number, z: number, nx: number, ny: number, nz: number } -- its corner, voxels
+
+function Valley.voxelled(f: Fill): boolean
+	return f.op == "replace" or (f.op == "ball" and VOXELLED[f.mat] == true)
 end
 
-function Valley.regions(fills: { Fill }, index: number): { Box }
-	-- what each material could cover, fill by fill, up to this one
-	local made: { [string]: { Box } } = {}
-	local function add(mat: string, b: Box)
-		local list = made[mat]
-		if not list then
-			list = {}
-			made[mat] = list
-		end
-		table.insert(list, b)
+-- how far a ball's centre is from a tile's columns in x and z (0 if it is over them)
+local function off(f: Fill, x0: number, z0: number, x1: number, z1: number): number
+	local dx = math.max(x0 - f.x, 0, f.x - x1)
+	local dz = math.max(z0 - f.z, 0, f.z - z1)
+	return math.sqrt(dx * dx + dz * dz)
+end
+
+local tilesCached: { Tile }? = nil
+
+-- the tiles over the mountains' footprint, each as high as a mountain's ball over it reaches
+function Valley.tiles(): { Tile }
+	if tilesCached then
+		return tilesCached
 	end
-	for i = 1, index - 1 do
-		local f = fills[i]
-		local hx, hy, hz
-		if f.op == "ball" then
-			hx, hy, hz = f.sx, f.sx, f.sx
-		elseif f.op == "block" then
-			local r = math.sqrt(f.sx * f.sx + f.sz * f.sz) / 2 -- (turned about Y)
-			hx, hy, hz = r, f.sy / 2, r
-		elseif f.op == "cylinder" then
-			hx, hy, hz = f.sy, f.sx / 2, f.sz
+	local balls: { Fill } = {}
+	local reach = 0
+	for _, f in Valley.fills() do
+		if f.op == "ball" and VOXELLED[f.mat] then
+			table.insert(balls, f)
+			reach = math.max(reach, math.abs(f.x) + f.sx + 2, math.abs(f.z) + f.sx + 2)
 		end
-		if hx and f.mat ~= "Air" then
-			add(f.mat, {
-				x0 = f.x - hx - PAD,
-				x1 = f.x + hx + PAD,
-				y0 = f.y - hy - PAD,
-				y1 = f.y + hy + PAD,
-				z0 = f.z - hz - PAD,
-				z1 = f.z + hz + PAD,
-			})
-		elseif f.op == "replace" and f.from and f.y0 and f.y1 then
-			for _, b in made[f.from] or {} do
-				if b.y1 > f.y0 and b.y0 < f.y1 then
-					add(f.mat, {
-						x0 = b.x0,
-						x1 = b.x1,
-						y0 = math.max(b.y0, f.y0),
-						y1 = math.min(b.y1, f.y1),
-						z0 = b.z0,
-						z1 = b.z1,
-					})
+	end
+	local W, D = Valley.TILE, 2 * Valley.TILE
+	local out: { Tile } = {}
+	for x = -math.ceil(reach / W) * W, reach, W do
+		for z = -math.ceil(reach / D) * D, reach, D do
+			local top = -math.huge
+			for _, b in balls do
+				local d, r = off(b, x, z, x + W, z + D), b.sx + 2
+				if d < r then
+					top = math.max(top, b.y + math.sqrt(r * r - d * d))
 				end
+			end
+			if top > Valley.BOTTOM then
+				local ny = math.ceil((top - Valley.BOTTOM) / 4)
+				table.insert(out, { x = x, y = Valley.BOTTOM, z = z, nx = W // 4, ny = ny, nz = D // 4 })
 			end
 		end
 	end
+	tilesCached = out
+	return out
+end
 
-	local f = fills[index]
-	local out: { Box } = {}
-	if f.op ~= "replace" or not f.from or not f.y0 or not f.y1 then
-		return out
+-- A tile's voxels as Terrain:WriteVoxels takes them: materials[x][y][z] (M[name], M maps a material's name
+-- to what the caller wants: Enum.Material in Roblox) and occupancies[x][y][z].
+function Valley.voxels(tile: Tile, M: { [string]: any }): ({ { { any } } }, { { { number } } })
+	local fills = Valley.fills()
+	local x0, y0, z0, nx, ny, nz = tile.x, tile.y, tile.z, tile.nx, tile.ny, tile.nz
+	local x1, y1, z1 = x0 + nx * 4, y0 + ny * 4, z0 + nz * 4
+
+	-- the fills that reach this tile, up to the last one made here, as steps: blocks (not turned) and runs of
+	-- balls of one material; then the replaces
+	local last = 0
+	for i, f in fills do
+		if Valley.voxelled(f) then
+			last = i
+		end
 	end
-	local sources = made[f.from] or {}
-	local T, S, E = Valley.TILE, Valley.SLICE, Valley.EXTENT
-	for x = -E, E - T, T do
-		for z = -E, E - T, T do
-			for y = f.y0, f.y1 - 1, S do
-				local tile = { x0 = x, x1 = x + T, y0 = y, y1 = math.min(y + S, f.y1), z0 = z, z1 = z + T }
-				-- the part of this tile any source reaches
-				local box: Box? = nil
-				for _, b in sources do
-					local x0, x1 = math.max(tile.x0, b.x0), math.min(tile.x1, b.x1)
-					local y0, y1 = math.max(tile.y0, b.y0), math.min(tile.y1, b.y1)
-					local z0, z1 = math.max(tile.z0, b.z0), math.min(tile.z1, b.z1)
-					if x0 < x1 and y0 < y1 and z0 < z1 then
-						if box then
-							box.x0, box.x1 = math.min(box.x0, x0), math.max(box.x1, x1)
-							box.y0, box.y1 = math.min(box.y0, y0), math.max(box.y1, y1)
-							box.z0, box.z1 = math.min(box.z0, z0), math.max(box.z1, z1)
-						else
-							box = { x0 = x0, x1 = x1, y0 = y0, y1 = y1, z0 = z0, z1 = z1 }
+	local stepMat: { string } = {}
+	local stepBlock: { Fill | false } = {}
+	local stepBalls: { { Fill } } = {}
+	local replaces: { Fill } = {}
+	local run = ""
+	for i = 1, last do
+		local f = fills[i]
+		if f.op == "replace" then
+			table.insert(replaces, f)
+			run = ""
+		elseif f.op == "ball" then
+			if off(f, x0, z0, x1, z1) < f.sx + 2 and f.y - f.sx - 2 < y1 and f.y + f.sx + 2 > y0 then
+				if run ~= f.mat then
+					table.insert(stepMat, f.mat)
+					table.insert(stepBlock, false)
+					table.insert(stepBalls, {})
+					run = f.mat
+				end
+				table.insert(stepBalls[#stepBalls], f)
+			elseif run ~= f.mat then
+				run = "" -- (a run of balls that misses this tile at first is still one run after)
+			end
+		else
+			run = ""
+			local h = if f.op == "block" then math.sqrt(f.sx * f.sx + f.sz * f.sz) / 2 + 2 else f.sy + 2
+			local hy = (if f.op == "block" then f.sy else f.sx) / 2 + 2
+			local reaches = f.x - h < x1 and f.x + h > x0 and f.z - h < z1 and f.z + h > z0
+			if reaches and f.y - hy < y1 and f.y + hy > y0 then
+				assert(f.op == "block" and f.yaw == 0 and f.mat ~= "Air", "a fill under the mountains: " .. f.op)
+				table.insert(stepMat, f.mat)
+				table.insert(stepBlock, f)
+				table.insert(stepBalls, {})
+			end
+		end
+	end
+	local steps = #stepMat
+
+	-- each material, after the replaces, by row
+	local final: { [string]: { any } } = {}
+	local function finals(name: string)
+		if final[name] then
+			return
+		end
+		local rows = table.create(ny)
+		for yi = 1, ny do
+			local cell = y0 + (yi - 1) * 4
+			local m = name
+			for _, r in replaces do
+				if m == r.from and cell >= (r.y0 :: number) and cell < (r.y1 :: number) then
+					m = r.mat
+				end
+			end
+			rows[yi] = M[m]
+		end
+		final[name] = rows
+	end
+	finals("Air")
+	for _, m in stepMat do
+		finals(m)
+	end
+
+	-- Rows (along z) that are all one thing share one table: all air, or all full of one material.
+	local airMats, zeros = table.create(nz, M.Air), table.create(nz, 0)
+	local ones = table.create(nz, 1)
+	local fullRows: { [any]: { any } } = {}
+
+	-- per column (zi) and step (s), at [(zi - 1) * steps + s]: where the step is surely full (k0..k1), where
+	-- it may be (m0..m1), a block's occupancy across, and the balls over the column (at bo + 1 .. bo + bn in
+	-- by, br, bd: centre heights, radii, squared distances across)
+	local cells = nz * steps
+	local k0, k1, m0, m1 =
+		table.create(cells, 0), table.create(cells, 0), table.create(cells, 0), table.create(cells, 0)
+	local fxz, bo, bn = table.create(cells, 0), table.create(cells, 0), table.create(cells, 0)
+	local by: { number }, br: { number }, bd: { number } = {}, {}, {}
+	local tops = table.create(nz, 0) -- nothing in the column reaches this high
+	-- over the whole row of columns, per step: k0's highest and k1's lowest (surely full in every column
+	-- between), k0's lowest and k1's highest, m0's lowest and m1's highest (full in some column between)
+	local K0, K1, k0lo, k1hi =
+		table.create(steps, 0), table.create(steps, 0), table.create(steps, 0), table.create(steps, 0)
+	local M0, M1 = table.create(steps, 0), table.create(steps, 0)
+	local INF = math.huge
+	local first = y0 + 2
+
+	local mats: { { { any } } } = table.create(nx)
+	local occs: { { { number } } } = table.create(nx)
+	for xi = 1, nx do
+		local xc = x0 + xi * 4 - 2
+		for s = 1, steps do
+			K0[s], K1[s], k0lo[s], k1hi[s], M0[s], M1[s] = -INF, INF, INF, -INF, INF, -INF
+		end
+		local topAll = -INF
+		local p = 0
+		for zi = 1, nz do
+			local zc = z0 + zi * 4 - 2
+			local top = -INF
+			local base = (zi - 1) * steps
+			for s = 1, steps do
+				local c = base + s
+				local b = stepBlock[s]
+				local a0, a1, b0, b1
+				if b then
+					local fx = math.clamp(0.5 + (b.sx / 2 - math.abs(xc - b.x)) / 4, 0, 1)
+					local fz = math.clamp(0.5 + (b.sz / 2 - math.abs(zc - b.z)) / 4, 0, 1)
+					local f = math.min(fx, fz)
+					fxz[c] = f
+					local hy = b.sy / 2
+					if f >= 1 then
+						a0, a1 = b.y - hy + 2, b.y + hy - 2
+					else
+						a0, a1 = INF, -INF
+					end
+					b0, b1 = a0, a1
+					if f > 0 then
+						top = math.max(top, b.y + hy + 2)
+					end
+				else
+					bo[c] = p
+					local solid, lo, hi = -INF, INF, -INF
+					for _, f in stepBalls[s] do
+						local dx, dz = xc - f.x, zc - f.z
+						local d2 = dx * dx + dz * dz
+						local r = f.sx
+						if d2 < (r + 2) * (r + 2) then
+							p += 1
+							by[p], br[p], bd[p] = f.y, r, d2
+							top = math.max(top, f.y + math.sqrt((r + 2) * (r + 2) - d2))
+							if d2 <= (r - 2) * (r - 2) then
+								local a = math.sqrt((r - 2) * (r - 2) - d2)
+								lo, hi = math.min(lo, f.y - a), math.max(hi, f.y + a)
+								if f.y - a <= first then
+									solid = math.max(solid, f.y + a)
+								end
+							end
+						end
+					end
+					bn[c] = p - bo[c]
+					a0, a1, b0, b1 = -INF, solid, lo, hi
+				end
+				k0[c], k1[c], m0[c], m1[c] = a0, a1, b0, b1
+				K0[s], K1[s] = math.max(K0[s], a0), math.min(K1[s], a1)
+				k0lo[s], k1hi[s] = math.min(k0lo[s], a0), math.max(k1hi[s], a1)
+				M0[s], M1[s] = math.min(M0[s], b0), math.max(M1[s], b1)
+			end
+			tops[zi] = top
+			topAll = math.max(topAll, top)
+		end
+
+		local mx, ox = table.create(ny), table.create(ny)
+		mats[xi], occs[xi] = mx, ox
+		for yi = 1, ny do
+			local yc = first + (yi - 1) * 4
+			-- the whole row at once? the last step surely full in every column, before any that may be full
+			-- in some; or nothing at all
+			local whole = 0
+			if yc >= topAll then
+				whole = -1
+			else
+				for s = steps, 1, -1 do
+					if yc >= K0[s] and yc <= K1[s] then
+						whole = s
+						break
+					elseif (yc >= k0lo[s] and yc <= k1hi[s]) or (yc >= M0[s] and yc <= M1[s]) then
+						break
+					end
+				end
+			end
+			if whole == -1 then
+				mx[yi], ox[yi] = airMats, zeros
+				continue
+			elseif whole > 0 then
+				local mat = final[stepMat[whole]][yi]
+				local row = fullRows[mat]
+				if not row then
+					row = table.create(nz, mat)
+					fullRows[mat] = row
+				end
+				mx[yi], ox[yi] = row, ones
+				continue
+			end
+
+			local mrow, orow = table.create(nz), table.create(nz)
+			mx[yi], ox[yi] = mrow, orow
+			for zi = 1, nz do
+				local o, m = 0, "Air"
+				if yc < tops[zi] then
+					-- the last step surely full here wins; one that may be full here means working it out
+					local base = (zi - 1) * steps
+					local known = 0
+					for s = steps, 1, -1 do
+						local c = base + s
+						if yc >= k0[c] and yc <= k1[c] then
+							known = s
+							break
+						elseif yc >= m0[c] and yc <= m1[c] then
+							break
+						end
+					end
+					if known > 0 then
+						o, m = 1, stepMat[known]
+					else
+						for s = 1, steps do
+							local c = base + s
+							local v = 0
+							local b = stepBlock[s]
+							if b then
+								v = math.min(fxz[c], 0.5 + (b.sy / 2 - math.abs(yc - b.y)) / 4)
+							else
+								for j = bo[c] + 1, bo[c] + bn[c] do
+									local dy = yc - by[j]
+									local e = 0.5 + (br[j] - math.sqrt(bd[j] + dy * dy)) / 4
+									if e > v then
+										v = e
+									end
+								end
+							end
+							if v > 1 then
+								v = 1
+							end
+							if v > 0 and v >= o then
+								o, m = v, stepMat[s]
+							end
 						end
 					end
 				end
-				if box then
-					-- on the 4-stud grid, and still inside the tile (whose corners are on it)
-					box.x0, box.x1 = math.max(tile.x0, grid(box.x0, false)), math.min(tile.x1, grid(box.x1, true))
-					box.y0, box.y1 = math.max(tile.y0, grid(box.y0, false)), math.min(tile.y1, grid(box.y1, true))
-					box.z0, box.z1 = math.max(tile.z0, grid(box.z0, false)), math.min(tile.z1, grid(box.z1, true))
-					table.insert(out, box)
-				end
+				mrow[zi] = final[m][yi]
+				orow[zi] = o
 			end
 		end
 	end
-	return out
+	return mats, occs
 end
 
 -- the ground's height at (x, z): the valley floor, the rises and mountains on it, the pond's water

@@ -50,8 +50,20 @@ function ValleyTerrain.build(progress: ((number) -> ())?)
 			since = os.clock()
 		end
 	end
+	local voxelled = false
 	for i, f in fills do
-		if f.op == "block" then
+		if Valley.voxelled(f) then
+			-- the mountains, written tile by tile where their first fill would have been (Valley.voxels)
+			if not voxelled then
+				voxelled = true
+				for _, t in Valley.tiles() do
+					local mats, occs = Valley.voxels(t, Enum.Material :: any)
+					local corner = Vector3.new(t.x, t.y, t.z)
+					T:WriteVoxels(Region3.new(corner, corner + Vector3.new(t.nx, t.ny, t.nz) * 4), 4, mats, occs)
+					breathe(i)
+				end
+			end
+		elseif f.op == "block" then
 			T:FillBlock(
 				CFrame.new(f.x, f.y, f.z) * CFrame.Angles(0, f.yaw, 0),
 				Vector3.new(f.sx, f.sy, f.sz),
@@ -61,13 +73,6 @@ function ValleyTerrain.build(progress: ((number) -> ())?)
 			T:FillBall(Vector3.new(f.x, f.y, f.z), f.sx, material(f.mat))
 		elseif f.op == "cylinder" then
 			T:FillCylinder(CFrame.new(f.x, f.y, f.z), f.sx, f.sy, material(f.mat))
-		elseif f.op == "replace" and f.from then
-			-- (only where that material can be: Valley.regions)
-			for _, b in Valley.regions(fills, i) do
-				local region = Region3.new(Vector3.new(b.x0, b.y0, b.z0), Vector3.new(b.x1, b.y1, b.z1))
-				T:ReplaceMaterial(region:ExpandToGrid(4), 4, material(f.from), material(f.mat))
-				breathe(i)
-			end
 		end
 		breathe(i)
 	end
