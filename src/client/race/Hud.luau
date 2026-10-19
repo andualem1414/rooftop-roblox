@@ -1,12 +1,14 @@
 --!strict
--- A first, plain HUD (the chalk look comes in phase 4):
---   top:          the race clock ("Roof opens in 3:12"), your floor and the next platform
+-- The race HUD, chalk on ink like the lobby and the menus (client/common/Ui):
+--   top:          a plate with the race clock ("Roof opens in 3:12"), your floor and the next platform
 --   middle:       the crosshair (gun in hand), banners ("Only one can escape!")
 --   top right:    the kill feed
---   bottom left:  health; bottom right: weapon and ammo
+--   bottom left:  health; bottom right: a plate with the weapon and ammo (top right on a touch screen,
+--                 where the thumb buttons aren't)
 --   bottom left:  Settings (or P / the controller's View button), above health: the settings panel
 -- With the countdown's last seconds ticking, and a chime under each banner.
 local ContextActionService = game:GetService("ContextActionService")
+local UserInputService = game:GetService("UserInputService")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
@@ -63,40 +65,78 @@ function Hud.init()
 	gui.IgnoreGuiInset = false
 	gui.Parent = player:WaitForChild("PlayerGui")
 
-	local clock = label(gui, "Clock", UDim2.fromOffset(500, 34), UDim2.new(0.5, 0, 0, 8), Vector2.new(0.5, 0), 26)
-	local where = label(gui, "Where", UDim2.fromOffset(500, 24), UDim2.new(0.5, 0, 0, 40), Vector2.new(0.5, 0), 18)
+	local touch = UserInputService.TouchEnabled and not UserInputService.MouseEnabled
+	local function plate(name: string, size: UDim2, pos: UDim2, anchor: Vector2): Frame
+		local f = Instance.new("Frame")
+		f.Name = name
+		f.Size = size
+		f.Position = pos
+		f.AnchorPoint = anchor
+		f.BackgroundColor3 = INK
+		f.BackgroundTransparency = 0.3
+		f.BorderSizePixel = 0
+		Ui.corner(f, 12)
+		f.Parent = gui
+		return f
+	end
+	local top = plate("Plate", UDim2.fromOffset(440, 64), UDim2.new(0.5, 0, 0, 6), Vector2.new(0.5, 0))
+	local clock = label(top, "Clock", UDim2.new(1, 0, 0, 34), UDim2.new(0.5, 0, 0, 3), Vector2.new(0.5, 0), 26)
+	clock.Font = Ui.TITLE
+	local where = label(top, "Where", UDim2.new(1, 0, 0, 22), UDim2.new(0.5, 0, 0, 37), Vector2.new(0.5, 0), 16)
+	where.Font = Ui.BODY
+	where.TextColor3 = Ui.DIM
+	where.TextStrokeTransparency = 1
 	-- banners have their own layer: they still show while a set piece hides the rest of the HUD
-	local top = Instance.new("ScreenGui")
-	top.Name = "RaceBanner"
-	top.ResetOnSpawn = false
-	top.Parent = gui.Parent
+	local layer = Instance.new("ScreenGui")
+	layer.Name = "RaceBanner"
+	layer.ResetOnSpawn = false
+	layer.Parent = gui.Parent
 	local banner =
-		label(top, "Banner", UDim2.fromOffset(800, 50), UDim2.fromScale(0.5, 0.22), Vector2.new(0.5, 0.5), 34)
+		label(layer, "Banner", UDim2.fromOffset(900, 56), UDim2.fromScale(0.5, 0.22), Vector2.new(0.5, 0.5), 40)
+	banner.Font = Ui.TITLE
+	banner.TextStrokeColor3 = Color3.fromRGB(10, 8, 18)
 	banner.TextTransparency = 1
 	banner.TextStrokeTransparency = 1
 
 	-- health
 	local hpBack = Instance.new("Frame")
 	hpBack.Name = "Health"
-	hpBack.Size = UDim2.fromOffset(240, 16)
-	hpBack.Position = UDim2.new(0, 20, 1, -36)
+	hpBack.Size = UDim2.fromOffset(240, 14)
+	hpBack.Position = UDim2.new(0, 20, 1, -30)
 	hpBack.BackgroundColor3 = INK
-	hpBack.BackgroundTransparency = 0.35
+	hpBack.BackgroundTransparency = 0.25
 	hpBack.BorderSizePixel = 0
+	Ui.corner(hpBack, 7)
+	Ui.stroke(hpBack, INK, 2)
 	hpBack.Parent = gui
 	local hpBar = Instance.new("Frame")
 	hpBar.Size = UDim2.fromScale(1, 1)
 	hpBar.BackgroundColor3 = CHALK
 	hpBar.BorderSizePixel = 0
+	Ui.corner(hpBar, 7)
+	local shine = Instance.new("UIGradient")
+	shine.Rotation = 90
+	shine.Color = ColorSequence.new(Color3.new(1, 1, 1), Color3.fromRGB(190, 186, 176))
+	shine.Parent = hpBar
 	hpBar.Parent = hpBack
-	local hpText = label(hpBack, "Text", UDim2.fromOffset(240, 20), UDim2.fromOffset(0, -22), Vector2.zero, 16)
+	local hpText = label(hpBack, "Text", UDim2.fromOffset(240, 24), UDim2.fromOffset(2, -28), Vector2.zero, 22)
+	hpText.Font = Ui.TITLE
 	hpText.TextXAlignment = Enum.TextXAlignment.Left
 
 	-- weapon and ammo
-	local ammo = label(gui, "Ammo", UDim2.fromOffset(300, 34), UDim2.new(1, -20, 1, -40), Vector2.new(1, 0), 28)
-	ammo.TextXAlignment = Enum.TextXAlignment.Right
-	local weapon = label(gui, "Weapon", UDim2.fromOffset(300, 20), UDim2.new(1, -20, 1, -62), Vector2.new(1, 0), 16)
+	local arms = plate(
+		"Arms",
+		UDim2.fromOffset(210, 66),
+		if touch then UDim2.new(1, -16, 0, 6) else UDim2.new(1, -16, 1, -14),
+		if touch then Vector2.new(1, 0) else Vector2.new(1, 1)
+	)
+	local weapon = label(arms, "Weapon", UDim2.new(1, -24, 0, 20), UDim2.new(1, -12, 0, 6), Vector2.new(1, 0), 15)
 	weapon.TextXAlignment = Enum.TextXAlignment.Right
+	weapon.TextColor3 = Ui.DIM
+	weapon.TextStrokeTransparency = 1
+	local ammo = label(arms, "Ammo", UDim2.new(1, -24, 0, 36), UDim2.new(1, -12, 0, 24), Vector2.new(1, 0), 30)
+	ammo.Font = Ui.TITLE
+	ammo.TextXAlignment = Enum.TextXAlignment.Right
 
 	-- crosshair: four short ticks
 	local cross = Instance.new("Frame")
@@ -120,21 +160,31 @@ function Hud.init()
 	local feed = Instance.new("Frame")
 	feed.Name = "Feed"
 	feed.BackgroundTransparency = 1
-	feed.Size = UDim2.fromOffset(360, 160)
-	feed.Position = UDim2.new(1, -16, 0, 70)
+	feed.Size = UDim2.fromOffset(380, 200)
+	feed.Position = UDim2.new(1, -16, 0, if touch then 80 else 70)
 	feed.AnchorPoint = Vector2.new(1, 0)
 	feed.Parent = gui
 	local list = Instance.new("UIListLayout")
 	list.HorizontalAlignment = Enum.HorizontalAlignment.Right
 	list.SortOrder = Enum.SortOrder.LayoutOrder
+	list.Padding = UDim.new(0, 4)
 	list.Parent = feed
 	local order = 0
 
 	Net.event("Feed").OnClientEvent:Connect(function(text: string, kind: string)
 		order += 1
-		local l = label(feed, "Line", UDim2.fromOffset(360, 22), UDim2.new(), Vector2.zero, 16)
+		-- a chalk line on its own ink tab
+		local l = label(feed, "Line", UDim2.fromOffset(0, 26), UDim2.new(), Vector2.zero, 15)
+		l.AutomaticSize = Enum.AutomaticSize.X
+		l.BackgroundColor3 = INK
+		l.BackgroundTransparency = 0.3
+		l.TextStrokeTransparency = 1
+		Ui.corner(l, 8)
+		local pad = Instance.new("UIPadding")
+		pad.PaddingLeft = UDim.new(0, 10)
+		pad.PaddingRight = UDim.new(0, 10)
+		pad.Parent = l
 		l.LayoutOrder = order
-		l.TextXAlignment = Enum.TextXAlignment.Right
 		l.Text = text
 		if kind == "win" or kind == "boost" then
 			l.TextColor3 = Color3.fromRGB(255, 214, 120)
@@ -153,7 +203,7 @@ function Hud.init()
 		end
 		task.delay(7, function()
 			if l.Parent then
-				TweenService:Create(l, TweenInfo.new(0.6), { TextTransparency = 1, TextStrokeTransparency = 1 }):Play()
+				TweenService:Create(l, TweenInfo.new(0.6), { TextTransparency = 1, BackgroundTransparency = 1 }):Play()
 				task.wait(0.7)
 				l:Destroy()
 			end
@@ -336,10 +386,12 @@ function Hud.init()
 				else `{player:GetAttribute("Mag") or 0} / {player:GetAttribute("Reserve") or 0}`
 			cross.Size = if CameraAim.aiming then UDim2.fromOffset(18, 18) else UDim2.fromOffset(28, 28)
 		else
-			weapon.Text = if w then w.label else ""
-			ammo.Text = ""
+			-- a melee weapon: its name, big, where the ammo goes
+			weapon.Text = if w then "Melee" else ""
+			ammo.Text = if w then w.label else ""
 			cross.Size = UDim2.fromOffset(12, 12)
 		end
+		arms.Visible = w ~= nil
 	end)
 end
 
