@@ -4,6 +4,7 @@
 -- Each tool carries Weapon (its name) and Slot ("melee" / "gun") attributes; the server reads which one
 -- is in hand from the character.
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local ServerStorage = game:GetService("ServerStorage")
 
 local Weapons = require(ReplicatedStorage.Shared.Weapons)
 local Combat = require(ReplicatedStorage.Shared.Combat)
@@ -12,6 +13,9 @@ local Climbers = require(script.Parent.Climbers)
 type Climber = Climbers.Climber
 
 local Tools = {}
+
+-- a bot's other weapon waits here, outside the world (in the world its loose parts would fall away)
+local stashes: { [Model]: Folder } = {}
 
 local function part(name: string, size: Vector3, color: Color3, material: Enum.Material?, shape: Enum.PartType?): Part
 	local p = Instance.new("Part")
@@ -323,7 +327,7 @@ local function findTool(c: Climber, slot: string): Tool?
 	local places: { Instance } = {}
 	if c.model then
 		table.insert(places, c.model)
-		local stash = c.model:FindFirstChild("Stash")
+		local stash = stashes[c.model]
 		if stash then
 			table.insert(places, stash)
 		end
@@ -365,7 +369,7 @@ function Tools.sync(c: Climber)
 				tool.Parent = c.model -- it replaces the one in hand
 			elseif c.model then
 				-- bots keep both in a stash and take one in hand (Tools.equip)
-				tool.Parent = c.model:FindFirstChild("Stash") or Tools.stash(c.model)
+				tool.Parent = Tools.stash(c.model)
 				if inHand then
 					c.fighter.equipped = "none"
 				end
@@ -374,7 +378,7 @@ function Tools.sync(c: Climber)
 	end
 end
 
--- bots: put the weapon of this slot in hand
+-- bots: put the weapon of this slot in hand (the other one goes to the bot's stash)
 function Tools.equip(c: Climber, slot: "melee" | "gun")
 	local hum = c.humanoid
 	if not hum or Tools.inHand(c) == slot then
@@ -386,7 +390,7 @@ function Tools.equip(c: Climber, slot: "melee" | "gun")
 		for _, t in c.model:GetChildren() do
 			if t:IsA("Tool") and t ~= tool then
 				t.Parent = nil
-				t.Parent = c.model:FindFirstChild("Stash") or Tools.stash(c.model)
+				t.Parent = Tools.stash(c.model)
 			end
 		end
 		hum:EquipTool(tool)
@@ -394,9 +398,21 @@ function Tools.equip(c: Climber, slot: "melee" | "gun")
 end
 
 function Tools.stash(model: Model): Folder
+	local have = stashes[model]
+	if have then
+		return have
+	end
+	local root = ServerStorage:FindFirstChild("BotStashes") or Instance.new("Folder")
+	root.Name = "BotStashes"
+	root.Parent = ServerStorage
 	local f = Instance.new("Folder")
-	f.Name = "Stash"
-	f.Parent = model
+	f.Name = model.Name
+	f.Parent = root
+	stashes[model] = f
+	model.Destroying:Connect(function()
+		stashes[model] = nil
+		f:Destroy()
+	end)
 	return f
 end
 

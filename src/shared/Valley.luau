@@ -29,6 +29,7 @@ export type Fill = {
 }
 
 Valley.POND = { x = -250, z = 230, r = 80 }
+local SURFACE_SHIFT = -2.3 -- see the valley floor in fills()
 Valley.SEED = 20261018
 
 -- a small deterministic random generator (Park-Miller), the same everywhere
@@ -103,7 +104,9 @@ function Valley.fills(): { Fill }
 		table.insert(out, f)
 	end
 
-	add(block(0, -8, 0, 2800, 16, 2800, 0, "Grass"))
+	-- (smooth terrain draws a block's top surface 2 studs above the block itself: measured in Studio. The
+	-- floor's block tops out at -2.3, so the grass lies at -0.3, just under the concrete at the tower's foot)
+	add(block(0, SURFACE_SHIFT - 8, 0, 2800, 16, 2800, 0, "Grass"))
 	for _ = 1, 40 do
 		local a, r = rr(0, math.pi * 2), rr(260, 560)
 		local x, z = math.cos(a) * r, math.sin(a) * r
@@ -146,7 +149,9 @@ function Valley.fills(): { Fill }
 		local x = math.sin(k * 0.35) * 18 * math.min(1, k / 4)
 		local dx, dz = x - prevX, z - prevZ
 		local len = math.sqrt(dx * dx + dz * dz)
-		add(block((x + prevX) / 2, -0.8, (z + prevZ) / 2, 20, 2, len + 6, math.atan2(-dx, -dz), "Ground"))
+		add(
+			block((x + prevX) / 2, SURFACE_SHIFT - 0.8, (z + prevZ) / 2, 20, 2, len + 6, math.atan2(-dx, -dz), "Ground")
+		)
 		prevX, prevZ = x, z
 	end
 
