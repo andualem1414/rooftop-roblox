@@ -6,6 +6,9 @@
 		"Workspace": {
 			"$properties": { "StreamingEnabled": false }
 		},
+		"ReplicatedFirst": {
+			"Loading": { "$path": "src/client/first" }
+		},
 		"ReplicatedStorage": {
 			"Shared": { "$path": "src/shared" }
 		},

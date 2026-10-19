@@ -420,6 +420,38 @@ local function base()
 		p.CanCollide = false
 	end
 
+	-- floodlights at the foot of the tower, washing light up its faces (a light reaches 60 studs at most)
+	for _, side in { Vector3.new(1, 0, 0), Vector3.new(-1, 0, 0), Vector3.new(0, 0, 1), Vector3.new(0, 0, -1) } do
+		local along = Vector3.new(side.Z, 0, side.X)
+		for _, u in { -F * 0.55, F * 0.55 } do
+			local at = side * (F + 9) + along * u + Vector3.new(0, 1, 0)
+			local target = side * F + along * u + Vector3.new(0, 45, 0)
+			local housing = part(
+				"Floodlight",
+				Vector3.new(2.4, 1.4, 1.6),
+				CFrame.lookAt(at, target),
+				Color3.fromRGB(40, 40, 50),
+				Enum.Material.Metal
+			)
+			local lens = part(
+				"FloodLens",
+				Vector3.new(2, 1, 0.1),
+				housing.CFrame * CFrame.new(0, 0, -0.85),
+				Color3.fromRGB(255, 240, 220),
+				Enum.Material.Neon
+			)
+			lens.CanCollide = false
+			local spot = Instance.new("SpotLight")
+			spot.Face = Enum.NormalId.Front
+			spot.Angle = 55
+			spot.Range = 60
+			spot.Brightness = 2.2
+			spot.Color = Color3.fromRGB(255, 236, 214)
+			spot.Shadows = false
+			spot.Parent = housing
+		end
+	end
+
 	-- the shaft's pit under the ground floor
 	local pitTop, pitBottom = -0.4, -2 * FH - 2
 	local h = pitTop - pitBottom

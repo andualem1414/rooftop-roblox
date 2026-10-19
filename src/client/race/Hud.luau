@@ -7,6 +7,7 @@
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
+local StarterGui = game:GetService("StarterGui")
 local TweenService = game:GetService("TweenService")
 
 local Config = require(ReplicatedStorage.Shared.Config)
@@ -57,8 +58,13 @@ function Hud.init()
 
 	local clock = label(gui, "Clock", UDim2.fromOffset(500, 34), UDim2.new(0.5, 0, 0, 8), Vector2.new(0.5, 0), 26)
 	local where = label(gui, "Where", UDim2.fromOffset(500, 24), UDim2.new(0.5, 0, 0, 40), Vector2.new(0.5, 0), 18)
+	-- banners have their own layer: they still show while a set piece hides the rest of the HUD
+	local top = Instance.new("ScreenGui")
+	top.Name = "RaceBanner"
+	top.ResetOnSpawn = false
+	top.Parent = gui.Parent
 	local banner =
-		label(gui, "Banner", UDim2.fromOffset(800, 50), UDim2.fromScale(0.5, 0.28), Vector2.new(0.5, 0.5), 34)
+		label(top, "Banner", UDim2.fromOffset(800, 50), UDim2.fromScale(0.5, 0.22), Vector2.new(0.5, 0.5), 34)
 	banner.TextTransparency = 1
 	banner.TextStrokeTransparency = 1
 
@@ -229,7 +235,15 @@ function Hud.init()
 		end)
 
 	local state = ReplicatedStorage:WaitForChild("RaceState")
+	local hudShown = true
 	RunService.RenderStepped:Connect(function()
+		-- the intro, the roof opening and the winner's orbit get a clean screen (no HUD, no hotbar)
+		local show = not CameraAim.cinematic and player:GetAttribute("Loaded") == true
+		if show ~= hudShown then
+			hudShown = show
+			gui.Enabled = show
+			pcall(StarterGui.SetCoreGuiEnabled, StarterGui, Enum.CoreGuiType.Backpack, show)
+		end
 		local phase = state:GetAttribute("Phase")
 		local startAt = state:GetAttribute("StartAt") or 0
 		local roofOpen = state:GetAttribute("RoofOpen") == true

@@ -229,9 +229,9 @@ local function runRace()
 		waited += task.wait(0.1)
 	end
 
-	-- wait for every player's client to be running (a slow loader shouldn't miss the intro), at most 20 s
+	-- wait for every player's client to have loaded (a slow loader shouldn't miss the intro), at most 45 s
 	local waitedReady = 0
-	while waitedReady < 20 do
+	while waitedReady < 45 do
 		local all = true
 		for _, p in Players:GetPlayers() do
 			if not readyPlayers[p] then
@@ -246,7 +246,6 @@ local function runRace()
 	startAt = now() + Config.GET_READY
 	state:SetAttribute("StartAt", startAt)
 	setPhase("ready")
-	Notice:FireAllClients("Get ready", "info")
 	while now() < startAt do
 		PlatformService.step(0, false)
 		RunService.Heartbeat:Wait()

@@ -166,6 +166,9 @@ function CameraAim.restingCFrame(): CFrame?
 end
 
 local function update(dt: number)
+	if player:GetAttribute("Loaded") ~= true then
+		return -- (the loading screen has the camera)
+	end
 	if CameraAim.cinematic then
 		UserInputService.MouseIconEnabled = false
 		return

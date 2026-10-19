@@ -23,7 +23,13 @@ Hud.init()
 Ambience.init()
 Cinematic.init()
 
--- tell the server we're running (the race doesn't count down until everyone's client is)
-require(ReplicatedStorage.Shared.Net).event("Ready"):FireServer()
+-- once the loading screen has everything in place, tell the server we're ready (the race doesn't count
+-- down until everyone's client is)
+task.spawn(function()
+	while Players.LocalPlayer:GetAttribute("Loaded") ~= true do
+		task.wait(0.1)
+	end
+	require(ReplicatedStorage.Shared.Net).event("Ready"):FireServer()
+end)
 
 print(`[Rooftop] race client up for {Players.LocalPlayer.Name}, v{Version}`)

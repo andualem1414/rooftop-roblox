@@ -339,20 +339,27 @@ local function buildFloor(root: Model, i: number): (Model, { Rect }, BasePart)
 		end
 		table.insert(rects, c)
 	end
-	-- four lamps under the ceiling, in the floor's light
+	-- four lights under the ceiling, in the floor's colour (no visible fixtures: the ceiling above you is
+	-- cut away, so a lamp would hang in the air)
 	for _, sx in { -1, 1 } do
 		for _, sz in { -1, 1 } do
 			local x, z = sx * F / 2, sz * F / 2
-			local lamp = decor(
-				box(floor, "Lamp", x - 1.6, x + 1.6, y1 - 0.3, y1, z - 1.6, z + 1.6, th.light, Enum.Material.Neon)
-			)
+			local lamp = decor(box(floor, "Lamp", x - 0.5, x + 0.5, y1 - 1.5, y1 - 0.5, z - 0.5, z + 0.5, th.light))
+			lamp.Transparency = 1
 			local light = Instance.new("PointLight")
 			light.Color = th.light
-			light.Range = 34
-			light.Brightness = 1.1
+			light.Range = 30
+			light.Brightness = 0.55
 			light.Shadows = false
 			light.Parent = lamp
 		end
+	end
+	-- outside: a glowing band in the floor's colour at its floor line, so the tower reads from afar
+	local band = 0.35
+	local by0, by1 = y0 - SLAB / 2 - band / 2, y0 - SLAB / 2 + band / 2
+	for _, s in { 1, -1 } do
+		decor(box(floor, "Band", -F - 0.2, F + 0.2, by0, by1, s * F, s * (F + 0.2), th.accent, Enum.Material.Neon))
+		decor(box(floor, "Band", s * F, s * (F + 0.2), by0, by1, -F, F, th.accent, Enum.Material.Neon))
 	end
 	-- the shaft gate: climbers can't step into the shaft unless a platform is near; crates never can
 	local gate = box(floor, "ShaftGate", -H, H, y0, y1, -H, H, Color3.new())
