@@ -17,8 +17,13 @@ One Roblox experience, two places, one repo:
   Roblox services where it can be avoided, so `tests/` can run it under Lune. Use `require("./X")` between shared
   modules (works in both Roblox and Lune); avoid `init.luau` in `src/shared`.
 - `src/server/race`, `src/server/lobby` → `ServerScriptService.Race` / `.Lobby`.
+- `src/server/common` → `ServerScriptService.Common` in both places: the tower, the valley world, collision
+  groups, saved profiles (`ProfileStore`), looks (`LookService`) and teleports (`Travel`).
 - `src/client/race`, `src/client/lobby` → `StarterPlayer.StarterPlayerScripts.Race` / `.Lobby`.
+- `src/client/common` → `StarterPlayerScripts.Common` in both places: the UI kit, settings and audio.
+- `src/client/first` → `ReplicatedFirst.Loading` in both places (the loading screen).
 - `tests/`: Lune specs for `src/shared` (`*.spec.luau`, listed in `tests/init.luau`).
+- `publish/RELEASE.md`: publishing steps, the release test, questionnaire answers, the game page text.
 
 Code is Luau with `--!strict` where practical, formatted with StyLua (tabs, 120 columns), linted with Selene.
 
@@ -52,7 +57,17 @@ rojo build race.project.json -o build/race.rbxl
 - Fewer bots for a test: select Workspace in Studio, Properties → Attributes → add a number attribute
   `TestBots` (e.g. 3; 0 = none). Studio only; delete the attribute for a full race of 20.
 - Skip the race clock in a test (Studio only): `game.ServerStorage.RooftopDev:Invoke("skip", seconds)` from the
-  server command bar or the MCP's execute_luau.
+  server command bar or the MCP's execute_luau. Also `("restart")` (end the race now), `("win")` (the first
+  player gets out) and `("give", "rifle")` (the first player gets a weapon).
+- A running playtest keeps the code it started with: stop and play again after a change. Rojo syncs file
+  changes but not changes to a `*.project.json` tree: restart `rojo serve` after editing one (and reconnect).
+- The lobby in Studio: `rojo build lobby.project.json -o build/lobby.rbxl`, open it in a second Studio window,
+  `rojo serve lobby.project.json` (port 34873) and connect Rojo there on 34873. Each Studio window shows up
+  separately in the MCP's list_roblox_studios.
+- Saved data is off in Studio (it says so in Output) unless the place is published and *Enable Studio Access
+  to API Services* is on. Then Studio writes to the real data stores.
+- The MCP's screen_capture comes back blank on this machine; screenshots of the Studio window (computer use)
+  show the game.
 - Multiplayer test: Test → Clients and Servers (2–4 clients). Teleports and reserved servers don't work in Studio;
   the race place is playable on its own there (bots fill the round), the lobby → race move is tested in the
   published, still-private game.
@@ -72,4 +87,12 @@ rojo build race.project.json -o build/race.rbxl
 
 ## Publishing
 
-Not set up yet (phase 7). Steps will go here.
+The full list is in `publish/RELEASE.md`. In short (the owner does the Roblox side):
+
+1. Build both places; Lighting → Technology = Future in each.
+2. Publish the lobby as a new experience **Rooftop** (the start place), then the race into the same
+   experience as a new place named **Rooftop Race**.
+3. Put both place ids in `src/shared/Places.luau`, commit, rebuild, publish both again.
+4. Configure: max players 20 in both places, R15 avatars, devices, keep it private.
+5. Run the release test in the private game (teleports and data stores only work there).
+6. Maturity questionnaire (expected: Mild), game page, icon and thumbnails, then public.
