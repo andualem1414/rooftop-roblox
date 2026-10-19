@@ -1,14 +1,15 @@
 --!strict
 -- The loading screen (runs first, from ReplicatedFirst). It covers the screen until the world is really
--- there: the game loaded, the tower arrived, the valley's terrain built (here, on this client), their
--- content preloaded, and the camera
--- parked for a moment on the intro's opening views behind the screen so the terrain and the tower are
--- drawn before anyone sees them. Then it marks the player Loaded (the race client tells the server it's
--- ready, and the race waits for that) and fades out as the intro starts (in the lobby: at once).
+-- there: the game loaded, the tower arrived, the valley's terrain built (here, on this client) while
+-- their content preloads, and the camera parked for a moment on the first views behind the screen so
+-- the terrain and the tower are drawn before anyone sees them. Then it marks the player Loaded (the
+-- race client tells the server it's ready, and the race waits for that) and fades out as the intro
+-- starts (in the lobby: at once). It also covers teleports between the two places.
 local ContentProvider = game:GetService("ContentProvider")
 local Players = game:GetService("Players")
 local ReplicatedFirst = game:GetService("ReplicatedFirst")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local TeleportService = game:GetService("TeleportService")
 local TweenService = game:GetService("TweenService")
 
 ReplicatedFirst:RemoveDefaultLoadingScreen()
@@ -96,6 +97,12 @@ local tip = label(
 	Color3.fromRGB(200, 196, 220)
 )
 
+-- the same screen covers the teleport between the lobby and a race (else Roblox's own plain one shows,
+-- then this one): a copy is handed over now, while nothing is on its way
+pcall(function()
+	TeleportService:SetTeleportGui(gui:Clone())
+end)
+
 gui.Parent = player:WaitForChild("PlayerGui")
 
 local function progress(k: number, text: string)
@@ -124,48 +131,60 @@ local world = workspace:WaitForChild("World", 60)
 if world then
 	world:WaitForChild("Forest", 30)
 end
-
--- 3. the valley: this client builds the terrain itself (shared/Valley; far quicker than receiving it)
-progress(0.4, "Shaping the valley…")
 local shared = ReplicatedStorage:WaitForChild("Shared")
-local ValleyTerrain = require(shared:WaitForChild("ValleyTerrain")) :: any
-ValleyTerrain.build(function(k: number)
-	progress(0.4 + 0.2 * k, "Shaping the valley…")
-end)
 
--- 4. their content (fonts, textures)
-progress(0.6, "Lighting the floors…")
+-- 3. their content (fonts, textures) loads while this client builds the valley's terrain itself (shared/
+-- Valley; far quicker than receiving it). The game's sounds load behind that, without holding the
+-- screen up: the first shot and the countdown's ticks are then heard on time.
 local toLoad: { Instance } = {}
 for _, inst in { tower, world } do
 	if inst then
 		table.insert(toLoad, inst)
 	end
 end
-pcall(function()
-	ContentProvider:PreloadAsync(toLoad)
+local preloaded = false
+task.spawn(function()
+	pcall(function()
+		ContentProvider:PreloadAsync(toLoad)
+	end)
+	preloaded = true
+	-- (as Sound instances: a bare id would be fetched as an image)
+	local ok, sounds = pcall(require, shared:WaitForChild("Sounds"))
+	if ok and type(sounds) == "table" then
+		local byId: { [string]: Sound } = {}
+		for _, cue in sounds do
+			if type(cue) == "table" and type(cue.id) == "string" and not byId[cue.id] then
+				local s = Instance.new("Sound")
+				s.SoundId = cue.id
+				byId[cue.id] = s
+			end
+		end
+		local list: { Instance } = {}
+		for _, s in byId do
+			table.insert(list, s)
+		end
+		pcall(function()
+			ContentProvider:PreloadAsync(list)
+		end)
+	end
 end)
-
--- 5. draw it: the camera visits the intro's opening views behind the screen, so the terrain, the forest
--- and the tower are built before anyone sees them
-progress(0.75, "Painting the valley…")
+progress(0.4, "Shaping the valley…")
+-- (the camera waits far up in the sky meanwhile: no half-built valley in front of it to draw; 11.0 s
+-- for the build where it stood, 9.6 s up there, measured as in ValleyTerrain)
 local camera = workspace.CurrentCamera
 camera.CameraType = Enum.CameraType.Scriptable
-local H = 192
-local views = {
-	CFrame.lookAt(Vector3.new(0, 8, 260), Vector3.new(0, 40, 0)),
-	CFrame.lookAt(Vector3.new(-260, 90, 0), Vector3.new(0, 90, 0)),
-	CFrame.lookAt(Vector3.new(0, H + 40, 170), Vector3.new(0, H - 10, 0)),
-	CFrame.lookAt(Vector3.new(44, 4, 62), Vector3.new(0, 60, 0)),
-	CFrame.lookAt(Vector3.new(-90, 6, 820), Vector3.new(0, 20, 0)),
-}
-for i, cf in views do
-	camera.CFrame = cf
-	task.wait(0.6)
-	progress(0.75 + 0.2 * i / #views, "Painting the valley…")
+camera.CFrame = CFrame.lookAt(Vector3.new(0, 20000, 0), Vector3.new(0, 30000, 1))
+local ValleyTerrain = require(shared:WaitForChild("ValleyTerrain")) :: any
+ValleyTerrain.build(function(k: number)
+	progress(0.4 + 0.3 * k, "Shaping the valley…")
+end)
+progress(0.7, "Lighting the floors…")
+local waitedPreload = 0
+while not preloaded and waitedPreload < 20 do
+	waitedPreload += task.wait()
 end
 
--- 6. ready: the race client may tell the server now; in a race the screen stays up until the intro
--- starts, in the lobby it goes at once (and hands the camera back)
+-- which place this is (its state comes with the game; a race server just started may take a moment)
 local race: Instance?, lobby: Instance? = nil, nil
 local looked = 0
 while not race and not lobby and looked < 60 do
@@ -175,6 +194,35 @@ while not race and not lobby and looked < 60 do
 		looked += task.wait(0.1)
 	end
 end
+
+-- 4. draw it: the camera visits the first views behind the screen, so the terrain, the forest and the
+-- tower are built before anyone sees them: in a race the intro's opening shots; in the lobby the main
+-- screen's orbit and the forecourt, with the lighting's focus where LobbyUi keeps it (Camera.Focus)
+progress(0.75, "Painting the valley…")
+local H = 192
+local views = if lobby
+	then {
+		CFrame.lookAt(Vector3.new(math.sin(0.6) * 240, 70, math.cos(0.6) * 240), Vector3.new(0, 110, 0)),
+		CFrame.lookAt(Vector3.new(0, 14, 196), Vector3.new(0, 30, 0)),
+	}
+	else {
+		CFrame.lookAt(Vector3.new(0, 8, 260), Vector3.new(0, 40, 0)),
+		CFrame.lookAt(Vector3.new(-260, 90, 0), Vector3.new(0, 90, 0)),
+		CFrame.lookAt(Vector3.new(0, H + 40, 170), Vector3.new(0, H - 10, 0)),
+		CFrame.lookAt(Vector3.new(44, 4, 62), Vector3.new(0, 60, 0)),
+		CFrame.lookAt(Vector3.new(-90, 6, 820), Vector3.new(0, 20, 0)),
+	}
+for i, cf in views do
+	camera.CFrame = cf
+	if lobby then
+		camera.Focus = CFrame.new(0, 5, 150)
+	end
+	task.wait(0.6)
+	progress(0.75 + 0.2 * i / #views, "Painting the valley…")
+end
+
+-- 5. ready: the race client may tell the server now; in a race the screen stays up until the intro
+-- starts, in the lobby it goes at once (and hands the camera back)
 player:SetAttribute("Loaded", true)
 if lobby then
 	camera.CameraType = Enum.CameraType.Custom

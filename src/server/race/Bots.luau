@@ -104,12 +104,14 @@ local function pick<T>(list: { T }): T
 	return list[rng:NextInteger(1, #list)]
 end
 
--- build a handful of avatar rigs once; every bot is a clone of one of them
+-- build a handful of avatar rigs once, all at once (each is a trip to Roblox's avatar service); every
+-- bot is a clone of one of them
 function Bots.prepare()
 	local store = ServerStorage:FindFirstChild("BotTemplates") or Instance.new("Folder")
 	store.Name = "BotTemplates"
 	store.Parent = ServerStorage
-	for _ = 1, 8 do
+	local left = 8
+	for _ = 1, left do
 		local desc = Instance.new("HumanoidDescription")
 		local skin, top, pants = pick(SKINS), pick(TOPS), pick(PANTS)
 		desc.HeadColor = skin
@@ -118,15 +120,21 @@ function Bots.prepare()
 		desc.TorsoColor = top
 		desc.LeftLegColor = pants
 		desc.RightLegColor = pants
-		local ok, model = pcall(function()
-			return Players:CreateHumanoidModelFromDescriptionAsync(desc, Enum.HumanoidRigType.R15)
+		task.spawn(function()
+			local ok, model = pcall(function()
+				return Players:CreateHumanoidModelFromDescriptionAsync(desc, Enum.HumanoidRigType.R15)
+			end)
+			if ok and model then
+				model.Parent = store
+				table.insert(templates, model)
+			else
+				warn("[Rooftop] couldn't build a bot rig:", model)
+			end
+			left -= 1
 		end)
-		if ok and model then
-			model.Parent = store
-			table.insert(templates, model)
-		else
-			warn("[Rooftop] couldn't build a bot rig:", model)
-		end
+	end
+	while left > 0 do
+		task.wait()
 	end
 end
 

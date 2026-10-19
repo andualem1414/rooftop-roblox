@@ -108,18 +108,15 @@ function Ik.solve(arm: Arm, target: Vector3, hand: CFrame, pole: Vector3): (CFra
 	local P = wristAt - arm.S
 	local a, b = arm.U.Magnitude, arm.L.Magnitude
 	local d = math.clamp(P.Magnitude, math.abs(a - b) + 0.02, a + b - 0.01)
-	-- the elbow bend that makes shoulder -> wrist exactly d long (bisection: the distance shrinks as it bends)
-	local lo, hi = 0, 2.9
-	for _ = 1, 14 do
-		local mid = (lo + hi) / 2
-		local reach = (arm.U + CFrame.Angles(mid, 0, 0):VectorToWorldSpace(arm.L)).Magnitude
-		if reach > d then
-			lo = mid
-		else
-			hi = mid
-		end
-	end
-	local bend = (lo + hi) / 2
+	-- the elbow bend (about X, 0..2.9) that makes shoulder -> wrist exactly d long:
+	-- |U + Rx(bend) L|² = d²  is  A cos(bend) + B sin(bend) = E, solved outright (it runs for every arm
+	-- every frame; a bisection did the same to within 0.0001 rad, with 28 allocations an arm)
+	local U, L = arm.U, arm.L
+	local A = U.Y * L.Y + U.Z * L.Z
+	local B = U.Z * L.Y - U.Y * L.Z
+	local R = math.sqrt(A * A + B * B)
+	local E = (d * d - U:Dot(U) - L:Dot(L)) / 2 - U.X * L.X
+	local bend = if R > 1e-9 then math.clamp(math.atan2(B, A) + math.acos(math.clamp(E / R, -1, 1)), 0, 2.9) else 0
 	local elbowRot = CFrame.Angles(bend, 0, 0)
 	local v = arm.U + elbowRot:VectorToWorldSpace(arm.L)
 	local dir = if P.Magnitude > 1e-4 then P.Unit else Vector3.new(0, -1, 0)

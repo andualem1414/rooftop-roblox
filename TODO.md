@@ -134,6 +134,11 @@ Camera, look, sound
 
 ## Done
 
+- [x] 2026-10-19 — Performance pass (measured in Studio, wall clock): loading the race 21.4 s → 14.9 s, the
+  lobby 18.2 s → ~11 s (terrain sweeps only where their material can be, few frames during the build, the
+  lobby warms its own views, preloads alongside the build, sounds preloaded, our screen on teleports); the
+  cut-away's tick 3.5 ms → 0.03 ms; one window pane a wall (640 → 80 see-through parts); the arm solver
+  in closed form; booster prices fetched up front; bot rigs built in parallel
 - [x] 2026-10-19 — Private GitHub repo: `origin` = github.com/andualem1414/rooftop-roblox, `main` pushed
 - [x] 2026-10-19 — Phase 2 clean-up: the Studio-only helpers (`RooftopDev`, the "went down" line) were already
   behind `IsStudio()`; bots' `BotMode` attribute now is too

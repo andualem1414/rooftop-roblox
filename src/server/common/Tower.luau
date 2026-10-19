@@ -139,18 +139,27 @@ local function wall(parent: Instance, side: string, y0: number, y1: number, th: 
 	local count = math.floor(2 * F / WIN_STEP)
 	local first = -F + (2 * F - (count - 1) * WIN_STEP) / 2
 	local edge = -F
-	local glassColor = th.light:Lerp(Color3.new(1, 1, 1), 0.25)
 	for k = 0, count - 1 do
 		local u = first + k * WIN_STEP
 		place(edge, u - WIN_W / 2, y0 + SILL, top, 0, WALL, CONCRETE)
-		local glass =
-			place(u - WIN_W / 2, u + WIN_W / 2, y0 + SILL, top, WALL * 0.4, WALL * 0.6, glassColor, Enum.Material.Glass)
-		glass.Name = "Glass"
-		glass.Transparency = 0.55
-		glass.CanQuery = false
 		edge = u + WIN_W / 2
 	end
 	place(edge, F, y0 + SILL, top, 0, WALL, CONCRETE)
+	-- one pane along the whole row, inside the wall: the pillars between the windows hide it (one see-through
+	-- part a wall rather than one a window: far fewer to draw)
+	local glass = place(
+		first - WIN_W / 2,
+		first + (count - 1) * WIN_STEP + WIN_W / 2,
+		y0 + SILL,
+		top,
+		WALL * 0.4,
+		WALL * 0.6,
+		th.light:Lerp(Color3.new(1, 1, 1), 0.25),
+		Enum.Material.Glass
+	)
+	glass.Name = "Glass"
+	glass.Transparency = 0.55
+	glass.CanQuery = false
 end
 
 -- painted on the floor, big: the floor's number and its name (the camera looks down on it)

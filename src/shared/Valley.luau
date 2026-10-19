@@ -166,6 +166,108 @@ function Valley.fills(): { Fill }
 	return out
 end
 
+-- Where a replace fill can change anything: the boxes it has to sweep, each within one of the tiles the
+-- terrain is swept in (a region can only be so big) and a multiple of 4 studs. The material it replaces
+-- can only be inside the fills that made it (padded for the terrain's soft edges), so the rest of the
+-- valley is skipped: the result is the same, only quicker (a sweep of the whole valley took seconds).
+-- A replace above every fill of its material sweeps nothing.
+export type Box = { x0: number, y0: number, z0: number, x1: number, y1: number, z1: number }
+Valley.TILE = 400 -- a sweep's tile, across
+Valley.SLICE = 200 -- ...and up
+Valley.EXTENT = 1600 -- the tiles cover -EXTENT .. EXTENT in x and z
+local PAD = 8
+
+local function grid(v: number, up: boolean): number
+	return if up then math.ceil(v / 4) * 4 else math.floor(v / 4) * 4
+end
+
+function Valley.regions(fills: { Fill }, index: number): { Box }
+	-- what each material could cover, fill by fill, up to this one
+	local made: { [string]: { Box } } = {}
+	local function add(mat: string, b: Box)
+		local list = made[mat]
+		if not list then
+			list = {}
+			made[mat] = list
+		end
+		table.insert(list, b)
+	end
+	for i = 1, index - 1 do
+		local f = fills[i]
+		local hx, hy, hz
+		if f.op == "ball" then
+			hx, hy, hz = f.sx, f.sx, f.sx
+		elseif f.op == "block" then
+			local r = math.sqrt(f.sx * f.sx + f.sz * f.sz) / 2 -- (turned about Y)
+			hx, hy, hz = r, f.sy / 2, r
+		elseif f.op == "cylinder" then
+			hx, hy, hz = f.sy, f.sx / 2, f.sz
+		end
+		if hx and f.mat ~= "Air" then
+			add(f.mat, {
+				x0 = f.x - hx - PAD,
+				x1 = f.x + hx + PAD,
+				y0 = f.y - hy - PAD,
+				y1 = f.y + hy + PAD,
+				z0 = f.z - hz - PAD,
+				z1 = f.z + hz + PAD,
+			})
+		elseif f.op == "replace" and f.from and f.y0 and f.y1 then
+			for _, b in made[f.from] or {} do
+				if b.y1 > f.y0 and b.y0 < f.y1 then
+					add(f.mat, {
+						x0 = b.x0,
+						x1 = b.x1,
+						y0 = math.max(b.y0, f.y0),
+						y1 = math.min(b.y1, f.y1),
+						z0 = b.z0,
+						z1 = b.z1,
+					})
+				end
+			end
+		end
+	end
+
+	local f = fills[index]
+	local out: { Box } = {}
+	if f.op ~= "replace" or not f.from or not f.y0 or not f.y1 then
+		return out
+	end
+	local sources = made[f.from] or {}
+	local T, S, E = Valley.TILE, Valley.SLICE, Valley.EXTENT
+	for x = -E, E - T, T do
+		for z = -E, E - T, T do
+			for y = f.y0, f.y1 - 1, S do
+				local tile = { x0 = x, x1 = x + T, y0 = y, y1 = math.min(y + S, f.y1), z0 = z, z1 = z + T }
+				-- the part of this tile any source reaches
+				local box: Box? = nil
+				for _, b in sources do
+					local x0, x1 = math.max(tile.x0, b.x0), math.min(tile.x1, b.x1)
+					local y0, y1 = math.max(tile.y0, b.y0), math.min(tile.y1, b.y1)
+					local z0, z1 = math.max(tile.z0, b.z0), math.min(tile.z1, b.z1)
+					if x0 < x1 and y0 < y1 and z0 < z1 then
+						if box then
+							box.x0, box.x1 = math.min(box.x0, x0), math.max(box.x1, x1)
+							box.y0, box.y1 = math.min(box.y0, y0), math.max(box.y1, y1)
+							box.z0, box.z1 = math.min(box.z0, z0), math.max(box.z1, z1)
+						else
+							box = { x0 = x0, x1 = x1, y0 = y0, y1 = y1, z0 = z0, z1 = z1 }
+						end
+					end
+				end
+				if box then
+					-- on the 4-stud grid, and still inside the tile (whose corners are on it)
+					box.x0, box.x1 = math.max(tile.x0, grid(box.x0, false)), math.min(tile.x1, grid(box.x1, true))
+					box.y0, box.y1 = math.max(tile.y0, grid(box.y0, false)), math.min(tile.y1, grid(box.y1, true))
+					box.z0, box.z1 = math.max(tile.z0, grid(box.z0, false)), math.min(tile.z1, grid(box.z1, true))
+					table.insert(out, box)
+				end
+			end
+		end
+	end
+	return out
+end
+
 -- the ground's height at (x, z): the valley floor, the rises and mountains on it, the pond's water
 function Valley.height(x: number, z: number): number
 	if nearPond(x, z, 0) then

@@ -29,34 +29,45 @@ local STUDIO = RunService:IsStudio()
 local BoostPad = {}
 
 local prices: { [number]: number } = {} -- size -> Robux (once looked up)
+local asking: { [number]: boolean } = {} -- a price being looked up
+local onPrice: (() -> ())? = nil -- (the panel refreshes when one arrives)
 local flyingUntil = 0
 local open: { [number]: boolean } = {} -- the sizes that can be taken right now
 
-local function credits(size: number): number
+-- the boost credits you hold, by size
+local function allCredits(): { [string]: number }
 	local raw = player:GetAttribute("Profile")
 	if type(raw) ~= "string" then
-		return 0
+		return {}
 	end
 	local ok, data = pcall(HttpService.JSONDecode, HttpService, raw)
 	if ok and type(data) == "table" and type(data.credits) == "table" then
-		local n = data.credits[tostring(size)]
-		return if type(n) == "number" then n else 0
+		return data.credits
 	end
-	return 0
+	return {}
 end
 
+-- the price, if known; else it's looked up in the background (the panel never waits on Roblox's web
+-- service: it shows "…" until the price arrives)
 local function price(size: number): number?
 	local id = Booster.PRODUCTS[size]
 	if not id or id == 0 then
 		return nil
 	end
-	if prices[size] == nil then
-		local ok, info = pcall(function()
-			return MarketplaceService:GetProductInfo(id, Enum.InfoType.Product)
+	if prices[size] == nil and not asking[size] then
+		asking[size] = true
+		task.spawn(function()
+			local ok, info = pcall(function()
+				return MarketplaceService:GetProductInfo(id, Enum.InfoType.Product)
+			end)
+			if ok and info and type(info.PriceInRobux) == "number" then
+				prices[size] = info.PriceInRobux
+			end
+			asking[size] = false
+			if onPrice then
+				onPrice()
+			end
 		end)
-		if ok and info and type(info.PriceInRobux) == "number" then
-			prices[size] = info.PriceInRobux
-		end
 	end
 	return prices[size]
 end
@@ -169,14 +180,20 @@ function BoostPad.init()
 		hint.Text =
 			`You're on floor {floor + 1}. Fly up the shaft: boosts go up to floor {Booster.MAX_FLOOR + 1}, until the roof opens.`
 		local first: TextButton? = nil
+		local held = allCredits()
 		for _, size in Booster.SIZES do
 			local b = buttons[size]
 			local ok, why = Booster.canBoost(floor, size, phase, t)
 			local cost: string
-			if credits(size) > 0 then
-				cost = `{credits(size)} credit{if credits(size) == 1 then "" else "s"}`
-			elseif price(size) then
-				cost = `R$ {price(size)}`
+			local n = held[tostring(size)]
+			local credits = if type(n) == "number" then n else 0
+			local robux = price(size)
+			if credits > 0 then
+				cost = `{credits} credit{if credits == 1 then "" else "s"}`
+			elseif robux then
+				cost = `R$ {robux}`
+			elseif asking[size] then
+				cost = "R$ …"
 			elseif STUDIO then
 				cost = "Free test"
 			else
@@ -203,6 +220,15 @@ function BoostPad.init()
 			GuiService.SelectedObject = first
 		end
 		return true
+	end
+	-- the prices, looked up now (not when someone first steps on a pad)
+	for _, size in Booster.SIZES do
+		price(size)
+	end
+	onPrice = function()
+		if panel.frame.Visible then
+			refresh()
+		end
 	end
 	ProximityPromptService.PromptTriggered:Connect(function(prompt: ProximityPrompt)
 		if prompt.Name == "Booster" and os.clock() > flyingUntil and refresh() then

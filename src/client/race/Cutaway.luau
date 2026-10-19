@@ -43,33 +43,69 @@ local function floorOf(d: Instance): number?
 	return nil
 end
 
+-- each floor's parts, lights and painted numbers (gathered once, kept up as parts arrive or go), and
+-- whether the floor is hidden now: a new cut only touches the floors that change side
+local floors: { [number]: { [Instance]: boolean } } = {}
+local hiddenFloors: { [number]: boolean } = {}
+
 local function apply(top: number)
 	shown = top
-	local tower = workspace:FindFirstChild("Tower")
-	if not tower then
-		return
-	end
-	for _, m in tower:GetChildren() do
-		local f = m:GetAttribute("Floor")
-		if type(f) == "number" then
-			for _, d in m:GetDescendants() do
-				setPart(d, f > top)
+	for f, items in floors do
+		local hidden = f > top
+		if (hiddenFloors[f] or false) ~= hidden then
+			hiddenFloors[f] = hidden
+			for d in items do
+				setPart(d, hidden)
 			end
 		end
 	end
 end
 
--- people, pickups and platforms above the cut aren't drawn either, nor their labels
+-- people, pickups and platforms above the cut aren't drawn either, nor their labels. Most of them sit
+-- wholly below the cut (or above it) tick after tick: those are left alone until they cross it, or
+-- something is added to them.
+type Seen = { side: string, dirty: boolean }
+local seen: { [Instance]: Seen } = setmetatable({}, { __mode = "k" }) :: any
+local REACH = 6 -- studs a pickup's model and label reach from its holder
+
+local function setAll(model: Instance, cutY: number)
+	for _, d in model:GetDescendants() do
+		if d:IsA("BasePart") then
+			d.LocalTransparencyModifier = if d.Position.Y > cutY then 1 else 0
+		elseif d:IsA("BillboardGui") then
+			local at = d.Parent
+			d.Enabled = not (at and at:IsA("BasePart") and at.Position.Y > cutY)
+		end
+	end
+end
+
 local function hideAbove(cutY: number)
 	local function each(model: Instance)
-		for _, d in model:GetDescendants() do
-			if d:IsA("BasePart") then
-				d.LocalTransparencyModifier = if d.Position.Y > cutY then 1 else 0
-			elseif d:IsA("BillboardGui") then
-				local at = d.Parent
-				d.Enabled = not (at and at:IsA("BasePart") and at.Position.Y > cutY)
-			end
+		local low, high
+		if model:IsA("Model") then
+			local cf, size = model:GetBoundingBox()
+			local r = size.Magnitude / 2 -- (however it's turned)
+			low, high = cf.Position.Y - r, cf.Position.Y + r
+		elseif model:IsA("BasePart") then
+			low, high = model.Position.Y - REACH, model.Position.Y + REACH
+		else
+			setAll(model, cutY)
+			return
 		end
+		local side = if high < cutY then "below" elseif low > cutY then "above" else "across"
+		local s = seen[model]
+		if not s then
+			s = { side = "", dirty = true }
+			seen[model] = s
+			model.DescendantAdded:Connect(function()
+				s.dirty = true
+			end)
+		end
+		if side ~= "across" and side == s.side and not s.dirty then
+			return
+		end
+		s.side, s.dirty = side, false
+		setAll(model, cutY)
 	end
 	for _, p in Players:GetPlayers() do
 		if p ~= player and p.Character then
@@ -79,7 +115,9 @@ local function hideAbove(cutY: number)
 	for _, name in { "Bots", "Pickups" } do
 		local f = workspace:FindFirstChild(name)
 		if f then
-			each(f)
+			for _, m in f:GetChildren() do
+				each(m)
+			end
 		end
 	end
 	-- a platform goes by its deck's top: it fades out as it rises into your ceiling (and one stopped at
@@ -97,15 +135,43 @@ local function hideAbove(cutY: number)
 	end
 end
 
+local function track(items: { [Instance]: boolean }, d: Instance)
+	if d:IsA("BasePart") or d:IsA("Light") or d:IsA("SurfaceGui") then
+		items[d] = true
+	end
+end
+
 local function watch(tower: Instance)
 	shown = math.huge
+	table.clear(floors)
+	table.clear(hiddenFloors)
+	for _, m in tower:GetChildren() do
+		local f = m:GetAttribute("Floor")
+		if type(f) == "number" then
+			local items = floors[f] or {}
+			floors[f] = items
+			for _, d in m:GetDescendants() do
+				track(items, d)
+			end
+		end
+	end
 	tower.DescendantAdded:Connect(function(d)
-		if shown == math.huge then
+		local f = floorOf(d)
+		if not f then
 			return
 		end
-		local f = floorOf(d)
-		if f and f > shown then
+		local items = floors[f] or {}
+		floors[f] = items
+		track(items, d)
+		if items[d] and hiddenFloors[f] then
 			setPart(d, true)
+		end
+	end)
+	tower.DescendantRemoving:Connect(function(d)
+		local f = floorOf(d)
+		local items = f and floors[f]
+		if items then
+			items[d] = nil
 		end
 	end)
 end
