@@ -47,6 +47,8 @@ Teleports and data stores only work there. With 2–4 accounts (or friends) on d
 - [ ] Guns: pistol, rifle and SMG (hold to fire), shotgun; pickups, ammo, reload; melee and guard
 - [ ] Touch: Fire / Aim / Reload / Swap buttons; controller: R2 / L2 / X / Y / B / View
 - [ ] The roof opens at 4:00 (or skip ahead in Studio first); one alone through the roof wins
+- [ ] A player who wins gets the skydive pad by the roof sign: the glide through the rings works with keys,
+      a stick and a phone's thumbpad; the celebration waits until they land
 - [ ] After the celebration everyone is sent back to the lobby
 - [ ] Back in the lobby: Stats show the race, Escapes / KOs in the player list, leaderboards fill in
       (they refresh every minute), a look unlocked by the race can be worn

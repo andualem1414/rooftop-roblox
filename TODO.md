@@ -112,7 +112,6 @@ Camera, look, sound
   area (~17 × 17 m). Confirm in the playtest.
 - The original's own sounds (wind, the platform's clunk, the hatch grinding, confetti cannons), made with Web
   Audio: render them to files for the user to upload, if the library sounds don't fit
-- The winner's skydive (kept for a later phase in the 2026-10-18 decisions)
 
 ## Roblox limits to remember (checked 2026-10-18, create.roblox.com/docs)
 
@@ -141,6 +140,10 @@ Camera, look, sound
   settings; race: Settings / P / View)
 - [x] 2026-10-19 — Phase 4: the ten looks (worn over your avatar); bots wear them
 - [x] 2026-10-19 — Phase 5: profiles, leaderboards, Escapes / KOs in the player list
+- [x] 2026-10-19 — The winner's skydive (the original's): a pad on the roof by the sign for a player who wins;
+  it flings them out over the valley to glide through 12 rings (W dives, S flares, A / D or the stick steer),
+  each ring lifts them; the celebration lasts until they land (40 s at most); the feed counts the rings.
+  Checked in Studio: launch, the arc, the glide over the valley, the rings, landing far down the valley
 - [x] 2026-10-19 — Controller in the menus: a panel opened with a controller starts on its first control, B
   closes it, sliders move with D-pad left / right; the race HUD in the ink-and-chalk look
 - [x] 2026-10-19 — Phase 6: the paid booster (see Decisions), checked in Studio: pads on floors 1–17, F opens

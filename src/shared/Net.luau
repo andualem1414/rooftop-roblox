@@ -12,6 +12,8 @@
 --   SetLook(id)                    wear this look (if your stats unlock it)
 --   SaveSettings(settings)         keep these settings with your profile
 --   Boost(size)                    boost up this many floors from the booster pad you stand on
+--   Skydive("launch")              the winner stepped on the skydive pad
+--   Skydive("done", rings)         the winner's flight is over, with this many rings taken
 -- Server -> clients:
 --   Knock(velocity)                you were hit: get pushed this way (your client owns your body)
 --   ShotFx(model, from, to, kind, weapon)  draw a shot: muzzle flash, streak, impact (kind: "body",
@@ -22,6 +24,7 @@
 --   Feed(text, kind)               a kill-feed line
 --   Cue(name, position?)           play a sound cue (shared/Sounds) for everyone, or one player
 --   Boost(from, to, seconds)       your boost starts: fly from floor `from` to `to` (shared/Booster)
+--   Skydive(model, x, y, z, yaw, seed)  the winner launched off the pad (everyone lays the same rings)
 --
 -- Character attributes the server keeps up to date (for the poses): Aim (pitch, radians), Guard,
 -- Reloading.
@@ -45,6 +48,7 @@ local NAMES = {
 	"SaveSettings",
 	"Cue",
 	"Boost",
+	"Skydive",
 }
 local UNRELIABLE = { "Look" }
 

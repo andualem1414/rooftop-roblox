@@ -9,6 +9,7 @@
 --   a sword: carried point-up in front, diagonal slashes, alternating
 --   guard:   the weapon held across the chest
 --   a boost: arms straight down and a little back, palms down, like a rocket (the Boosting attribute)
+--   a skydive: arms spread wide on the air, palms down (the Gliding attribute)
 --   always:  the head and chest follow the aim; a flinch when hit; a lean into the run and a bank into
 --            turns
 -- Swing timings come from the weapon (shared/Weapons), so the arms land the blow when the server does.
@@ -301,7 +302,14 @@ local function pose(r: Rig, dt: number)
 	local chestYaw, chestLean = 0, 0
 	local armed = slot ~= nil
 
-	if model:GetAttribute("Boosting") == true then
+	if model:GetAttribute("Gliding") == true then
+		-- gliding: arms out wide and a little forward, hands flat
+		r.armW = math.min(1, r.armW + dt * 4)
+		setArm(r, r.right, v(1.75, 0.55, -0.25) * k, meleeHand(v(1, 0, 0), v(0, -1, 0)), POLE_R, r.armW)
+		setArm(r, r.left, v(-1.75, 0.55, -0.25) * k, meleeHand(v(-1, 0, 0), v(0, -1, 0)), POLE_L, r.armW)
+		pitch = 0.5
+		armed = true
+	elseif model:GetAttribute("Boosting") == true then
 		-- flying up on the jets: arms down by the sides and back, hands flat, chin up
 		r.armW = math.min(1, r.armW + dt * 6)
 		local down = v(0, -1, 0.25).Unit
