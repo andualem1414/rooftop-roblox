@@ -1,8 +1,8 @@
 --!strict
 -- Outside the tower, after the original's world.js / base.js: the tower stands in a forest clearing in a
 -- valley, closed in by mountains, under a big moon. A dirt track runs out of the valley to the entrance.
---   terrain   a grassy clearing; a ring of mountains (snow on the tops), higher ones behind, a gap in
---             front where the valley opens; a pond; the track (all from fast primitive fills)
+--   terrain   built by each client from the shared recipe (shared/Valley, ValleyTerrain); the server only
+--             uses its heights to place things
 --   forest    stylised pines (a trunk and three tiers), kept off the camera's lane up the valley
 --   the base  a concrete apron, the entrance (landing, steps, columns, a canopy with the name lit up,
 --             steel doors), a walkway with lamp posts and lit bollards, drums, the shaft's pit
@@ -12,6 +12,7 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Config = require(ReplicatedStorage.Shared.Config)
+local Valley = require(ReplicatedStorage.Shared.Valley)
 
 local F = Config.FLOOR_HALF
 local FH = Config.FLOOR_HEIGHT
@@ -82,107 +83,6 @@ local function sign(p: BasePart, text: string, color: Color3, face: Enum.NormalI
 	g.Parent = p
 end
 
----------------------------------------------------------------- terrain
-
-local POND = Vector3.new(-250, 0, 230)
-local function inCameraLane(x: number, z: number): boolean
-	return z > F and math.abs(x) < 70 + (z - F) * 0.28
-end
-
-local function terrain()
-	local T = workspace.Terrain
-	T:Clear()
-	-- animated grass (Studio may not let a script switch it: then it's set by hand on Terrain)
-	pcall(function()
-		(T :: any).Decoration = true
-		T.GrassLength = 0.55
-	end)
-	T:SetMaterialColor(Enum.Material.Grass, Color3.fromRGB(56, 96, 74))
-	T:SetMaterialColor(Enum.Material.LeafyGrass, Color3.fromRGB(48, 84, 70))
-	T:SetMaterialColor(Enum.Material.Ground, Color3.fromRGB(92, 70, 60))
-	T:SetMaterialColor(Enum.Material.Rock, Color3.fromRGB(104, 98, 130))
-	T:SetMaterialColor(Enum.Material.Slate, Color3.fromRGB(84, 80, 108))
-	T:SetMaterialColor(Enum.Material.Snow, Color3.fromRGB(226, 234, 255))
-	T.WaterColor = Color3.fromRGB(40, 64, 120)
-	T.WaterReflectance = 1
-	T.WaterTransparency = 0.35
-	T.WaterWaveSize = 0.08
-	T.WaterWaveSpeed = 6
-
-	-- the valley floor: grass, its top at y = 0
-	T:FillBlock(CFrame.new(0, -8, 0), Vector3.new(2800, 16, 2800), Enum.Material.Grass)
-	-- gentle rises in the forest (not on the pond, the track or the camera's lane up the valley)
-	for _ = 1, 40 do
-		local a, r = rr(0, math.pi * 2), rr(260, 560)
-		local x, z = math.cos(a) * r, math.sin(a) * r
-		local radius = rr(60, 130)
-		if (Vector3.new(x, 0, z) - POND).Magnitude < radius + 90 or inCameraLane(x, z) then
-			continue
-		end
-		T:FillBall(Vector3.new(x, -radius * 0.78, z), radius, Enum.Material.LeafyGrass)
-	end
-	-- the mountains: a near ring with a gap toward +Z (down the valley), a higher ring behind
-	local function gap(a: number): number
-		local d = math.atan2(math.sin(a - math.pi / 2), math.cos(a - math.pi / 2))
-		return math.exp(-(d / 0.42) ^ 2)
-	end
-	for i = 1, 80 do
-		local a = i / 80 * math.pi * 2 + rr(-0.03, 0.03)
-		local radius = rr(140, 250) * (1 - 0.6 * gap(a))
-		local r = rr(640, 860) + gap(a) * 120
-		T:FillBall(Vector3.new(math.cos(a) * r, -radius * 0.3 + rr(0, 30), math.sin(a) * r), radius, Enum.Material.Rock)
-	end
-	for i = 1, 46 do
-		local a = i / 46 * math.pi * 2 + rr(-0.05, 0.05)
-		local radius = rr(260, 380) * (1 - 0.35 * gap(a))
-		local r = rr(1000, 1200)
-		T:FillBall(Vector3.new(math.cos(a) * r, -radius * 0.2, math.sin(a) * r), radius, Enum.Material.Slate)
-	end
-	-- snow on the tops, grass up the lowest slopes
-	-- (a region can only be so big: done in tiles)
-	local function replace(y0: number, y1: number, from: Enum.Material, to: Enum.Material)
-		local TILE = 400
-		for x = -1600, 1600 - TILE, TILE do
-			for z = -1600, 1600 - TILE, TILE do
-				for y = y0, y1 - 1, 200 do
-					local region =
-						Region3.new(Vector3.new(x, y, z), Vector3.new(x + TILE, math.min(y + 200, y1), z + TILE))
-					T:ReplaceMaterial(region:ExpandToGrid(4), 4, from, to)
-				end
-			end
-		end
-	end
-	replace(220, 800, Enum.Material.Rock, Enum.Material.Snow)
-	replace(300, 800, Enum.Material.Slate, Enum.Material.Snow)
-	replace(-40, 36, Enum.Material.Rock, Enum.Material.LeafyGrass)
-
-	-- the pond, off to the left of the track
-	local pond = CFrame.new(POND)
-	T:FillCylinder(pond * CFrame.new(0, 30, 0), 86, 80, Enum.Material.Air)
-	T:FillCylinder(pond * CFrame.new(0, -12, 0), 4, 82, Enum.Material.Mud)
-	T:FillCylinder(pond * CFrame.new(0, -5, 0), 9, 78, Enum.Material.Water)
-
-	-- the track: from the walkway out along the valley, bending a little
-	local pts = {}
-	for k = 0, 24 do
-		local z = WALK_END + k * 40
-		local x = math.sin(k * 0.35) * 18 * math.min(1, k / 4)
-		table.insert(pts, Vector3.new(x, 0, z))
-	end
-	for k = 1, #pts - 1 do
-		local a, b = pts[k], pts[k + 1]
-		local mid = (a + b) / 2
-		T:FillBlock(
-			CFrame.lookAt(mid + Vector3.new(0, -0.8, 0), b + Vector3.new(0, -0.8, 0)),
-			Vector3.new(20, 2, (b - a).Magnitude + 6),
-			Enum.Material.Ground
-		)
-	end
-
-	-- no terrain under the tower: the shaft's pit goes down into the ground
-	T:FillBlock(CFrame.new(0, -14, 0), Vector3.new(2 * F, 28, 2 * F), Enum.Material.Air)
-end
-
 ---------------------------------------------------------------- forest
 
 -- a stylised pine: a trunk and three tiers, darker at the bottom
@@ -235,9 +135,6 @@ local function forest()
 	local trees = Instance.new("Model")
 	trees.Name = "Forest"
 	trees.Parent = folder
-	local params = RaycastParams.new()
-	params.FilterType = Enum.RaycastFilterType.Include
-	params.FilterDescendantsInstances = { workspace.Terrain }
 	local placed = 0
 	for _ = 1, 900 do
 		if placed >= 260 then
@@ -249,14 +146,15 @@ local function forest()
 		if math.abs(x) < APRON + 20 and math.abs(z) < APRON + 20 then
 			continue
 		end
-		if inCameraLane(x, z) or (Vector3.new(x, 0, z) - POND).Magnitude < 100 then
+		local pond = Valley.POND
+		if Valley.inCameraLane(x, z) or math.sqrt((x - pond.x) ^ 2 + (z - pond.z) ^ 2) < pond.r + 20 then
 			continue
 		end
-		local hit = workspace:Raycast(Vector3.new(x, 400, z), Vector3.new(0, -500, 0), params)
-		if not hit or hit.Material == Enum.Material.Water or hit.Position.Y > 140 then
+		local y = Valley.height(x, z)
+		if y > 140 then
 			continue
 		end
-		pine(hit.Position - Vector3.new(0, 0.5, 0), rr(1.1, 2.1), trees)
+		pine(Vector3.new(x, y - 0.5, z), rr(1.1, 2.1), trees)
 		placed += 1
 	end
 end
@@ -471,15 +369,11 @@ end
 ---------------------------------------------------------------- the title on the hill
 
 local function title()
-	local params = RaycastParams.new()
-	params.FilterType = Enum.RaycastFilterType.Include
-	params.FilterDescendantsInstances = { workspace.Terrain }
 	local text = { "R", "O", "O", "F", "T", "O", "P" }
 	local zBase, width = -620, 46
 	for i, ch in text do
 		local x = (i - 4) * width
-		local hit = workspace:Raycast(Vector3.new(x, 800, zBase), Vector3.new(0, -900, 0), params)
-		local y = (if hit then hit.Position.Y else 120) + 34
+		local y = Valley.height(x, zBase) + 34
 		local p = part(
 			"TitleLetter",
 			Vector3.new(40, 56, 2),
@@ -572,8 +466,6 @@ function World.build()
 	folder.Name = "World"
 	folder:SetAttribute("Floor", -1)
 	folder.Parent = workspace
-	terrain()
-	task.wait(0.1) -- (new terrain can be raycast from the next physics step: the trees and the title need it)
 	base()
 	forest()
 	title()

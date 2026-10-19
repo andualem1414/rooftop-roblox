@@ -7,6 +7,7 @@ require("@self/Config.spec")
 require("@self/Platforms.spec")
 require("@self/Combat.spec")
 require("@self/Rules.spec")
+require("@self/Valley.spec")
 
 if not Test.finish() then
 	process.exit(1)

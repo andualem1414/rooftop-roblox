@@ -340,7 +340,8 @@ local function buildFloor(root: Model, i: number): (Model, { Rect }, BasePart)
 		table.insert(rects, c)
 	end
 	-- four lights under the ceiling, in the floor's colour (no visible fixtures: the ceiling above you is
-	-- cut away, so a lamp would hang in the air)
+	-- cut away, so a lamp would hang in the air). Bright enough on their own: lights shine through floors
+	-- (no shadows), and the floors above you switch theirs off when they're cut away
 	for _, sx in { -1, 1 } do
 		for _, sz in { -1, 1 } do
 			local x, z = sx * F / 2, sz * F / 2
@@ -348,8 +349,8 @@ local function buildFloor(root: Model, i: number): (Model, { Rect }, BasePart)
 			lamp.Transparency = 1
 			local light = Instance.new("PointLight")
 			light.Color = th.light
-			light.Range = 30
-			light.Brightness = 0.55
+			light.Range = 36
+			light.Brightness = 1.0
 			light.Shadows = false
 			light.Parent = lamp
 		end

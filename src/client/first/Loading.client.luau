@@ -1,6 +1,7 @@
 --!strict
 -- The loading screen (runs first, from ReplicatedFirst). It covers the screen until the world is really
--- there: the game loaded, the tower and the valley arrived, their content preloaded, and the camera
+-- there: the game loaded, the tower arrived, the valley's terrain built (here, on this client), their
+-- content preloaded, and the camera
 -- parked for a moment on the intro's opening views behind the screen so the terrain and the tower are
 -- drawn before anyone sees them. Then it marks the player Loaded (the race client tells the server it's
 -- ready, and the race waits for that) and fades out as the intro starts.
@@ -123,8 +124,16 @@ if world then
 	world:WaitForChild("Forest", 30)
 end
 
--- 3. their content (fonts, textures)
-progress(0.5, "Lighting the floors…")
+-- 3. the valley: this client builds the terrain itself (shared/Valley; far quicker than receiving it)
+progress(0.4, "Shaping the valley…")
+local shared = ReplicatedStorage:WaitForChild("Shared")
+local ValleyTerrain = require(shared:WaitForChild("ValleyTerrain")) :: any
+ValleyTerrain.build(function(k: number)
+	progress(0.4 + 0.2 * k, "Shaping the valley…")
+end)
+
+-- 4. their content (fonts, textures)
+progress(0.6, "Lighting the floors…")
 local toLoad: { Instance } = {}
 for _, inst in { tower, world } do
 	if inst then
@@ -135,7 +144,7 @@ pcall(function()
 	ContentProvider:PreloadAsync(toLoad)
 end)
 
--- 4. draw it: the camera visits the intro's opening views behind the screen, so the terrain, the forest
+-- 5. draw it: the camera visits the intro's opening views behind the screen, so the terrain, the forest
 -- and the tower are built before anyone sees them
 progress(0.75, "Painting the valley…")
 local camera = workspace.CurrentCamera
@@ -154,7 +163,7 @@ for i, cf in views do
 	progress(0.75 + 0.2 * i / #views, "Painting the valley…")
 end
 
--- 5. ready: the race client may tell the server now; the screen stays up until the intro starts
+-- 6. ready: the race client may tell the server now; the screen stays up until the intro starts
 progress(1, "Waiting for the race…")
 player:SetAttribute("Loaded", true)
 local state = ReplicatedStorage:WaitForChild("RaceState", 60)
