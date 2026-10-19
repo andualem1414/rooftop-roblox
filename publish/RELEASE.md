@@ -41,7 +41,9 @@ by hand. The Workspace attributes `LookPreset` and `TestBots` only work in Studi
 
 Teleports and data stores only work there. With 2–4 accounts (or friends) on different devices:
 
-- [ ] You arrive on the lobby plaza; the countdown starts; the board over the walkway counts too
+- [ ] Opening the game shows the main screen (Play, How to play, Looks, Stats, Leaderboards, Settings)
+- [ ] Play puts you on the lobby plaza; the countdown starts; the board over the walkway counts too;
+      Main screen takes you back
 - [ ] At zero everyone goes together into one race (bots fill to 20); the intro plays
 - [ ] A friend who joins you from the friends list lands in your lobby and goes in the same race
 - [ ] Guns: pistol, rifle and SMG (hold to fire), shotgun; pickups, ammo, reload; melee and guard
@@ -49,7 +51,8 @@ Teleports and data stores only work there. With 2–4 accounts (or friends) on d
 - [ ] The roof opens at 4:00 (or skip ahead in Studio first); one alone through the roof wins
 - [ ] A player who wins gets the skydive pad by the roof sign: the glide through the rings works with keys,
       a stick and a phone's thumbpad; the celebration waits until they land
-- [ ] After the celebration everyone is sent back to the lobby
+- [ ] Losing shows a result card; Main screen takes you back to the main screen (or after 90 s); the
+      winner's End game (G) and the end of the skydive do too
 - [ ] Back in the lobby: Stats show the race, Escapes / KOs in the player list, leaderboards fill in
       (they refresh every minute), a look unlocked by the race can be worn
 - [ ] Settings (music, effects, sensitivity, shake, numbers) are kept after rejoining

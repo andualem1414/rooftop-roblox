@@ -12,7 +12,8 @@ Supabase). Read it for numbers and behaviour; never edit, commit or push anythin
 One Roblox experience, two places, one repo:
 
 - `race.project.json`: the **Race** place, where one race is played (reserved servers, 20 climbers).
-- `lobby.project.json`: the **Lobby** place, the start place: forecourt, countdown, sends groups into races.
+- `lobby.project.json`: the **Lobby** place, the start place: the main screen (Play, looks, settings…), the
+  forecourt and its countdown, sends groups into races. Every race ends back on the main screen.
 - `src/shared` → `ReplicatedStorage.Shared` in both places. Pure game logic and numbers (`Config.luau`), no
   Roblox services where it can be avoided, so `tests/` can run it under Lune. Use `require("./X")` between shared
   modules (works in both Roblox and Lune); avoid `init.luau` in `src/shared`.
@@ -61,6 +62,9 @@ rojo build race.project.json -o build/race.rbxl
   or "Moonlit Ink" switches the lighting live while playing.
 - Fewer bots for a test: select Workspace in Studio, Properties → Attributes → add a number attribute
   `TestBots` (e.g. 3; 0 = none). Studio only; delete the attribute for a full race of 20.
+- **Win now** (Studio only): a button above Settings in the race HUD puts you on the roof as the winner, to try
+  the roof, the skydive and the end. After a race nothing restarts by itself: press Play again (Studio) or
+  Main screen (live) on the end card; the winner has End game (G).
 - Skip the race clock in a test (Studio only): `game.ServerStorage.RooftopDev:Invoke("skip", seconds)` from the
   server command bar or the MCP's execute_luau. Also `("restart")` (end the race now), `("win")` (the first
   player gets out) and `("give", "rifle")` (the first player gets a weapon).

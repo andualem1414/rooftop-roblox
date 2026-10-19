@@ -14,6 +14,9 @@
 --   Boost(size)                    boost up this many floors from the booster pad you stand on
 --   Skydive("launch")              the winner stepped on the skydive pad
 --   Skydive("done", rings)         the winner's flight is over, with this many rings taken
+--   Finish("leave")                the race is over for me: back to the main screen (Studio: play again)
+--   Dev("win")                     Studio only: put me on the roof as the winner
+--   Lobby("play" / "menu")         the lobby: join the next race from the main screen, or leave it
 -- Server -> clients:
 --   Knock(velocity)                you were hit: get pushed this way (your client owns your body)
 --   ShotFx(model, from, to, kind, weapon)  draw a shot: muzzle flash, streak, impact (kind: "body",
@@ -49,6 +52,9 @@ local NAMES = {
 	"Cue",
 	"Boost",
 	"Skydive",
+	"Finish",
+	"Dev",
+	"Lobby",
 }
 local UNRELIABLE = { "Look" }
 

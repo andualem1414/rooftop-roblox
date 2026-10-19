@@ -12,7 +12,10 @@
 --   starts), RoofOpen, Winner (name, "" if nobody), Race (a number, +1 each race), Skydive ("" / "ready" /
 --   "flying" / "done": the winner's skydive, shared/Skydive)
 -- A player who wins gets the skydive: a pad on the roof flings them out over the valley to glide through
--- rings; the celebration lasts until they land (at most Skydive.MAX_TIME after the launch).
+-- rings. Nothing restarts by itself: once the race is over the winner explores the roof, takes the skydive
+-- or ends the game, and everyone else sees the result and goes back to the main screen (the lobby place)
+-- when they press, or after a while. In Studio (no lobby) the next race starts when someone presses Play
+-- again; a Studio-only Win now button (and RooftopDev "win") puts you on the roof as the winner.
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
@@ -52,6 +55,10 @@ local finished = false
 local winner: Climber? = nil
 local skipCelebration = false -- (Studio test hook)
 local readyPlayers: { [Player]: boolean } = {} -- clients that are running
+local leaving: { [Player]: boolean } = {} -- pressed to go back to the main screen
+local againAsked = false -- (Studio) someone pressed Play again
+local LOSER_LINGER = 90 -- seconds after the end before someone who didn't press is sent back anyway
+local WINNER_LINGER = 600 -- the winner may explore the roof for this long
 local winTime: number? = nil -- race time the winner got out
 local recorded: { [Player]: boolean } = {} -- this race's result is saved for them
 
@@ -199,7 +206,6 @@ local function onThrow(riders: { Climber }, _floor: number)
 end
 
 -- the winner on the skydive pad: launch them (everyone lays the same rings from the seed)
-local skydiveAt = 0
 local function onSkydive(player: Player, what: unknown, rings: unknown)
 	local c = Climbers.forPlayer(player)
 	if not c or c ~= winner or state:GetAttribute("Phase") ~= "over" or not c.model or not c.root then
@@ -212,7 +218,6 @@ local function onSkydive(player: Player, what: unknown, rings: unknown)
 		if not Skydive.onPad(p.X, p.Z) or math.abs(p.Y - 3 - y) > 6 then
 			return
 		end
-		skydiveAt = os.clock()
 		state:SetAttribute("Skydive", "flying")
 		c.model:SetAttribute("Gliding", true)
 		SkydiveEvent:FireAllClients(c.model, x, y + 3, z, 0, rng:NextInteger(1, 2 ^ 30))
@@ -222,6 +227,37 @@ local function onSkydive(player: Player, what: unknown, rings: unknown)
 		local got = if type(rings) == "number" then math.clamp(math.floor(rings), 0, Skydive.RINGS) else 0
 		Feed:FireAllClients(`{c.name} took {got} / {Skydive.RINGS} rings on the skydive`, "win")
 	end
+end
+
+-- back to the main screen (the lobby place)
+local function goHome(p: Player)
+	local lobby = Travel.lobbyPlace()
+	if lobby then
+		task.spawn(Travel.send, { p }, lobby, false)
+	end
+end
+
+-- the race is over for this player (they pressed Main screen / End game, or the skydive ended)
+local function onFinish(p: Player, what: unknown)
+	if what ~= "leave" or state:GetAttribute("Phase") ~= "over" then
+		return
+	end
+	if RESERVED then
+		leaving[p] = true
+	else
+		againAsked = true
+	end
+end
+
+-- (Studio) put a player on the roof as the winner, to try the end
+local function devWin(p: Player)
+	local c = Climbers.forPlayer(p)
+	local phase = state:GetAttribute("Phase")
+	if not c or not c.model or (phase ~= "climb" and phase ~= "roof") then
+		return
+	end
+	c.model:PivotTo(CFrame.new(10, Config.FLOORS * Config.FLOOR_HEIGHT + 3.5, 2))
+	onEscape(c)
 end
 
 local function freezeAll(on: boolean)
@@ -275,6 +311,8 @@ local function runRace()
 	raceNo += 1
 	finished, winner, roofOpen, startAt, winTime = false, nil, false, math.huge, nil
 	table.clear(recorded)
+	table.clear(leaving)
+	againAsked = false
 	state:SetAttribute("Race", raceNo)
 	state:SetAttribute("RoofOpen", false)
 	state:SetAttribute("Winner", "")
@@ -401,44 +439,40 @@ local function runRace()
 		record(c)
 	end
 	if w and w.player and not skipCelebration then
-		-- the winner's skydive: the pad comes out; once they launch, the celebration lasts until they land
+		-- the winner's roof: the skydive pad comes out
 		state:SetAttribute("Skydive", "ready")
-		Notice:FireClient(w.player, "Skydive! Step on the pad by the sign.", "info")
+		Notice:FireClient(w.player, "You got out! Explore the roof, or take the skydive by the sign.", "info")
 	end
 	if skipCelebration then
 		skipCelebration = false
 		task.wait(1)
 	else
-		local t0 = os.clock()
+		-- now everyone chooses (client/race/EndScreen): nothing restarts by itself
+		local overAt = os.clock()
+		local sentAt: { [Player]: number } = {}
 		while true do
-			local sky = state:GetAttribute("Skydive")
-			if sky == "flying" then
-				if os.clock() - skydiveAt > Skydive.MAX_TIME + 3 then
+			if RESERVED then
+				for _, p in Players:GetPlayers() do
+					local isWinner = w ~= nil and w.player == p
+					local due = leaving[p] or os.clock() - overAt > (if isWinner then WINNER_LINGER else LOSER_LINGER)
+					-- (a teleport that didn't take is tried again)
+					if due and os.clock() - (sentAt[p] or -math.huge) > 15 then
+						sentAt[p] = os.clock()
+						goHome(p)
+					end
+				end
+				if #Players:GetPlayers() == 0 then
 					break
 				end
-			elseif os.clock() - t0 >= Config.CELEBRATION then
+			elseif againAsked or #Players:GetPlayers() == 0 then
 				break
 			end
-			task.wait(0.2)
-		end
-		if state:GetAttribute("Skydive") == "done" then
-			task.wait(3) -- (a moment to land and look around)
+			task.wait(0.25)
 		end
 	end
 	state:SetAttribute("Skydive", "")
 	if RESERVED then
-		-- back to the lobby, everyone together; anyone a teleport misses is sent again
-		local lobby = Travel.lobbyPlace()
-		setPhase("leaving")
-		Notice:FireAllClients("Back to the lobby…", "info")
-		while lobby do
-			Travel.send(Players:GetPlayers(), lobby, false)
-			task.wait(15)
-			if #Players:GetPlayers() == 0 then
-				break
-			end
-		end
-		-- (the server closes once it's empty)
+		-- (one race per server: it closes once it's empty)
 		while true do
 			task.wait(60)
 		end
@@ -482,11 +516,10 @@ function RaceService.start(t: Tower.Tower)
 				startAt -= arg or 0
 				state:SetAttribute("StartAt", startAt)
 			elseif cmd == "win" then
-				-- the first player gets out (to see the celebration)
+				-- the first player gets out: on the roof, as the winner
 				local p = Players:GetPlayers()[1]
-				local c = p and Climbers.forPlayer(p)
-				if c then
-					onEscape(c)
+				if p then
+					devWin(p)
 				end
 			elseif cmd == "give" and type(arg) == "string" then
 				-- the first player gets a weapon (`RooftopDev:Invoke("give", "rifle")`)
@@ -510,7 +543,14 @@ function RaceService.start(t: Tower.Tower)
 			return { phase = state:GetAttribute("Phase"), t = RaceService.time(), winner = winner and winner.name }
 		end
 		dev.Parent = game:GetService("ServerStorage")
+		-- the HUD's Win now button (Studio only: the server never listens to it in a live game)
+		Net.event("Dev").OnServerEvent:Connect(function(p: Player, cmd: unknown)
+			if cmd == "win" then
+				devWin(p)
+			end
+		end)
 	end
+	Net.event("Finish").OnServerEvent:Connect(onFinish)
 
 	Players.PlayerAdded:Connect(playerAdded)
 	Players.PlayerRemoving:Connect(function(p: Player)

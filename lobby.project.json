@@ -19,6 +19,9 @@
 			"Common": { "$path": "src/server/common" },
 			"Lobby": { "$path": "src/server/lobby" }
 		},
+		"Players": {
+			"$properties": { "CharacterAutoLoads": false }
+		},
 		"StarterPlayer": {
 			"$properties": {
 				"CharacterWalkSpeed": 16,

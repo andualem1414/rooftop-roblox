@@ -96,6 +96,12 @@ Camera, look, sound
 - **Sound**: only Roblox's own licensed library on the Creator Store (ProSoundEffects, APM Music) and the sounds
   that ship with Roblox; long recordings are trimmed to the bit we want (measured in Studio).
 - **Settings**: music, effects, mouse sensitivity, camera shake, damage numbers; kept with the profile.
+- **The flow** (the user, 2026-10-19, like the original): opening the game shows a **main screen** (Play, How
+  to play, Looks, Stats, Leaderboards, Settings) over a slow orbit of the tower. Play → the forecourt → the
+  race. Lose (or nobody gets out) → a result card → Main screen. Win → explore the roof, take the skydive, or
+  End game → main screen. The skydive never hits the ground: four floors up it stops, shows the rings taken,
+  and goes to the main screen. Nothing restarts by itself (Studio: Play again on the card). Players who don't
+  press are sent back after 90 s (the winner after 10 min). A Studio-only Win now button puts you on the roof.
 - **Phase 6: a paid booster** (the user's design; it replaces "cosmetic only" from 2026-10-18): a glowing
   pad beside the shaft on every floor (1–17); F / D-pad up / tap opens the choices: +1, +3, +5 or +10 floors,
   each a Developer Product. Bought, you fly up the shaft like Iron Man (jets from your feet) to that floor.
@@ -138,6 +144,8 @@ Camera, look, sound
   settings; race: Settings / P / View)
 - [x] 2026-10-19 — Phase 4: the ten looks (worn over your avatar); bots wear them
 - [x] 2026-10-19 — Phase 5: profiles, leaderboards, Escapes / KOs in the player list
+- [x] 2026-10-19 — The main screen in the lobby place, the end-of-race choices (no automatic restart), the
+  skydive stopping above the ground with its ring count, the Studio Win now button (see Decisions: the flow)
 - [x] 2026-10-19 — Lighting (the user's report: rooms blinding, the outside too dark, rooms dark for a couple
   of seconds at the start). Found in Studio: the place ran the Soft lighting style; the four 1.8-bright lamps
   per floor washed rooms out to white; Roblox rebuilds lighting round the camera after a big move (~2.5 s

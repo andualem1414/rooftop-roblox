@@ -7,7 +7,8 @@
 --               winner flies)
 --   the flight: the winner's client flies the body (it owns it): A / D or the stick steer, W dives, S
 --               flares; a chase camera behind; the count of rings on screen. Four floors above the ground
---               it's over and they drop the rest of the way.
+--               it's over: they hang there (no hitting the ground), the rings they took show big, and a few
+--               seconds later it's back to the main screen (Finish; in Studio: the next race).
 local Debris = game:GetService("Debris")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -275,6 +276,8 @@ local function fly(model: Model, x: number, y: number, z: number, yaw: number, s
 	local camLook = root.Position
 	local lean = 0
 	local finished = false
+	local ended = false -- the flight's over: hanging in the air with the result up
+	local hangAt: CFrame? = nil
 
 	local conn: RBXScriptConnection
 	local function stop()
@@ -301,6 +304,15 @@ local function fly(model: Model, x: number, y: number, z: number, yaw: number, s
 		dt = math.min(dt, 1 / 20)
 		if not root.Parent or hum.Health <= 0 then
 			stop()
+			return
+		end
+		if ended then
+			-- hang where the flight ended, the camera settling; the main screen comes next
+			if hangAt then
+				root.CFrame = hangAt
+			end
+			root.AssemblyLinearVelocity = Vector3.zero
+			root.AssemblyAngularVelocity = Vector3.zero
 			return
 		end
 		-- the move input (keys, stick or thumbpad), as Roblox's controls give it, seen from the chase camera:
@@ -330,8 +342,30 @@ local function fly(model: Model, x: number, y: number, z: number, yaw: number, s
 		if event == "ring" then
 			Audio.play("go")
 		elseif event == "end" then
+			-- no hitting the ground: hang here, show the rings, then back to the main screen
 			camera.FieldOfView = 70
-			stop()
+			ended = true
+			hangAt = CFrame.lookAt(pos, pos + fwd)
+			Net.event("Skydive"):FireServer("done", f.got)
+			label.Position = UDim2.fromScale(0.5, 0.36)
+			label.Size = UDim2.fromOffset(700, 90)
+			label.TextSize = 72
+			label.Text = `RINGS {f.got} / {Skydive.RINGS}`
+			local sub = Ui.label(
+				gui,
+				if f.got >= Skydive.RINGS then "Every one!" elseif f.got >= 8 then "Great flying!" else "Nice flying!",
+				26,
+				Ui.TEXT,
+				Ui.CHALK
+			)
+			sub.AnchorPoint = Vector2.new(0.5, 0)
+			sub.Position = UDim2.new(0.5, 0, 0.36, 96)
+			sub.Size = UDim2.fromOffset(600, 34)
+			sub.TextXAlignment = Enum.TextXAlignment.Center
+			Audio.play(if f.got >= 8 then "win" else "go")
+			task.delay(4.5, function()
+				Net.event("Finish"):FireServer("leave")
+			end)
 		end
 	end)
 end

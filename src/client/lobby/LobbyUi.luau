@@ -1,5 +1,9 @@
 --!strict
--- The lobby's screen:
+-- The lobby's screens:
+--   the main screen (first, and whenever you come back from a race): the title over a slow orbit of the
+--     tower, Play, and How to play · Looks · Stats · Leaderboards · Settings. Play puts you on the
+--     forecourt for the next race (server/lobby/LobbyService)
+--   the forecourt:
 --   top:     the countdown to the next race and how many are waiting (also written on the big board over
 --            the walkway); banners ("Off to the tower!")
 --   left:    How to play · Looks · Stats · Leaderboards · Settings
@@ -388,7 +392,7 @@ function LobbyUi.init()
 	side.BackgroundTransparency = 1
 	side.AnchorPoint = Vector2.new(0, 0.5)
 	side.Position = UDim2.new(0, 16, 0.5, 0)
-	side.Size = UDim2.fromOffset(170, 5 * 52)
+	side.Size = UDim2.fromOffset(170, 6 * 52)
 	side.Parent = gui
 	Ui.column(side, 8)
 	for i, p in panels do
@@ -398,6 +402,108 @@ function LobbyUi.init()
 		end)
 		b.LayoutOrder = i
 	end
+
+	---------------------------------------------------------------- the main screen
+	local onMenu = true
+	local title = Ui.screen("MainMenu", 15)
+	title.IgnoreGuiInset = true
+	local shade = Instance.new("Frame")
+	shade.Size = UDim2.fromScale(1, 1)
+	shade.BackgroundColor3 = Ui.INK
+	shade.BorderSizePixel = 0
+	local fade = Instance.new("UIGradient")
+	fade.Transparency = NumberSequence.new({
+		NumberSequenceKeypoint.new(0, 0.05),
+		NumberSequenceKeypoint.new(0.45, 0.45),
+		NumberSequenceKeypoint.new(1, 1),
+	})
+	fade.Parent = shade
+	shade.Parent = title
+	local column = Instance.new("Frame")
+	column.BackgroundTransparency = 1
+	column.AnchorPoint = Vector2.new(0, 0.5)
+	column.Position = UDim2.new(0, 48, 0.5, 0)
+	column.Size = UDim2.fromOffset(360, 560)
+	column.Parent = title
+	Ui.column(column, 10)
+	local name = Ui.label(column, 'R<font color="#ff4b5a">O</font>OFTOP', 84, Ui.TITLE)
+	name.Size = UDim2.new(1, 0, 0, 100)
+	name.LayoutOrder = 1
+	local nameStroke = Instance.new("UIStroke")
+	nameStroke.Thickness = 4
+	nameStroke.Color = Color3.fromRGB(10, 8, 18)
+	nameStroke.Parent = name
+	local tag = Ui.label(column, "Climb. Fight. Get out first.", 20, Ui.TEXT, Ui.DIM)
+	tag.LayoutOrder = 2
+	local gap = Instance.new("Frame")
+	gap.BackgroundTransparency = 1
+	gap.Size = UDim2.fromOffset(10, 14)
+	gap.LayoutOrder = 3
+	gap.Parent = column
+
+	local function showMenu(on: boolean)
+		onMenu = on
+		title.Enabled = on
+		gui.Enabled = not on
+		Ui.closeAll()
+	end
+	local play = Ui.button(column, "PLAY", function()
+		Audio.play("go")
+		Net.event("Lobby"):FireServer("play")
+		showMenu(false)
+	end, Ui.ACCENT)
+	play.Size = UDim2.fromOffset(260, 62)
+	play.Font = Ui.TITLE
+	play.TextSize = 34
+	play.LayoutOrder = 4
+	for i, p in panels do
+		local b = Ui.button(column, p[1], function()
+			Audio.play("click")
+			p[2].toggle()
+		end)
+		b.Size = UDim2.fromOffset(220, 42)
+		b.LayoutOrder = 4 + i
+	end
+	local menuVersion = Ui.label(title, `v{Version}`, 12, Ui.BODY, Ui.DIM)
+	menuVersion.AnchorPoint = Vector2.new(1, 1)
+	menuVersion.Position = UDim2.new(1, -10, 1, -6)
+	menuVersion.Size = UDim2.fromOffset(120, 16)
+	menuVersion.TextXAlignment = Enum.TextXAlignment.Right
+
+	-- the forecourt's way back to the main screen
+	local back = Ui.button(side, "Main screen", function()
+		Audio.play("click")
+		Net.event("Lobby"):FireServer("menu")
+		showMenu(true)
+	end)
+	back.LayoutOrder = 99
+
+	-- the main screen's camera: a slow orbit of the tower; the lighting kept ready on the forecourt, where
+	-- Play puts you (Camera.Focus)
+	local orbitT = 0
+	RunService.RenderStepped:Connect(function(dt: number)
+		if not onMenu or player:GetAttribute("Loaded") ~= true then
+			return
+		end
+		orbitT += dt
+		local cam = workspace.CurrentCamera
+		cam.CameraType = Enum.CameraType.Scriptable
+		local a = orbitT * 0.05 + 0.6
+		local pos = Vector3.new(math.sin(a) * 240, 70 + math.sin(orbitT * 0.11) * 20, math.cos(a) * 240)
+		cam.CFrame = CFrame.lookAt(pos, Vector3.new(0, 110, 0))
+		cam.Focus = CFrame.new(0, 5, 150)
+	end)
+	-- a body on the forecourt: the camera follows it
+	local function follow(char: Model)
+		local hum = char:WaitForChild("Humanoid", 10)
+		if hum and not onMenu then
+			local cam = workspace.CurrentCamera
+			cam.CameraType = Enum.CameraType.Custom
+			cam.CameraSubject = hum :: Humanoid
+		end
+	end
+	player.CharacterAdded:Connect(follow)
+	showMenu(true)
 
 	local version = Ui.label(gui, `Rooftop v{Version}`, 12, Ui.BODY, Ui.DIM)
 	version.AnchorPoint = Vector2.new(1, 1)

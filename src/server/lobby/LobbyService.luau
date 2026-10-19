@@ -1,5 +1,9 @@
 --!strict
--- The lobby: the countdown and sending each group into its own race (shared/Lobby has the rules).
+-- The lobby: the main screen, the countdown and sending each group into its own race (shared/Lobby has the
+-- rules).
+--   everyone arrives on the main screen (client/lobby/LobbyUi): no body yet, not waiting. Play gives them
+--   a body on the forecourt and counts them in; Main screen takes them out again. Coming back from a race
+--   (lost, ended the game, or after the skydive) lands them on the main screen too.
 --   the first player in starts a 45 s countdown; 20 waiting cuts it to 5 s; at zero everyone in the
 --   lobby goes, together, into a fresh reserved race server (the group's size rides along, so the race
 --   waits for all of them); anyone arriving meanwhile waits for the next countdown
@@ -26,6 +30,7 @@ local BOARDS_EVERY = 60
 local state: Folder
 local deadline: number? = nil
 local sending: { [Player]: number } = {}
+local joined: { [Player]: boolean } = {} -- pressed Play: on the forecourt, in the next race
 local Notice = Net.event("Notice")
 
 local function now(): number
@@ -41,6 +46,9 @@ end
 local function waitingPlayers(): { Player }
 	local out = {}
 	for _, p in Players:GetPlayers() do
+		if not joined[p] then
+			continue -- (still on the main screen)
+		end
 		local since = sending[p]
 		if since and os.clock() - since > SENDING_FOR then
 			sending[p] = nil -- (their teleport never happened: they wait again)
@@ -104,6 +112,20 @@ local function dress(p: Player, char: Model)
 	LookService.applyWhenLoaded(p, char, profile.look)
 end
 
+-- the main screen's Play, and the lobby's Main screen
+local function onLobby(p: Player, what: unknown)
+	if what == "play" and not joined[p] then
+		joined[p] = true
+		p:LoadCharacter()
+	elseif what == "menu" and joined[p] and not sending[p] then
+		joined[p] = nil
+		if p.Character then
+			p.Character:Destroy()
+			p.Character = nil
+		end
+	end
+end
+
 local function playerAdded(p: Player)
 	p.CharacterAdded:Connect(function(char: Model)
 		dress(p, char)
@@ -127,16 +149,21 @@ function LobbyService.start()
 	state:SetAttribute("Boards", "[]")
 	state.Parent = ReplicatedStorage
 
+	-- nobody gets a body until they press Play on the main screen
+	Players.CharacterAutoLoads = false
 	for _, p in Players:GetPlayers() do
 		playerAdded(p)
 	end
 	Players.PlayerAdded:Connect(playerAdded)
 	Players.PlayerRemoving:Connect(function(p: Player)
 		sending[p] = nil
+		joined[p] = nil
 	end)
-	-- a new look: a fresh body wearing it (going back to your own avatar needs one anyway)
+	Net.event("Lobby").OnServerEvent:Connect(onLobby)
+	-- a new look: a fresh body wearing it, if they're on the forecourt (going back to your own avatar
+	-- needs one anyway); on the main screen it's worn when they play
 	ProfileStore.onLookChanged(function(p: Player)
-		if p.Parent and not sending[p] then
+		if p.Parent and joined[p] and not sending[p] then
 			p:LoadCharacter()
 		end
 	end)
