@@ -31,6 +31,7 @@ local shoulder = Vector3.zero
 local locked = false
 local mouseMode = false
 local lastChar: Model? = nil
+local wasLocked = false
 local kickPitch = 0 -- recoil: the view jumps up and settles most of the way back
 local shakeAmt = 0 -- being hit (or hitting): a short tremble
 local rng = Random.new()
@@ -167,9 +168,11 @@ end
 
 local function update(dt: number)
 	if player:GetAttribute("Loaded") ~= true then
+		wasLocked = false
 		return -- (the loading screen has the camera)
 	end
 	if CameraAim.cinematic then
+		wasLocked = false
 		UserInputService.MouseIconEnabled = false
 		return
 	end
@@ -201,8 +204,15 @@ local function update(dt: number)
 	locked = hum.Health > 0 and not cursorWanted()
 	UserInputService.MouseBehavior = if locked then Enum.MouseBehavior.LockCenter else Enum.MouseBehavior.Default
 	UserInputService.MouseIconEnabled = not locked -- (the crosshair takes its place)
+	-- the frame the mouse locks, its "movement" is the cursor's jump to the middle of the screen: ignore it
+	-- (and any single absurd jump), or the view flips up at the sky
+	local justLocked = locked and not wasLocked
+	wasLocked = locked
 	if locked then
 		local delta = UserInputService:GetMouseDelta()
+		if justLocked or delta.Magnitude > 250 then
+			delta = Vector2.zero
+		end
 		local sens = TURN * math.max(0.1, gameSettings.MouseSensitivity)
 		yaw -= delta.X * sens
 		pitch = math.clamp(pitch - delta.Y * sens, PITCH_MIN, PITCH_MAX)

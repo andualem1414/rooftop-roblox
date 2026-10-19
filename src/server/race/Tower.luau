@@ -349,8 +349,8 @@ local function buildFloor(root: Model, i: number): (Model, { Rect }, BasePart)
 			lamp.Transparency = 1
 			local light = Instance.new("PointLight")
 			light.Color = th.light
-			light.Range = 36
-			light.Brightness = 1.0
+			light.Range = 40
+			light.Brightness = 1.8
 			light.Shadows = false
 			light.Parent = lamp
 		end
