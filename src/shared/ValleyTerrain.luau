@@ -6,12 +6,14 @@ local Valley = require(script.Parent.Valley)
 
 local ValleyTerrain = {}
 
+-- (lighter than a real night's: the valley should read under the moon, without more light that would
+-- wash out the rooms: shared/Look)
 local COLORS = {
-	Grass = Color3.fromRGB(56, 96, 74),
-	LeafyGrass = Color3.fromRGB(48, 84, 70),
-	Ground = Color3.fromRGB(92, 70, 60),
-	Rock = Color3.fromRGB(104, 98, 130),
-	Slate = Color3.fromRGB(84, 80, 108),
+	Grass = Color3.fromRGB(72, 122, 92),
+	LeafyGrass = Color3.fromRGB(62, 108, 86),
+	Ground = Color3.fromRGB(112, 88, 74),
+	Rock = Color3.fromRGB(122, 116, 150),
+	Slate = Color3.fromRGB(102, 98, 128),
 	Snow = Color3.fromRGB(226, 234, 255),
 	Mud = Color3.fromRGB(60, 50, 46),
 }

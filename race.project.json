@@ -6,6 +6,9 @@
 		"Workspace": {
 			"$properties": { "StreamingEnabled": false }
 		},
+		"Lighting": {
+			"$properties": { "LightingStyle": "Realistic", "PrioritizeLightingQuality": true }
+		},
 		"ReplicatedFirst": {
 			"Loading": { "$path": "src/client/first" }
 		},

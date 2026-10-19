@@ -5,7 +5,17 @@
 --                 of stars and a big moon, violet mist on the horizon, neon and lamps that glow
 --   "Golden Dusk" the sun just down: warm orange and pink haze
 --   "Moonlit Ink" closest to the original: cold blue moonlight, muted colours, strong contrast
--- (Lighting.Technology = Future is set by hand in Studio: see CLAUDE.md.)
+-- How the light is shared out (measured in Studio, 2026-10-19):
+--   LightingStyle is Realistic (set here: the old Technology property is deprecated): lamps and muzzle
+--   flashes light their surroundings at once, where the Soft style built them up over a couple of
+--   seconds after the camera moved.
+--   The floors above you are cut away (client/race/Cutaway), so your room is under the open sky: it gets
+--   the same moonlight and ambient as the valley. Roblox takes a second to notice a spot went from covered
+--   to open, so most of the light is in Ambient (everywhere) and little in OutdoorAmbient (open sky only):
+--   the room doesn't flash from dark to bright when the race starts. The rooms' own lamps are soft accents.
+--   The valley reads brighter through its ground colours (shared/ValleyTerrain) and a brighter horizon
+--   (the mist), not through more light, which would wash out the pale rooms.
+--   Bloom only catches neon (threshold 2.6), not pale walls under the moon.
 local Lighting = game:GetService("Lighting")
 
 export type Preset = {
@@ -32,35 +42,35 @@ Look.DEFAULT = "Neon Night"
 Look.PRESETS = {
 	["Neon Night"] = {
 		clock = 0.4,
-		brightness = 2.2,
-		ambient = Color3.fromRGB(36, 34, 54),
-		outdoor = Color3.fromRGB(88, 96, 140),
+		brightness = 2.4,
+		ambient = Color3.fromRGB(74, 76, 108),
+		outdoor = Color3.fromRGB(46, 50, 74),
 		shiftTop = Color3.fromRGB(150, 170, 230),
-		exposure = 0.1,
-		envDiffuse = 0.55,
-		envSpecular = 0.5,
+		exposure = 0.15,
+		envDiffuse = 0.35,
+		envSpecular = 0.4,
 		fog = {
-			density = 0.18,
+			density = 0.15,
 			offset = 0.4,
-			color = Color3.fromRGB(84, 94, 144),
-			decay = Color3.fromRGB(40, 40, 80),
-			glare = 0.15,
-			haze = 0.4,
+			color = Color3.fromRGB(104, 112, 166),
+			decay = Color3.fromRGB(56, 58, 104),
+			glare = 0.25,
+			haze = 0.7,
 		},
 		stars = 3000,
 		moonSize = 16,
-		bloom = { intensity = 0.45, size = 22, threshold = 2.0 },
+		bloom = { intensity = 0.4, size = 22, threshold = 2.6 },
 		grade = { brightness = 0.02, contrast = 0.08, saturation = 0.12, tint = Color3.fromRGB(248, 246, 255) },
 		rays = 0.04,
 	},
 	["Golden Dusk"] = {
 		clock = 18.0,
-		brightness = 1.6,
-		ambient = Color3.fromRGB(44, 36, 40),
-		outdoor = Color3.fromRGB(110, 86, 92),
+		brightness = 1.8,
+		ambient = Color3.fromRGB(88, 70, 76),
+		outdoor = Color3.fromRGB(52, 40, 44),
 		shiftTop = Color3.fromRGB(255, 170, 110),
-		exposure = 0,
-		envDiffuse = 0.5,
+		exposure = 0.05,
+		envDiffuse = 0.35,
 		envSpecular = 0.5,
 		fog = {
 			density = 0.22,
@@ -72,18 +82,18 @@ Look.PRESETS = {
 		},
 		stars = 600,
 		moonSize = 11,
-		bloom = { intensity = 0.35, size = 20, threshold = 2.2 },
+		bloom = { intensity = 0.35, size = 20, threshold = 2.6 },
 		grade = { brightness = 0, contrast = 0.08, saturation = 0.12, tint = Color3.fromRGB(255, 246, 236) },
 		rays = 0.06,
 	},
 	["Moonlit Ink"] = {
 		clock = 0.4,
-		brightness = 1.8,
-		ambient = Color3.fromRGB(28, 30, 44),
-		outdoor = Color3.fromRGB(70, 80, 116),
+		brightness = 2.0,
+		ambient = Color3.fromRGB(60, 64, 90),
+		outdoor = Color3.fromRGB(36, 40, 58),
 		shiftTop = Color3.fromRGB(169, 193, 255),
-		exposure = 0,
-		envDiffuse = 0.45,
+		exposure = 0.05,
+		envDiffuse = 0.3,
 		envSpecular = 0.3,
 		fog = {
 			density = 0.28,
@@ -95,7 +105,7 @@ Look.PRESETS = {
 		},
 		stars = 2500,
 		moonSize = 16,
-		bloom = { intensity = 0.3, size = 18, threshold = 2.4 },
+		bloom = { intensity = 0.3, size = 18, threshold = 2.8 },
 		grade = { brightness = 0, contrast = 0.16, saturation = -0.15, tint = Color3.fromRGB(232, 238, 255) },
 		rays = 0.02,
 	},
@@ -114,6 +124,10 @@ end
 
 function Look.apply(name: string?)
 	local p = Look.PRESETS[name or Look.DEFAULT] or Look.PRESETS[Look.DEFAULT]
+	pcall(function()
+		Lighting.LightingStyle = Enum.LightingStyle.Realistic
+		Lighting.PrioritizeLightingQuality = true
+	end)
 	Lighting.ClockTime = p.clock
 	Lighting.Brightness = p.brightness
 	Lighting.Ambient = p.ambient

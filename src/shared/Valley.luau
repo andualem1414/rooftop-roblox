@@ -107,6 +107,11 @@ function Valley.fills(): { Fill }
 	-- (smooth terrain draws a block's top surface 2 studs above the block itself: measured in Studio. The
 	-- floor's block tops out at -2.3, so the grass lies at -0.3, just under the concrete at the tower's foot)
 	add(block(0, SURFACE_SHIFT - 8, 0, 2800, 16, 2800, 0, "Grass"))
+	-- bare ground (no grass blades) under the concrete at the tower's foot and its walkway, with a trodden
+	-- margin: the blades would poke up through the slabs (server/common/World builds those)
+	local apron = F + 18 + 3
+	add(block(0, SURFACE_SHIFT - 8, 0, 2 * apron, 16, 2 * apron, 0, "Ground"))
+	add(block(0, SURFACE_SHIFT - 8, F + 18 + 30, 30, 16, 62, 0, "Ground"))
 	for _ = 1, 40 do
 		local a, r = rr(0, math.pi * 2), rr(260, 560)
 		local x, z = math.cos(a) * r, math.sin(a) * r

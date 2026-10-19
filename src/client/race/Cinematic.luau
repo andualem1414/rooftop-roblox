@@ -4,9 +4,16 @@
 --     valley and the tower and settles on the rooftop shot: an orbit round the tower rising as it goes,
 --     a crane straight up the face, or a rocket rush in low up the valley and up the face. Then the
 --     camera dives down from above, through the floors (they vanish as it passes), into place behind
---     you. A click or a key skips to the dive.
---   the roof opening at 4:00: three seconds on the hatch sliding open (everyone's frozen for it)
+--     you, and the screen dips to a title card naming your floor ("FLOOR 3 · WAREHOUSE") for a couple
+--     of seconds before the start: Roblox rebuilds its lighting round the camera after a big move
+--     (measured: about 2.5 s, nearest surfaces first), so without it your room showed dark, then lit up.
+--     A click or a key skips to the dive.
+--   the roof opening at 4:00: three seconds on the hatch sliding open, then a card ("THE ROOF IS OPEN")
+--     while the camera is back with you and the lighting builds (everyone's frozen for all of it)
 --   the win: everyone else's camera circles the winner on the roof
+-- While a set piece has the camera, Camera.Focus stays on you: Roblox builds its lighting round the focus
+-- (create.roblox.com: Camera.Focus), which a scripted camera never moves by itself, so your room keeps its
+-- lighting while the camera is away. The cards cover whatever is still building when it comes back.
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
@@ -23,8 +30,79 @@ local Cinematic = {}
 
 local INTRO_END = Vector3.new(0, H + 40, 170) -- the rooftop shot every intro settles on
 local LOOK_END = Vector3.new(0, H - 10, 0)
-local INTRO_TIME = 5.5
-local DIVE_TIME = 2.6
+local INTRO_TIME = 4.6
+local DIVE_TIME = 2.4
+local CURTAIN = 2.4 -- seconds the title card covers the screen at the end, while the lighting builds
+local CURTAIN_IN, CURTAIN_OUT = 0.35, 0.6
+local ROOF_CARD = 3.2 -- longer: from the roof the camera comes back from much farther (measured ~3.5 s)
+
+-- the title card over the end of the dive: dark, with your floor's number and name
+local curtain: ScreenGui? = nil
+local function card(): (Frame, TextLabel, TextLabel)
+	local gui = curtain
+	if not gui then
+		local g = Instance.new("ScreenGui")
+		g.Name = "Curtain"
+		g.IgnoreGuiInset = true
+		g.ResetOnSpawn = false
+		g.DisplayOrder = 50
+		local back = Instance.new("Frame")
+		back.Name = "Back"
+		back.Size = UDim2.fromScale(1, 1)
+		back.BackgroundColor3 = Color3.fromRGB(12, 10, 22)
+		back.BackgroundTransparency = 1
+		back.BorderSizePixel = 0
+		back.Parent = g
+		local function text(name: string, size: number, y: number, font: Enum.Font, color: Color3)
+			local l = Instance.new("TextLabel")
+			l.Name = name
+			l.BackgroundTransparency = 1
+			l.AnchorPoint = Vector2.new(0.5, 0.5)
+			l.Position = UDim2.fromScale(0.5, y)
+			l.Size = UDim2.new(0.9, 0, 0, size * 1.3)
+			l.Font = font
+			l.TextSize = size
+			l.TextColor3 = color
+			l.TextTransparency = 1
+			l.Parent = back
+		end
+		text("Floor", 84, 0.44, Enum.Font.LuckiestGuy, Color3.fromRGB(240, 236, 226))
+		text("Name", 26, 0.54, Enum.Font.GothamBold, Color3.fromRGB(255, 90, 170))
+		g.Parent = player:WaitForChild("PlayerGui")
+		curtain = g
+		gui = g
+	end
+	local back = (gui :: ScreenGui):FindFirstChild("Back") :: Frame
+	return back, back:FindFirstChild("Floor") :: TextLabel, back:FindFirstChild("Name") :: TextLabel
+end
+
+-- show (k = 1) or hide (k = 0) the card, part way
+local function curtainTo(k: number)
+	local back, floor, name = card()
+	back.BackgroundTransparency = 1 - k
+	floor.TextTransparency = 1 - k
+	name.TextTransparency = 1 - k
+end
+
+local function setCard(title: string, sub: string)
+	local _, floor, name = card()
+	floor.Text = title
+	name.Text = sub
+end
+
+-- the card's words: your floor and its theme
+local function cardFor(char: Model?)
+	local _, floor, name = card()
+	local root = char and char:FindFirstChild("HumanoidRootPart") :: BasePart?
+	local f = if root
+		then math.clamp(math.floor((root.Position.Y - 3) / Config.FLOOR_HEIGHT + 0.3), 0, Config.FLOORS - 1)
+		else 0
+	floor.Text = `FLOOR {f + 1}`
+	local tower = workspace:FindFirstChild("Tower")
+	local model = tower and tower:FindFirstChild(string.format("Floor%02d", f + 1))
+	local theme = model and model:GetAttribute("Theme")
+	name.Text = if type(theme) == "string" then string.upper(theme) else ""
+end
 
 local function ease(x: number): number
 	return -(math.cos(math.pi * x) - 1) / 2
@@ -107,8 +185,10 @@ end
 -- (a late arrival gets a shorter shot, or just the dive)
 function Cinematic.intro(startAt: number)
 	local left = startAt - workspace:GetServerTimeNow()
-	local diveTime = math.clamp(left - 0.2, 0.6, DIVE_TIME)
-	local introTime = math.clamp(left - diveTime - 0.2, 0, INTRO_TIME)
+	-- (a late arrival gets a shorter card, and shot)
+	local hold = math.clamp(left - 1, 0, CURTAIN)
+	local diveTime = math.clamp(left - hold - 0.2, 0.6, DIVE_TIME)
+	local introTime = math.clamp(left - hold - diveTime - 0.2, 0, INTRO_TIME)
 	if introTime < 1.5 then
 		introTime = 0
 	end
@@ -154,9 +234,14 @@ function Cinematic.intro(startAt: number)
 		local cam = workspace.CurrentCamera.CFrame
 		local from = cam.Position
 		Cutaway.suspend(false)
+		cardFor(player.Character)
 		local d = 0
 		while d < diveTime and id == playing do
 			d += RunService.RenderStepped:Wait()
+			-- the card comes up over the last moment of the dive
+			if hold > 0 then
+				curtainTo(math.clamp((d - (diveTime - CURTAIN_IN)) / CURTAIN_IN, 0, 1))
+			end
 			local k = ease(math.min(1, d / diveTime))
 			local rest = CameraAim.restingCFrame()
 			if not rest then
@@ -171,6 +256,21 @@ function Cinematic.intro(startAt: number)
 			local cf = CFrame.lookAt(p, lookAt)
 			workspace.CurrentCamera.CFrame = cf:Lerp(rest, smooth(k, 0.75, 1))
 		end
+		-- behind the card the camera waits in place while the lighting builds round it, then the card fades
+		-- out onto your lit room as the race starts
+		while hold > 0 and id == playing do
+			RunService.RenderStepped:Wait()
+			local rest = CameraAim.restingCFrame()
+			if rest then
+				workspace.CurrentCamera.CFrame = rest
+			end
+			local toGo = startAt - workspace:GetServerTimeNow()
+			curtainTo(math.clamp(toGo / CURTAIN_OUT, 0, 1))
+			if toGo <= 0 then
+				break
+			end
+		end
+		curtainTo(0)
 		finish(id)
 	end)
 end
@@ -181,12 +281,34 @@ function Cinematic.roof(seconds: number)
 	Cutaway.suspend(true)
 	local a, b = Vector3.new(0, H + 33, 57), Vector3.new(9, H + 20, 38)
 	local look = Vector3.new(0, H + 2, 0)
+	local hold = math.clamp(seconds - 1, 0, ROOF_CARD) -- the card at the end
+	local shot = seconds - hold
+	local endsAt = os.clock() + seconds
+	setCard("THE ROOF IS OPEN", "ONLY ONE CAN ESCAPE")
 	task.spawn(function()
 		local t = 0
-		while t < seconds and id == playing do
+		while t < shot and id == playing do
 			t += RunService.RenderStepped:Wait()
-			aim(a:Lerp(b, ease(math.min(1, t / seconds))), look)
+			aim(a:Lerp(b, ease(math.min(1, t / shot))), look)
+			if hold > 0 then
+				curtainTo(math.clamp((t - (shot - CURTAIN_IN)) / CURTAIN_IN, 0, 1))
+			end
 		end
+		-- back with you behind the card while the lighting builds, then the card fades as you're let go
+		Cutaway.suspend(false)
+		while hold > 0 and id == playing do
+			RunService.RenderStepped:Wait()
+			local rest = CameraAim.restingCFrame()
+			if rest then
+				workspace.CurrentCamera.CFrame = rest
+			end
+			local toGo = endsAt - os.clock()
+			curtainTo(math.clamp(toGo / CURTAIN_OUT, 0, 1))
+			if toGo <= 0 then
+				break
+			end
+		end
+		curtainTo(0)
 		finish(id)
 	end)
 end
@@ -220,11 +342,23 @@ end
 -- stop whatever is playing (a new race, coming to, ...)
 function Cinematic.stop()
 	playing += 1
+	curtainTo(0)
 	CameraAim.cinematic = false
 	Cutaway.suspend(false)
 end
 
 function Cinematic.init()
+	-- the lighting's focus stays on you while a set piece (or the skydive) has the camera
+	RunService:BindToRenderStep("RooftopFocus", Enum.RenderPriority.Camera.Value + 2, function()
+		if not CameraAim.cinematic then
+			return
+		end
+		local char = player.Character
+		local root = char and char:FindFirstChild("HumanoidRootPart") :: BasePart?
+		if root then
+			workspace.CurrentCamera.Focus = CFrame.new(root.Position + Vector3.new(0, 1.6, 0))
+		end
+	end)
 	local state = ReplicatedStorage:WaitForChild("RaceState")
 	local race = -1
 	local function onPhase()

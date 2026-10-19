@@ -106,8 +106,6 @@ Camera, look, sound
 
 ## Inbox
 
-- Lighting → Technology = Future has to be set by hand in Studio (scripts can't); remember it for the
-  published places
 - Floors "double the size": read as 24 × 24 m (each side doubled; 4× the area). The other reading is double the
   area (~17 × 17 m). Confirm in the playtest.
 - The original's own sounds (wind, the platform's clunk, the hatch grinding, confetti cannons), made with Web
@@ -140,6 +138,15 @@ Camera, look, sound
   settings; race: Settings / P / View)
 - [x] 2026-10-19 — Phase 4: the ten looks (worn over your avatar); bots wear them
 - [x] 2026-10-19 — Phase 5: profiles, leaderboards, Escapes / KOs in the player list
+- [x] 2026-10-19 — Lighting (the user's report: rooms blinding, the outside too dark, rooms dark for a couple
+  of seconds at the start). Found in Studio: the place ran the Soft lighting style; the four 1.8-bright lamps
+  per floor washed rooms out to white; Roblox rebuilds lighting round the camera after a big move (~2.5 s
+  after the intro, ~4 s after the roof shot from a low floor). Now: Realistic style set by the game, light
+  mostly in Ambient (rooms are under open sky once cut away, and Roblox is slow to notice), lamps 0.45 as
+  accents, bloom only on neon, brighter ground colours and horizon, a "FLOOR 3 · WAREHOUSE" card over the
+  end of the intro and a "THE ROOF IS OPEN" card after the roof shot (get-ready 10 s, roof scene 5.8 s),
+  Camera.Focus kept on the player during set pieces (added last, not checked in Studio), bare ground under
+  the concrete. Checked in Studio: the start fades onto a lit room; the warehouse floor is warm, not white
 - [x] 2026-10-19 — The winner's skydive (the original's): a pad on the roof by the sign for a player who wins;
   it flings them out over the valley to glide through 12 rings (W dives, S flares, A / D or the stick steer),
   each ring lifts them; the celebration lasts until they land (40 s at most); the feed counts the rings.

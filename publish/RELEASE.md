@@ -11,8 +11,8 @@ rojo build lobby.project.json -o build/lobby.rbxl
 rojo build race.project.json -o build/race.rbxl
 ```
 
-In each place in Studio: **Lighting → Technology = Future** (Properties; scripts can't set it). The
-Workspace attributes `LookPreset` and `TestBots` only work in Studio and can stay or go.
+The lighting (LightingStyle = Realistic) comes from the project files and the game itself: nothing to set
+by hand. The Workspace attributes `LookPreset` and `TestBots` only work in Studio and can stay or go.
 
 ## 2. Publish (private)
 

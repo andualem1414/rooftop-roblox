@@ -27,8 +27,9 @@ Config.LOBBY_FULL_COUNTDOWN = 5 -- seconds left once 20 are waiting
 Config.GROUP_WAIT = 20 -- seconds a race server waits for the rest of its group before it starts
 Config.TELEPORT_TRIES = 4 -- a teleport that fails is tried again this many times
 Config.START_FLOORS = { 0, 4 } -- everyone starts spread over these floors (floors 1–5)
-Config.GET_READY = 9 -- seconds frozen in place before the race starts (the intro flies in meanwhile)
-Config.ROOF_SCENE = 3 -- seconds everyone stops to watch the roof open
+Config.GET_READY = 10 -- seconds frozen in place before the race starts (the intro flies in meanwhile)
+Config.ROOF_SCENE = 5.8 -- seconds everyone stops to watch the roof open (the last 3.2 behind a title card
+-- while the lighting builds back round each player: client/race/Cinematic)
 Config.ROOF_OPENS_AFTER = 4 * 60 -- seconds into the race
 Config.RACE_LIMIT = 8 * 60 -- nobody out by then: the race ends with no winner
 Config.CELEBRATION = 15 -- seconds of fireworks for the winner before everyone goes back

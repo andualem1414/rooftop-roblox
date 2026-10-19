@@ -52,8 +52,11 @@ rojo build race.project.json -o build/race.rbxl
 - Studio's built-in MCP server lets Claude run playtests, run Luau and read Output: in Studio, Assistant → … →
   Manage MCP Servers → *Enable Studio as MCP server*, then quick-connect Claude Code (Assistant Settings → MCP
   Servers). The MCP tools load when a Claude session starts. Docs: https://create.roblox.com/docs/studio/mcp
-- **Lighting → Technology = Future** in each place (set by hand in Studio's Properties; scripts, the MCP and
-  Rojo can't set it). Lamps and muzzle flashes cast real light with it.
+- Lighting: the game sets **LightingStyle = Realistic** itself (`shared/Look` and the project files; the old
+  Technology property is deprecated and needs no hand setting). How the light is shared out, and why rooms
+  are lit by the moon and ambient with soft lamps, is in `shared/Look`'s header.
+- Roblox rebuilds its lighting round `Camera.Focus` after a big camera move (measured 2.5–4 s, nearest
+  surfaces first): set pieces keep the focus on the player and end on a title card (`client/race/Cinematic`).
 - Look presets (Studio only): a Workspace string attribute `LookPreset` = "Neon Night" (default), "Golden Dusk"
   or "Moonlit Ink" switches the lighting live while playing.
 - Fewer bots for a test: select Workspace in Studio, Properties → Attributes → add a number attribute
@@ -91,7 +94,7 @@ rojo build race.project.json -o build/race.rbxl
 
 The full list is in `publish/RELEASE.md`. In short (the owner does the Roblox side):
 
-1. Build both places; Lighting → Technology = Future in each.
+1. Build both places.
 2. Publish the lobby as a new experience **Rooftop** (the start place), then the race into the same
    experience as a new place named **Rooftop Race**.
 3. Put both place ids in `src/shared/Places.luau`, commit, rebuild, publish both again.
