@@ -22,6 +22,8 @@ One Roblox experience, two places, one repo:
 - `src/client/race`, `src/client/lobby` → `StarterPlayer.StarterPlayerScripts.Race` / `.Lobby`.
 - `src/client/common` → `StarterPlayerScripts.Common` in both places: the UI kit, settings and audio.
 - `src/client/first` → `ReplicatedFirst.Loading` in both places (the loading screen).
+- Robux: only the boosters (`shared/Booster`, `server/race/BoostService`, `server/common/Purchases`); every
+  purchase becomes a saved credit first, handed out once per PurchaseId.
 - `tests/`: Lune specs for `src/shared` (`*.spec.luau`, listed in `tests/init.luau`).
 - `publish/RELEASE.md`: publishing steps, the release test, questionnaire answers, the game page text.
 
@@ -93,6 +95,7 @@ The full list is in `publish/RELEASE.md`. In short (the owner does the Roblox si
 2. Publish the lobby as a new experience **Rooftop** (the start place), then the race into the same
    experience as a new place named **Rooftop Race**.
 3. Put both place ids in `src/shared/Places.luau`, commit, rebuild, publish both again.
-4. Configure: max players 20 in both places, R15 avatars, devices, keep it private.
+4. Configure: max players 20 in both places, R15 avatars, devices, keep it private. Create the four boost
+   Developer Products and put their ids in `src/shared/Booster.luau`.
 5. Run the release test in the private game (teleports and data stores only work there).
 6. Maturity questionnaire (expected: Mild), game page, icon and thumbnails, then public.

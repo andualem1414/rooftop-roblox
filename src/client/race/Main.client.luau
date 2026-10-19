@@ -14,6 +14,7 @@ local Cutaway = require(script.Parent.Cutaway)
 local Hud = require(script.Parent.Hud)
 local Cinematic = require(script.Parent.Cinematic)
 local Ambience = require(script.Parent.Ambience)
+local BoostPad = require(script.Parent.BoostPad)
 
 Audio.init()
 CameraAim.init()
@@ -24,6 +25,7 @@ Cutaway.init()
 Hud.init()
 Ambience.init()
 Cinematic.init()
+BoostPad.init()
 
 -- once the loading screen has everything in place, tell the server we're ready (the race doesn't count
 -- down until everyone's client is)

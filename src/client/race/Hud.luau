@@ -136,7 +136,7 @@ function Hud.init()
 		l.LayoutOrder = order
 		l.TextXAlignment = Enum.TextXAlignment.Right
 		l.Text = text
-		if kind == "win" then
+		if kind == "win" or kind == "boost" then
 			l.TextColor3 = Color3.fromRGB(255, 214, 120)
 		end
 		local lines = {}

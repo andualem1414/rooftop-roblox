@@ -15,7 +15,8 @@ What's left is mostly the user's: looking, playing and publishing. Claude's code
 - [ ] Listen to the sounds and swap any that don't fit (`src/shared/Sounds.luau`: one table, ids and trims)
 - [ ] **Publish privately** (phase 7, `publish/RELEASE.md`), fill in `src/shared/Places.luau`, then the
       release test in the published game: teleports, saving, leaderboards, friends together
-- [ ] **Phase 6: Robux items**: the user decides whether to sell anything (cosmetic only, never pay-to-win)
+- [ ] **Phase 6 boosters**: create the four Developer Products on Creator Hub (+1, +3, +5, +10 floors), put
+      their ids in `src/shared/Booster.luau`; until then they're not for sale (Studio: free test boosts)
 - [ ] Then: the maturity questionnaire (expected Mild), the game page, icon and thumbnails, going public
 
 ## Roadmap
@@ -30,7 +31,8 @@ What's left is mostly the user's: looking, playing and publishing. Claude's code
    over your own avatar).*
 5. **Saved data**: stats, unlocks, leaderboards (DataStores + OrderedDataStores). *Built; data stores only run
    once published.*
-6. **Robux items**: decide later (only cosmetic, nothing pay-to-win; ask first). *Waiting for the user.*
+6. **Robux items**: the user's call (2026-10-19): a paid booster that flies you up the shaft. *Built; the
+   products are created on Creator Hub.*
 7. **Publishing**: game page text, icon, thumbnails, maturity questionnaire answers (aim: Mild), release
    checklist. *Kit ready in `publish/RELEASE.md`; the publishing itself is the user's.*
 
@@ -94,6 +96,13 @@ Camera, look, sound
 - **Sound**: only Roblox's own licensed library on the Creator Store (ProSoundEffects, APM Music) and the sounds
   that ship with Roblox; long recordings are trimmed to the bit we want (measured in Studio).
 - **Settings**: music, effects, mouse sensitivity, camera shake, damage numbers; kept with the profile.
+- **Phase 6: a paid booster** (the user's design; it replaces "cosmetic only" from 2026-10-18): a glowing
+  pad beside the shaft on every floor (1–17); F / D-pad up / tap opens the choices: +1, +3, +5 or +10 floors,
+  each a Developer Product. Bought, you fly up the shaft like Iron Man (jets from your feet) to that floor.
+  Limits the user chose: never above floor 18, and closed once the roof opens at 4:00, so the end is earned.
+  Every purchase becomes a saved boost credit first (counted once per purchase), then spent on the flight:
+  a boost that can't happen right then waits for the next pad. Untouchable and unable to attack while
+  flying; the feed says who boosted. Bots never boost.
 
 ## Inbox
 

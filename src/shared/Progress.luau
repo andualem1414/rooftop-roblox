@@ -1,7 +1,9 @@
 --!strict
--- A player's saved profile: their stats, the look they wear and their settings. The data store holds it
--- (server/common/ProfileStore); this is the pure part: a fresh profile, cleaning up whatever was stored,
--- adding a race's result to the stats, and the numbers the leaderboards keep.
+-- A player's saved profile: their stats, the look they wear, their settings, their boost credits (bought
+-- boosts not yet used: shared/Booster) and the purchases already handed out (so a purchase Roblox reports
+-- twice is only counted once). The data store holds it (server/common/ProfileStore); this is the pure part:
+-- a fresh profile, cleaning up whatever was stored, adding a race's result to the stats, credits, and the
+-- numbers the leaderboards keep.
 local Settings = require("./Settings")
 local Looks = require("./Looks")
 
@@ -12,6 +14,8 @@ export type Profile = {
 	stats: Stats,
 	look: string,
 	settings: Settings.Settings,
+	credits: { [string]: number }, -- boost size ("1", "3", "5", "10") -> how many
+	receipts: { string }, -- the latest purchases handed out (their PurchaseIds)
 }
 
 -- what one race did for one player
@@ -25,6 +29,8 @@ export type Result = {
 local Progress = {}
 
 Progress.VERSION = 1
+Progress.RECEIPTS_KEPT = 50
+local CREDIT_SIZES = { "1", "3", "5", "10" }
 
 -- the leaderboards (OrderedDataStores keep whole numbers: the best time is in tenths of a second)
 Progress.BOARDS = {
@@ -38,7 +44,14 @@ function Progress.newStats(): Stats
 end
 
 function Progress.newProfile(): Profile
-	return { v = Progress.VERSION, stats = Progress.newStats(), look = Looks.DEFAULT, settings = Settings.defaults() }
+	return {
+		v = Progress.VERSION,
+		stats = Progress.newStats(),
+		look = Looks.DEFAULT,
+		settings = Settings.defaults(),
+		credits = {},
+		receipts = {},
+	}
 end
 
 local function count(v: any): number
@@ -69,7 +82,51 @@ function Progress.sanitize(raw: any): Profile
 		p.look = look.id
 	end
 	p.settings = Settings.sanitize(raw.settings)
+	if type(raw.credits) == "table" then
+		for _, size in CREDIT_SIZES do
+			local n = math.min(count(raw.credits[size]), 999)
+			if n > 0 then
+				p.credits[size] = n
+			end
+		end
+	end
+	if type(raw.receipts) == "table" then
+		for _, r in raw.receipts do
+			if type(r) == "string" and #r < 80 then
+				table.insert(p.receipts, r)
+			end
+		end
+		while #p.receipts > Progress.RECEIPTS_KEPT do
+			table.remove(p.receipts, 1)
+		end
+	end
 	return p
+end
+
+-- a purchase handed out: one more credit of that size (once per purchase id). Returns false if this
+-- purchase was already handed out.
+function Progress.grant(p: Profile, purchaseId: string, size: number): boolean
+	if table.find(p.receipts, purchaseId) then
+		return false
+	end
+	local k = tostring(size)
+	p.credits[k] = (p.credits[k] or 0) + 1
+	table.insert(p.receipts, purchaseId)
+	while #p.receipts > Progress.RECEIPTS_KEPT do
+		table.remove(p.receipts, 1)
+	end
+	return true
+end
+
+-- use one credit of a size. Returns false if there's none.
+function Progress.spend(p: Profile, size: number): boolean
+	local k = tostring(size)
+	local n = p.credits[k] or 0
+	if n <= 0 then
+		return false
+	end
+	p.credits[k] = if n > 1 then n - 1 else nil
+	return true
 end
 
 -- the stats after one more race

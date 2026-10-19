@@ -8,6 +8,7 @@
 --            the other side, then back the other way on the next swing (forehand / backhand)
 --   a sword: carried point-up in front, diagonal slashes, alternating
 --   guard:   the weapon held across the chest
+--   a boost: arms straight down and a little back, palms down, like a rocket (the Boosting attribute)
 --   always:  the head and chest follow the aim; a flinch when hit; a lean into the run and a bank into
 --            turns
 -- Swing timings come from the weapon (shared/Weapons), so the arms land the blow when the server does.
@@ -300,7 +301,16 @@ local function pose(r: Rig, dt: number)
 	local chestYaw, chestLean = 0, 0
 	local armed = slot ~= nil
 
-	if slot == "gun" then
+	if model:GetAttribute("Boosting") == true then
+		-- flying up on the jets: arms down by the sides and back, hands flat, chin up
+		r.armW = math.min(1, r.armW + dt * 6)
+		local down = v(0, -1, 0.25).Unit
+		setArm(r, r.right, v(0.75, -0.55, 0.45) * k, meleeHand(down, v(0, 0, -1)), POLE_R, r.armW)
+		setArm(r, r.left, v(-0.75, -0.55, 0.45) * k, meleeHand(down, v(0, 0, -1)), POLE_L, r.armW)
+		chestLean = -0.12
+		pitch = 0.35
+		armed = true
+	elseif slot == "gun" then
 		local reloading = model:GetAttribute("Reloading") == true
 		-- the arms take most of the aim, the chest a little
 		local armsPitch = pitch * 0.75

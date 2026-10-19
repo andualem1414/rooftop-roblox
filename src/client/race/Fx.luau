@@ -8,6 +8,7 @@
 --   your own:  the flash, the kick and the camera recoil play the moment you shoot; being hit shakes the
 --              camera
 --   knock-out: a burst, and the body fades away
+--   a boost:   jets of fire from both feet and a warm light, while the Boosting attribute is on
 local Debris = game:GetService("Debris")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -374,10 +375,56 @@ local function outline(model: Model)
 	h.Parent = model
 end
 
+-- jets from the feet while someone boosts (the Boosting attribute)
+local function jets(model: Model, on: boolean)
+	for _, side in { "LeftFoot", "RightFoot" } do
+		local foot = model:FindFirstChild(side)
+		if not foot or not foot:IsA("BasePart") then
+			continue
+		end
+		local old = foot:FindFirstChild("BoostJet")
+		if old then
+			old:Destroy()
+		end
+		if on then
+			local a = Instance.new("Attachment")
+			a.Name = "BoostJet"
+			a.Position = Vector3.new(0, -foot.Size.Y / 2, 0)
+			a.Orientation = Vector3.new(180, 0, 0) -- (emitters shoot along +Y: down, out of the sole)
+			local fire = Instance.new("ParticleEmitter")
+			fire.Texture = "rbxasset://textures/particles/fire_main.dds"
+			fire.Color = ColorSequence.new({
+				ColorSequenceKeypoint.new(0, Color3.fromRGB(200, 230, 255)),
+				ColorSequenceKeypoint.new(0.25, Color3.fromRGB(255, 200, 90)),
+				ColorSequenceKeypoint.new(1, Color3.fromRGB(255, 80, 30)),
+			})
+			fire.LightEmission = 1
+			fire.LightInfluence = 0
+			fire.Size = NumberSequence.new({ NumberSequenceKeypoint.new(0, 1.1), NumberSequenceKeypoint.new(1, 0.1) })
+			fire.Transparency =
+				NumberSequence.new({ NumberSequenceKeypoint.new(0, 0.1), NumberSequenceKeypoint.new(1, 1) })
+			fire.Lifetime = NumberRange.new(0.18, 0.32)
+			fire.Speed = NumberRange.new(26, 34)
+			fire.SpreadAngle = Vector2.new(8, 8)
+			fire.Rate = 140
+			fire.Parent = a
+			local light = Instance.new("PointLight")
+			light.Color = Color3.fromRGB(255, 170, 80)
+			light.Range = 14
+			light.Brightness = 3
+			light.Parent = a
+			a.Parent = foot
+		end
+	end
+end
+
 local function watch(model: Instance)
 	if not model:IsA("Model") then
 		return
 	end
+	model:GetAttributeChangedSignal("Boosting"):Connect(function()
+		jets(model, model:GetAttribute("Boosting") == true)
+	end)
 	outline(model)
 	-- a reload's clatter, from the gun
 	model:GetAttributeChangedSignal("Reloading"):Connect(function()

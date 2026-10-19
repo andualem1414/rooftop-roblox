@@ -30,6 +30,12 @@ Workspace attributes `LookPreset` and `TestBots` only work in Studio and can sta
    - **Devices**: Computer, Phone, Tablet, Console.
    - **Access**: keep it **private** until the release test below passes.
    - **Audio**: every sound is from Roblox's own licensed library or ships with Roblox: nothing to upload.
+5. **Boosts for Robux** (phase 6): Creator Hub → Rooftop → Monetization → **Developer Products**: create
+   four, one per size, e.g. *Boost +1 floor*, *Boost +3 floors*, *Boost +5 floors*, *Boost +10 floors*,
+   and set their prices (a starting point: 15, 40, 60 and 100 Robux). Put their ids in
+   `src/shared/Booster.luau` (`PRODUCTS`), commit, rebuild and publish the race place again. While an id
+   is 0 that size isn't for sale (in Studio the pads give free test boosts instead). Studio's purchases of
+   real products are test purchases: nothing is charged.
 
 ## 3. Release test (in the published, private game)
 
@@ -45,6 +51,9 @@ Teleports and data stores only work there. With 2–4 accounts (or friends) on d
 - [ ] Back in the lobby: Stats show the race, Escapes / KOs in the player list, leaderboards fill in
       (they refresh every minute), a look unlocked by the race can be worn
 - [ ] Settings (music, effects, sensitivity, shake, numbers) are kept after rejoining
+- [ ] Boosters: F / D-pad up / tap on a pad opens the choices with prices; buying one flies you up; a
+      size past floor 18 is greyed out; after the roof opens they're closed; a purchase made just as the
+      roof opens becomes a credit (Stats in the lobby shows it) and works on the next race's pads
 - [ ] Leave mid-race: the race goes on with one climber fewer; rejoin lands you in the lobby
 - [ ] No errors in the Developer Console (F9) on the lobby server and a race server
 
@@ -66,7 +75,7 @@ release:
 | Social hangout | No (the main activity is the race; the lobby is a short wait) |
 | Free-form user creation | No |
 | Sensitive issues | No |
-| Paid random items / paid item trading | No (nothing is sold) |
+| Paid random items / paid item trading | No (boosts are sold, but they're not random and can't be traded) |
 | Media | No |
 | AI interaction | No |
 
@@ -89,6 +98,7 @@ Moderate.
 > platform and it throws you both off.
 >
 > • Races of 20: friends who join you race with you, bots fill the rest
+> • Booster pads fly you up the shaft (up to floor 18, until the roof opens)
 > • Unlock 10 climber looks by playing
 > • Leaderboards: most escapes, most knock-outs, fastest escape
 > • Play on computer, phone, tablet or console

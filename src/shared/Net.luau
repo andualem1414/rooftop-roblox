@@ -11,6 +11,7 @@
 --   Ready()                        this client's scripts are running (the race waits for it)
 --   SetLook(id)                    wear this look (if your stats unlock it)
 --   SaveSettings(settings)         keep these settings with your profile
+--   Boost(size)                    boost up this many floors from the booster pad you stand on
 -- Server -> clients:
 --   Knock(velocity)                you were hit: get pushed this way (your client owns your body)
 --   ShotFx(model, from, to, kind, weapon)  draw a shot: muzzle flash, streak, impact (kind: "body",
@@ -20,6 +21,7 @@
 --   Notice(text, kind)             a banner line for everyone (or one player)
 --   Feed(text, kind)               a kill-feed line
 --   Cue(name, position?)           play a sound cue (shared/Sounds) for everyone, or one player
+--   Boost(from, to, seconds)       your boost starts: fly from floor `from` to `to` (shared/Booster)
 --
 -- Character attributes the server keeps up to date (for the poses): Aim (pitch, radians), Guard,
 -- Reloading.
@@ -42,6 +44,7 @@ local NAMES = {
 	"SetLook",
 	"SaveSettings",
 	"Cue",
+	"Boost",
 }
 local UNRELIABLE = { "Look" }
 

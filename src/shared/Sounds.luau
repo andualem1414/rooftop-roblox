@@ -45,6 +45,10 @@ local CUES: { [string]: Cue } = {
 	hurt = { id = THUD, volume = 0.6, pitch = { 0.55, 0.6 }, kind = "ui" },
 	pickup = { id = PISTOL_KIT, volume = 0.5, pitch = { 1.2, 1.2 }, region = { 0.48, 0.15 }, kind = "ui" },
 	knockout = { id = BOOM, volume = 0.3, pitch = { 1.5, 1.7 }, range = 120, kind = "effects" },
+	-- a boost: the jets light, the whoosh up the shaft, the landing
+	boost = { id = BOOM, volume = 0.45, pitch = { 1.9, 2.1 }, range = 140, kind = "effects" },
+	boostWhoosh = { id = WHOOSH, volume = 0.9, pitch = { 0.42, 0.48 }, range = 140, kind = "effects" },
+	land = { id = THUD, volume = 1, pitch = { 0.6, 0.65 }, range = 80, kind = "effects" },
 	-- the tower
 	platform = { id = THUD, volume = 0.9, pitch = { 0.42, 0.48 }, range = 70, kind = "effects" },
 	roof = { id = BOOM, volume = 0.8, pitch = { 0.45, 0.5 }, range = 600, kind = "effects" },

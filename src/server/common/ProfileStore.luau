@@ -108,6 +108,7 @@ local function publish(player: Player)
 			},
 			look = p.look,
 			settings = p.settings,
+			credits = p.credits,
 			saved = not offline,
 		})
 	)
@@ -209,6 +210,49 @@ function ProfileStore.recordRound(player: Player, r: Progress.Result): { Looks.L
 		end
 	end
 	return Looks.newlyUnlocked(before, p.stats)
+end
+
+-- a purchase handed out as a boost credit, once per purchase id (Roblox can report one purchase more than
+-- once). Returns ok (it's saved, now or before: Roblox may count the purchase as done) and fresh (it was
+-- handed out just now). In a live game a profile that couldn't be read is never written over: not ok.
+function ProfileStore.grantPurchase(player: Player, purchaseId: string, size: number): (boolean, boolean)
+	ProfileStore.load(player)
+	if not STUDIO and not fromStore[player] then
+		return false, false
+	end
+	local fresh = false
+	local p = update(player, "saving a purchase", function(old: Profile): Profile
+		fresh = Progress.grant(old, purchaseId, size)
+		return old
+	end)
+	if not p then
+		return false, false
+	end
+	publish(player)
+	return true, fresh
+end
+
+-- use one boost credit of a size. Returns true if there was one (and it's gone now).
+function ProfileStore.spendCredit(player: Player, size: number): boolean
+	local p = profiles[player]
+	if not p or (p.credits[tostring(size)] or 0) <= 0 then
+		return false
+	end
+	local spent = false
+	local saved = update(player, "using a boost credit", function(old: Profile): Profile
+		spent = Progress.spend(old, size)
+		return old
+	end)
+	if saved then
+		publish(player)
+	end
+	return saved ~= nil and spent
+end
+
+-- how many credits of a size the player has
+function ProfileStore.credits(player: Player, size: number): number
+	local p = profiles[player]
+	return if p then p.credits[tostring(size)] or 0 else 0
 end
 
 -- wear a look (if the stats unlock it). Returns true if it changed.

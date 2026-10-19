@@ -10,6 +10,7 @@ require("@self/Rules.spec")
 require("@self/Valley.spec")
 require("@self/Weapons.spec")
 require("@self/Progress.spec")
+require("@self/Booster.spec")
 
 if not Test.finish() then
 	process.exit(1)

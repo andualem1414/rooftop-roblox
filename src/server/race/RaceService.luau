@@ -30,6 +30,8 @@ local Pickups = require(script.Parent.Pickups)
 local PlatformService = require(script.Parent.PlatformService)
 local CombatService = require(script.Parent.CombatService)
 local Bots = require(script.Parent.Bots)
+local BoostService = require(script.Parent.BoostService)
+local Purchases = require(script.Parent.Parent.Common.Purchases)
 local Tower = require(script.Parent.Parent.Common.Tower)
 
 type Climber = Climbers.Climber
@@ -269,6 +271,7 @@ local function runRace()
 	Climbers.clear()
 	Bots.clear()
 	tower.closeHatch()
+	BoostService.reset()
 	PlatformService.reset()
 	Pickups.reset(tower)
 
@@ -408,6 +411,14 @@ function RaceService.start(t: Tower.Tower)
 		setup = setup,
 	})
 	Bots.prepare()
+	BoostService.init({
+		tower = tower,
+		time = RaceService.time,
+		phase = function(): string
+			return (state:GetAttribute("Phase") :: string?) or "waiting"
+		end,
+	})
+	Purchases.init(BoostService.onCredit)
 
 	-- Studio only: test hooks (`RooftopDev:Invoke(...)`): "skip" seconds of the race clock, "win" (the first
 	-- player gets out), "restart" the race, "give" the first player a weapon

@@ -8,11 +8,13 @@
 --   CrateFence always there: keeps crates out of the shaft
 --   Crates     loose crates you can shove
 --   Bullet     what shots (raycasts) can hit: not the invisible gates
+--   Boosting   a climber flying up the shaft on a booster (their client puts its body in it): touches
+--              nothing, so nothing in the shaft can snag the flight
 local PhysicsService = game:GetService("PhysicsService")
 
 local CollisionGroups = {}
 
-local GROUPS = { "Climbers", "Tower", "Platform", "ShaftGate", "CrateFence", "Crates", "Bullet" }
+local GROUPS = { "Climbers", "Tower", "Platform", "ShaftGate", "CrateFence", "Crates", "Bullet", "Boosting" }
 
 local function never(a: string, b: string)
 	PhysicsService:CollisionGroupSetCollidable(a, b, false)
@@ -38,6 +40,10 @@ function CollisionGroups.init()
 	never("CrateFence", "Tower")
 	never("Bullet", "ShaftGate")
 	never("Bullet", "CrateFence")
+	for _, g in GROUPS do
+		never("Boosting", g)
+	end
+	never("Boosting", "Default")
 end
 
 -- put a character (and anything added to it later, like accessories) in the Climbers group

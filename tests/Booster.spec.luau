@@ -1,0 +1,91 @@
+--!strict
+local Test = require("./lib/Test")
+local Config = require("../src/shared/Config")
+local Booster = require("../src/shared/Booster")
+local Progress = require("../src/shared/Progress")
+
+local describe, it, expect = Test.describe, Test.it, Test.expect
+
+describe("Booster", function()
+	it("sells four sizes", function()
+		expect(#Booster.SIZES).toBe(4)
+		for _, s in { 1, 3, 5, 10 } do
+			expect(Booster.isSize(s)).toBe(true)
+		end
+		expect(Booster.isSize(2)).toBe(false)
+		expect(Booster.isSize("3")).toBe(false)
+	end)
+	it("never takes anyone above floor 18", function()
+		expect(Booster.canBoost(7, 10, "climb", 60)).toBe(true) -- floor 8 -> 18
+		expect(Booster.canBoost(8, 10, "climb", 60)).toBe(false) -- floor 9 -> 19
+		expect(select(2, Booster.canBoost(8, 10, "climb", 60))).toBe("floor")
+		expect(Booster.canBoost(16, 1, "climb", 60)).toBe(true) -- floor 17 -> 18
+		expect(Booster.canBoost(17, 1, "climb", 60)).toBe(false)
+	end)
+	it("only works while climbing, before the roof opens", function()
+		expect(Booster.canBoost(0, 1, "ready", -3)).toBe(false)
+		expect(select(2, Booster.canBoost(0, 1, "roof", 250))).toBe("roof")
+		expect(select(2, Booster.canBoost(0, 1, "climb", Config.ROOF_OPENS_AFTER))).toBe("roof")
+		expect(Booster.canBoost(0, 1, "over", 300)).toBe(false)
+	end)
+	it("knows no product while the ids aren't set up", function()
+		expect(Booster.sizeOf(0)).toBe(nil)
+		expect(Booster.sizeOf(123456)).toBe(nil)
+	end)
+	it("flies from the pad up the shaft onto the new floor's pad", function()
+		local x0, y0, z0 = Booster.pad(2)
+		local sx, sy, sz = Booster.flightAt(0, x0, y0 + 3, z0, 7)
+		expect(sx).toBeNear(x0)
+		expect(sy).toBeNear(y0 + 3)
+		expect(sz).toBeNear(z0)
+		local px, py, pz = Booster.pad(7)
+		local ex, ey, ez = Booster.flightAt(1, x0, y0 + 3, z0, 7)
+		expect(ex).toBeNear(px)
+		expect(ey).toBeNear(py + 3)
+		expect(ez).toBeNear(pz)
+		-- halfway it's over the shaft, between the two floors
+		local mx, my = Booster.flightAt(0.5, x0, y0 + 3, z0, 7)
+		expect(math.abs(mx) < Config.SHAFT_HALF).toBe(true)
+		expect(my > y0 + 3 and my < py + 3 + 4 * Config.M).toBe(true)
+	end)
+	it("takes longer for more floors", function()
+		expect(Booster.flightTime(10) > Booster.flightTime(1)).toBe(true)
+		expect(Booster.flightTime(10) < 5).toBe(true)
+	end)
+end)
+
+describe("boost credits", function()
+	it("keeps credits and receipts in the profile, cleaned up", function()
+		local p = Progress.sanitize({
+			credits = { ["3"] = 2, ["10"] = -4, ["7"] = 1, ["5"] = 1.5 },
+			receipts = { "a", "b", 7 },
+		})
+		expect(p.credits["3"]).toBe(2)
+		expect(p.credits["10"]).toBe(nil)
+		expect(p.credits["7"]).toBe(nil)
+		expect(p.credits["5"]).toBe(1)
+		expect(#p.receipts).toBe(2)
+		expect(Progress.newProfile().credits["1"]).toBe(nil)
+	end)
+	it("hands out each purchase once, and spends credits", function()
+		local p = Progress.newProfile()
+		expect(Progress.grant(p, "buy-1", 3)).toBe(true)
+		expect(Progress.grant(p, "buy-1", 3)).toBe(false) -- (Roblox reported it twice)
+		expect(Progress.grant(p, "buy-2", 3)).toBe(true)
+		expect(p.credits["3"]).toBe(2)
+		expect(Progress.spend(p, 3)).toBe(true)
+		expect(Progress.spend(p, 3)).toBe(true)
+		expect(Progress.spend(p, 3)).toBe(false)
+		expect(p.credits["3"]).toBe(nil)
+		expect(Progress.spend(p, 10)).toBe(false)
+	end)
+	it("keeps only the latest receipts", function()
+		local many = {}
+		for i = 1, 120 do
+			many[i] = tostring(i)
+		end
+		local p = Progress.sanitize({ receipts = many })
+		expect(#p.receipts).toBe(Progress.RECEIPTS_KEPT)
+		expect(p.receipts[#p.receipts]).toBe("120")
+	end)
+end)

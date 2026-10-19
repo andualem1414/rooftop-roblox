@@ -25,6 +25,7 @@ local TIPS = {
 	"Knocked out? You come to a few floors lower. Keep climbing.",
 	"Ammo boxes lie on every floor. Platforms carry guns, swords and ammo.",
 	"Headshots hit half as hard again.",
+	"Booster pads by the shaft fly you up to floor 18. Only until the roof opens.",
 }
 
 -- the screen

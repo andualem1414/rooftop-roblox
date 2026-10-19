@@ -27,11 +27,11 @@ local player = Players.LocalPlayer
 
 local LobbyUi = {}
 
-type ProfileView = { stats: Progress.Stats, look: string, saved: boolean }
+type ProfileView = { stats: Progress.Stats, look: string, saved: boolean, credits: { [string]: number } }
 
 local function profile(): ProfileView
 	local raw = player:GetAttribute("Profile")
-	local out: ProfileView = { stats = Progress.newStats(), look = Looks.DEFAULT, saved = false }
+	local out: ProfileView = { stats = Progress.newStats(), look = Looks.DEFAULT, saved = false, credits = {} }
 	if type(raw) ~= "string" then
 		return out
 	end
@@ -41,6 +41,7 @@ local function profile(): ProfileView
 		out.stats = p.stats
 		out.look = if type(data.look) == "string" then data.look else p.look
 		out.saved = data.saved == true
+		out.credits = p.credits
 	end
 	return out
 end
@@ -78,6 +79,12 @@ local function howToPlay(gui: ScreenGui)
 		},
 		{
 			"Ammo boxes lie on every floor. Headshots hit half as hard again. A guard stops blows, not bullets.",
+			nil,
+			16,
+		},
+		{ "Boosters", Ui.ACCENT, 20 },
+		{
+			"A glowing pad beside the shaft on each floor flies you up 1, 3, 5 or 10 floors (no higher than floor 18, and only until the roof opens). F, D-pad up, or tap it.",
 			nil,
 			16,
 		},
@@ -245,6 +252,18 @@ local function statsPanel(gui: ScreenGui)
 			v.Size = UDim2.fromScale(0.35, 1)
 			v.Position = UDim2.fromScale(0.65, 0)
 			v.TextXAlignment = Enum.TextXAlignment.Right
+		end
+		-- boosts bought and not used yet (they wait for any booster pad in a race)
+		local held = {}
+		for _, size in { 1, 3, 5, 10 } do
+			local n = me.credits[tostring(size)]
+			if n and n > 0 then
+				table.insert(held, `+{size} ×{n}`)
+			end
+		end
+		if #held > 0 then
+			local b = Ui.label(body, `Boost credits: {table.concat(held, ",  ")}`, 16, Ui.TEXT, Ui.GOLD)
+			b.LayoutOrder = 50
 		end
 		if not me.saved then
 			local note = Ui.label(body, "Your progress isn't being saved on this server.", 14, Ui.BODY, Ui.DIM)
