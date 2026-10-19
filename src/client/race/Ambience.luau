@@ -209,6 +209,7 @@ local function confetti()
 			p.Size = Vector3.new(0.5, 0.05, 0.35)
 			p.Color = CONFETTI[rng:NextInteger(1, #CONFETTI)]
 			p.Material = Enum.Material.SmoothPlastic
+			p.CollisionGroup = "Debris"
 			p.CanQuery = false
 			p.CanTouch = false
 			p.CastShadow = false
@@ -246,10 +247,12 @@ local function platformClunks(state: Instance)
 		end
 		local char = Players.LocalPlayer.Character
 		local root = char and char:FindFirstChild("HumanoidRootPart") :: BasePart?
-		if not root then
+		local hum = char and char:FindFirstChildOfClass("Humanoid")
+		if not root or not hum then
 			return
 		end
-		local mine = math.floor(root.Position.Y / Config.FLOOR_HEIGHT + 0.3)
+		local feet = root.Position.Y - root.Size.Y / 2 - hum.HipHeight
+		local mine = math.floor(feet / Config.FLOOR_HEIGHT + 0.3)
 		local t = workspace:GetServerTimeNow() - ((state:GetAttribute("StartAt") :: number?) or 0)
 		local roofOpen = state:GetAttribute("RoofOpen") == true
 		local first, last = Platforms.launchRange(t)

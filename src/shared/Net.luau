@@ -22,7 +22,7 @@
 --   ShotFx(model, from, to, kind, weapon)  draw a shot: muzzle flash, streak, impact (kind: "body",
 --                                  "wall", "none")
 --   SwingFx(model, weapon, side)   a swing started (the arms play it on every screen)
---   HitFx(position, damage, kind, victim, attacker)  a hit landed (kind: "hit", "block", "head")
+--   HitFx(position, damage, kind, victim, attacker, weapon)  a hit landed (kind: "hit", "block", "head")
 --   Notice(text, kind)             a banner line for everyone (or one player)
 --   Feed(text, kind)               a kill-feed line
 --   Cue(name, position?)           play a sound cue (shared/Sounds) for everyone, or one player

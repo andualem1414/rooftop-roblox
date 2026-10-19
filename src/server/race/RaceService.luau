@@ -9,8 +9,9 @@
 --
 -- Clients follow along through attributes on ReplicatedStorage.RaceState:
 --   Phase ("waiting" / "ready" / "climb" / "roof" / "over" / "leaving"), StartAt (server time the climb
---   starts), RoofOpen, Winner (name, "" if nobody), Race (a number, +1 each race), Skydive ("" / "ready" /
---   "flying" / "done": the winner's skydive, shared/Skydive)
+--   starts), RoofOpen, Winner (name, "" if nobody), WinnerId (the winner's UserId, 0 for a bot or nobody:
+--   display names aren't unique), Race (a number, +1 each race), Skydive ("" / "ready" / "flying" / "done":
+--   the winner's skydive, shared/Skydive). The winner's body carries Escaped = true.
 -- A player who wins gets the skydive: a pad on the roof flings them out over the valley to glide through
 -- rings. Nothing restarts by itself: once the race is over the winner explores the roof, takes the skydive
 -- or ends the game, and everyone else sees the result and goes back to the main screen (the lobby place)
@@ -316,6 +317,7 @@ local function runRace()
 	state:SetAttribute("Race", raceNo)
 	state:SetAttribute("RoofOpen", false)
 	state:SetAttribute("Winner", "")
+	state:SetAttribute("WinnerId", 0)
 	state:SetAttribute("StartAt", 0)
 	state:SetAttribute("RoofSceneAt", nil)
 	state:SetAttribute("Skydive", "")
@@ -428,6 +430,10 @@ local function runRace()
 	local w = winner
 	if w then
 		w.frozen = false
+		if w.model then
+			w.model:SetAttribute("Escaped", true)
+		end
+		state:SetAttribute("WinnerId", if w.player then w.player.UserId else 0)
 		state:SetAttribute("Winner", w.name)
 		Notice:FireAllClients(`{w.name} got out first!`, "win")
 		Feed:FireAllClients(`{w.name} got out first ({Rules.clock(RaceService.time())})`, "win")

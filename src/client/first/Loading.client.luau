@@ -199,7 +199,8 @@ end
 -- tower are built before anyone sees them: in a race the intro's opening shots; in the lobby the main
 -- screen's orbit and the forecourt, with the lighting's focus where LobbyUi keeps it (Camera.Focus)
 progress(0.75, "Painting the valley…")
-local H = 192
+local Config = require(shared:WaitForChild("Config")) :: any
+local H = Config.FLOORS * Config.FLOOR_HEIGHT -- (the tower's height: where the intro's last shot looks)
 local views = if lobby
 	then {
 		CFrame.lookAt(Vector3.new(math.sin(0.6) * 240, 70, math.cos(0.6) * 240), Vector3.new(0, 110, 0)),

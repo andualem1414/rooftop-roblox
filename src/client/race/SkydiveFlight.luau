@@ -15,6 +15,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
 
+local Config = require(ReplicatedStorage.Shared.Config)
 local Skydive = require(ReplicatedStorage.Shared.Skydive)
 local Net = require(ReplicatedStorage.Shared.Net)
 local CameraAim = require(script.Parent.CameraAim)
@@ -237,7 +238,7 @@ local function fly(model: Model, x: number, y: number, z: number, yaw: number, s
 			local v = views[next]
 			if root and v then
 				local d = root.Position - Vector3.new(v.ring.x, v.ring.y, v.ring.z)
-				if d.Magnitude < Skydive.RING_R + 0.6 * 3 + 2 then
+				if d.Magnitude < Skydive.RING_R + 0.6 * Config.M + 2 then
 					v.ring.state = "got"
 					next += 1
 				elseif d.X * v.ring.dx + d.Z * v.ring.dz > 12 then
@@ -277,7 +278,14 @@ local function fly(model: Model, x: number, y: number, z: number, yaw: number, s
 	local lean = 0
 	local finished = false
 	local ended = false -- the flight's over: hanging in the air with the result up
+	local reported = false -- the server has heard how many rings
 	local hangAt: CFrame? = nil
+	local function report()
+		if not reported then
+			reported = true
+			Net.event("Skydive"):FireServer("done", f.got)
+		end
+	end
 
 	local conn: RBXScriptConnection
 	local function stop()
@@ -298,7 +306,7 @@ local function fly(model: Model, x: number, y: number, z: number, yaw: number, s
 		task.delay(3, function()
 			gui:Destroy()
 		end)
-		Net.event("Skydive"):FireServer("done", f.got)
+		report()
 	end
 	conn = RunService.RenderStepped:Connect(function(dt: number)
 		dt = math.min(dt, 1 / 20)
@@ -346,7 +354,7 @@ local function fly(model: Model, x: number, y: number, z: number, yaw: number, s
 			camera.FieldOfView = 70
 			ended = true
 			hangAt = CFrame.lookAt(pos, pos + fwd)
-			Net.event("Skydive"):FireServer("done", f.got)
+			report()
 			label.Position = UDim2.fromScale(0.5, 0.36)
 			label.Size = UDim2.fromOffset(700, 90)
 			label.TextSize = 72
@@ -393,7 +401,7 @@ function SkydiveFlight.init()
 		local char = player.Character
 		local root = char and char:FindFirstChild("HumanoidRootPart") :: BasePart?
 		local hum = char and char:FindFirstChildOfClass("Humanoid")
-		if not root or not hum or state:GetAttribute("Winner") ~= hum.DisplayName then
+		if not root or not hum or state:GetAttribute("WinnerId") ~= player.UserId then
 			return
 		end
 		local _, y = Skydive.padAt()

@@ -152,6 +152,14 @@ describe("guns", function()
 		end
 		expect(f.reserve).toBe(Weapons.pistol.mag * 8)
 	end)
+	it("a full climber leaves the ammo box for someone else", function()
+		local f = fighter(0, 0)
+		f.reserve = Weapons.pistol.mag * 8
+		expect(Combat.addAmmo(f)).toBe(false)
+		f.reserve = Weapons.pistol.mag * 8 - 1
+		expect(Combat.addAmmo(f)).toBe(true)
+		expect(f.reserve).toBe(Weapons.pistol.mag * 8)
+	end)
 end)
 
 describe("health", function()

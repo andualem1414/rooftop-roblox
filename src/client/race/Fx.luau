@@ -169,6 +169,7 @@ local function casing(model: Instance?)
 	p.Color = Color3.fromRGB(230, 180, 70)
 	p.Material = Enum.Material.Metal
 	p.CanCollide = true
+	p.CollisionGroup = "Debris" -- (it bounces on the floor, never off a climber)
 	p.CanQuery = false
 	p.CanTouch = false
 	p.CastShadow = false

@@ -45,6 +45,11 @@ function CameraAim.kick(rad: number)
 	pitch = math.clamp(pitch + rad * 0.35, PITCH_MIN, PITCH_MAX)
 end
 
+-- how far the view is kicked up right now (radians): the crosshair blooms with it
+function CameraAim.kickAmount(): number
+	return kickPitch
+end
+
 -- a short tremble (0..1-ish), unless camera shake is off in the settings
 function CameraAim.shake(amount: number)
 	if ClientSettings.get().shake then

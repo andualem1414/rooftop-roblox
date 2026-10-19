@@ -112,11 +112,21 @@ local function dress(p: Player, char: Model)
 	LookService.applyWhenLoaded(p, char, profile.look)
 end
 
+-- a (fresh) body on the forecourt
+local function respawn(p: Player)
+	local ok, err = pcall(function()
+		p:LoadCharacterAsync()
+	end)
+	if not ok then
+		warn("[Rooftop] couldn't spawn", p.Name, err)
+	end
+end
+
 -- the main screen's Play, and the lobby's Main screen
 local function onLobby(p: Player, what: unknown)
 	if what == "play" and not joined[p] then
 		joined[p] = true
-		p:LoadCharacter()
+		respawn(p)
 	elseif what == "menu" and joined[p] and not sending[p] then
 		joined[p] = nil
 		if p.Character then
@@ -164,7 +174,7 @@ function LobbyService.start()
 	-- needs one anyway); on the main screen it's worn when they play
 	ProfileStore.onLookChanged(function(p: Player)
 		if p.Parent and joined[p] and not sending[p] then
-			p:LoadCharacter()
+			respawn(p)
 		end
 	end)
 

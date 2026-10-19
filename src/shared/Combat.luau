@@ -115,13 +115,18 @@ function Combat.giveGun(f: Fighter, name: string)
 	f.reloadT = 0
 end
 
--- an ammo box: two magazines' worth for the gun you carry (none if you have no gun)
+-- an ammo box: two magazines' worth for the gun you carry (none if you have no gun, or your spare
+-- rounds are already full: then the box stays where it is for someone else)
 function Combat.addAmmo(f: Fighter): boolean
 	if not f.gun then
 		return false
 	end
 	local w = Weapons[f.gun]
-	f.reserve = math.min(f.reserve + w.mag * 2, w.mag * 8)
+	local cap = w.mag * 8
+	if f.reserve >= cap then
+		return false
+	end
+	f.reserve = math.min(f.reserve + w.mag * 2, cap)
 	return true
 end
 

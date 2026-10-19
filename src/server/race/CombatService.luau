@@ -13,6 +13,7 @@ local RunService = game:GetService("RunService")
 local Config = require(ReplicatedStorage.Shared.Config)
 local Combat = require(ReplicatedStorage.Shared.Combat)
 local Net = require(ReplicatedStorage.Shared.Net)
+local Weapons = require(ReplicatedStorage.Shared.Weapons)
 local Climbers = require(script.Parent.Climbers)
 local Tools = require(script.Parent.Tools)
 
@@ -29,6 +30,8 @@ local CombatService = {}
 local hooks: Hooks
 local rng = Random.new()
 local owner: { [Fighter]: Climber } = {}
+-- players holding the guard button (a swing or a stagger drops the guard; it comes back while it's held)
+local guardHeld: { [Climber]: boolean } = {}
 local MAX_CAMERA_DISTANCE = 40 -- how far a shot's camera ray may start from your head (zoomed-out camera)
 local CHEST = 1.5 * Config.M -- melee line of sight is checked at chest height (low cover doesn't block it)
 
@@ -115,14 +118,25 @@ function CombatService.knockOut(c: Climber, by: Climber?, why: string?)
 	hooks.onKnockedOut(c, by)
 end
 
-local function landed(att: Climber, vic: Climber, r: Combat.HitResult, nx: number, nz: number, at: Vector3)
+local function landed(
+	att: Climber,
+	vic: Climber,
+	w: Weapons.Weapon,
+	r: Combat.HitResult,
+	nx: number,
+	nz: number,
+	at: Vector3
+)
 	local hum = vic.humanoid
 	if hum and not vic.fighter.dead then
 		hum.Health = vic.fighter.hp
 	end
-	knock(vic, Vector3.new(nx * r.knock, if r.blocked then 0 else 6, nz * r.knock))
+	-- a blow lifts you off your feet a little; a bullet only shoves (every round of a full-auto gun lifting
+	-- you kept its target floating)
+	local up = if r.blocked or w.slot == "gun" then 0 else 6
+	knock(vic, Vector3.new(nx * r.knock, up, nz * r.knock))
 	local kind = if r.blocked then "block" elseif r.headshot then "head" else "hit"
-	HitFx:FireAllClients(at, r.dmg, kind, vic.model, att.model)
+	HitFx:FireAllClients(at, r.dmg, kind, vic.model, att.model, w.name)
 	if r.killed then
 		CombatService.knockOut(vic, att)
 	end
@@ -146,7 +160,7 @@ local function landMelee(c: Climber, a: Combat.Attack)
 		end
 		local r = Combat.applyHit(c.fighter, a.w, h.v, h.nx, h.nz)
 		local at = Vector3.new(h.v.x, h.v.y + CHEST, h.v.z)
-		landed(c, vic, r, h.nx, h.nz, at)
+		landed(c, vic, a.w, r, h.nx, h.nz, at)
 	end
 end
 
@@ -254,7 +268,7 @@ local function fire(c: Climber, aimPoint: Vector3, err: number)
 			r = Combat.applyHit(f, w, vic.fighter, n.X, n.Z, false, l.body + l.head * Config.HEADSHOT)
 			r.headshot = l.head > 0
 		end
-		landed(c, vic, r, n.X, n.Z, l.at)
+		landed(c, vic, w, r, n.X, n.Z, l.at)
 	end
 end
 
@@ -323,10 +337,12 @@ end
 -- what CombatService knows about whose fighter is whose
 function CombatService.register(c: Climber)
 	owner[c.fighter] = c
+	guardHeld[c] = nil -- (a fresh body: the client starts with the guard down too)
 end
 
 function CombatService.unregister(c: Climber)
 	owner[c.fighter] = nil
+	guardHeld[c] = nil
 end
 
 local publishT = 0
@@ -345,7 +361,12 @@ local function step(dt: number)
 		f.equipped = Tools.inHand(c)
 		if c.frozen then
 			f.atk = nil
+		end
+		-- a guard needs the melee weapon in hand; held, it comes back once a swing or a stagger is over
+		if c.frozen or f.equipped ~= "melee" then
 			f.blocking = false
+		elseif guardHeld[c] and not f.blocking and Combat.canBlock(f) then
+			f.blocking = true
 		end
 		local blow = Combat.tick(f, dt)
 		if blow then
@@ -396,6 +417,7 @@ function CombatService.init(h: Hooks)
 	Net.event("Guard").OnServerEvent:Connect(function(player: Player, on: unknown)
 		local c = Climbers.forPlayer(player)
 		if c then
+			guardHeld[c] = if on == true then true else nil
 			c.fighter.blocking = on == true and not c.frozen and Combat.canBlock(c.fighter)
 		end
 	end)

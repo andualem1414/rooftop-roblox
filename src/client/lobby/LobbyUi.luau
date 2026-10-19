@@ -527,7 +527,8 @@ function LobbyUi.init()
 			local s = math.ceil(left)
 			if s ~= lastShown then
 				lastShown = s
-				if s >= 1 and s <= 5 then
+				-- (only for those on the forecourt: the main screen isn't going anywhere)
+				if s >= 1 and s <= 5 and not onMenu then
 					Audio.play("tick")
 				end
 			end

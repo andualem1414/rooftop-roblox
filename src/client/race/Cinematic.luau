@@ -378,12 +378,19 @@ function Cinematic.init()
 		elseif phase == "over" then
 			local name = state:GetAttribute("Winner")
 			if type(name) == "string" and name ~= "" then
+				-- the winner's body is marked (Escaped); a name alone could be someone else's too
+				local found: Model? = nil
 				for _, m in Cinematic.climbers() do
 					local hum = m:FindFirstChildOfClass("Humanoid")
-					if m.Name == name or (hum and hum.DisplayName == name) then
-						Cinematic.winner(m, Config.CELEBRATION)
+					if m:GetAttribute("Escaped") == true then
+						found = m
 						break
+					elseif not found and (m.Name == name or (hum and hum.DisplayName == name)) then
+						found = m
 					end
+				end
+				if found then
+					Cinematic.winner(found, Config.CELEBRATION)
 				end
 			end
 		elseif phase == "waiting" then

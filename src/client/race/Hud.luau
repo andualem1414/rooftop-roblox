@@ -138,23 +138,35 @@ function Hud.init()
 	ammo.Font = Ui.TITLE
 	ammo.TextXAlignment = Enum.TextXAlignment.Right
 
-	-- crosshair: four short ticks
+	-- crosshair: four short ticks round a dot. The gap shows how true a shot goes: the gun's own spread,
+	-- tighter while aiming, blooming out with the kick while you fire and settling back; small and tight
+	-- with a melee weapon (you swing where it is)
 	local cross = Instance.new("Frame")
 	cross.Name = "Crosshair"
 	cross.BackgroundTransparency = 1
-	cross.Size = UDim2.fromOffset(24, 24)
+	cross.Size = UDim2.fromOffset(64, 64)
 	cross.Position = UDim2.fromScale(0.5, 0.5)
 	cross.AnchorPoint = Vector2.new(0.5, 0.5)
 	cross.Parent = gui
-	for _, t in { { 0, -9, 2, 6 }, { 0, 9, 2, 6 }, { -9, 0, 6, 2 }, { 9, 0, 6, 2 } } do
+	local crossTicks: { { frame: Frame, dir: Vector2 } } = {}
+	for _, d in { Vector2.new(0, -1), Vector2.new(0, 1), Vector2.new(-1, 0), Vector2.new(1, 0) } do
 		local tick = Instance.new("Frame")
 		tick.BackgroundColor3 = CHALK
 		tick.BorderSizePixel = 0
 		tick.AnchorPoint = Vector2.new(0.5, 0.5)
-		tick.Position = UDim2.new(0.5, t[1], 0.5, t[2])
-		tick.Size = UDim2.fromOffset(t[3], t[4])
+		tick.Size = if d.X == 0 then UDim2.fromOffset(2, 6) else UDim2.fromOffset(6, 2)
+		Ui.stroke(tick, INK, 1)
 		tick.Parent = cross
+		table.insert(crossTicks, { frame = tick, dir = d })
 	end
+	local dot = Instance.new("Frame")
+	dot.BackgroundColor3 = CHALK
+	dot.BorderSizePixel = 0
+	dot.AnchorPoint = Vector2.new(0.5, 0.5)
+	dot.Position = UDim2.fromScale(0.5, 0.5)
+	dot.Size = UDim2.fromOffset(2, 2)
+	dot.Parent = cross
+	local crossGap = 9
 
 	-- the kill feed
 	local feed = Instance.new("Frame")
@@ -312,7 +324,7 @@ function Hud.init()
 	local state = ReplicatedStorage:WaitForChild("RaceState")
 	local hudShown = true
 	local lastCount = math.huge
-	RunService.RenderStepped:Connect(function()
+	RunService.RenderStepped:Connect(function(dt: number)
 		-- the intro, the roof opening and the winner's orbit get a clean screen (no HUD, no hotbar)
 		local show = not CameraAim.cinematic and player:GetAttribute("Loaded") == true
 		if show ~= hudShown then
@@ -366,7 +378,7 @@ function Hud.init()
 			hpBar.BackgroundColor3 = if k < 0.3 then RED else CHALK
 			-- the red edges: a flash when hit, a slow pulse while low
 			local low = if k < 0.3 and hum.Health > 0 then 0.25 + 0.15 * math.sin(os.clock() * 5) else 0
-			hurtK = math.max(0, hurtK - 1.6 / 60)
+			hurtK = math.max(0, hurtK - 1.6 * dt)
 			local edge = math.max(hurtK, low)
 			for _, f in edges do
 				f.BackgroundTransparency = 1 - edge * 0.75
@@ -379,17 +391,29 @@ function Hud.init()
 		local w = if type(wname) == "string" then Weapons[wname] else nil
 		-- the crosshair: wide with a gun, tight while aiming, small with a melee weapon (you swing where it is)
 		cross.Visible = w ~= nil and (w.slot == "gun" or CameraAim.mouseLook())
+		local wantGap
 		if w and w.slot == "gun" then
 			weapon.Text = w.label
-			ammo.Text = if player:GetAttribute("Reloading")
+			local reloading = player:GetAttribute("Reloading") == true
+			ammo.Text = if reloading
 				then "Reloading…"
 				else `{player:GetAttribute("Mag") or 0} / {player:GetAttribute("Reserve") or 0}`
-			cross.Size = if CameraAim.aiming then UDim2.fromOffset(18, 18) else UDim2.fromOffset(28, 28)
+			local spread = w.spread * 130 * (if CameraAim.aiming then 0.35 else 1)
+			local bloom = math.min(16, CameraAim.kickAmount() * 380)
+			local moving = if root
+				then Vector3.new(root.AssemblyLinearVelocity.X, 0, root.AssemblyLinearVelocity.Z).Magnitude
+				else 0
+			wantGap = 4 + spread + bloom + math.clamp(moving / 16, 0, 1) * 3 + (if reloading then 6 else 0)
 		else
 			-- a melee weapon: its name, big, where the ammo goes
 			weapon.Text = if w then "Melee" else ""
 			ammo.Text = if w then w.label else ""
-			cross.Size = UDim2.fromOffset(12, 12)
+			wantGap = 4
+		end
+		-- (it opens at once and closes smoothly)
+		crossGap = if wantGap > crossGap then wantGap else crossGap + (wantGap - crossGap) * math.min(1, dt * 14)
+		for _, ct in crossTicks do
+			ct.frame.Position = UDim2.new(0.5, ct.dir.X * crossGap, 0.5, ct.dir.Y * crossGap)
 		end
 		arms.Visible = w ~= nil
 	end)

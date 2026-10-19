@@ -96,11 +96,6 @@ function EndScreen.init()
 		win = w
 	end
 
-	local function myName(): string
-		local hum = player.Character and player.Character:FindFirstChildOfClass("Humanoid")
-		return if hum then hum.DisplayName else player.DisplayName
-	end
-
 	local bound = false
 	local function bindEnd(on: boolean)
 		if on == bound then
@@ -138,7 +133,7 @@ function EndScreen.init()
 			return
 		end
 		local race = (state:GetAttribute("Race") :: number?) or 0
-		local iWon = type(winner) == "string" and winner ~= "" and winner == myName()
+		local iWon = type(winner) == "string" and winner ~= "" and state:GetAttribute("WinnerId") == player.UserId
 		if iWon then
 			-- (the skydive has its own screen while it flies)
 			strip.Visible = sky ~= "flying" and sky ~= "done"

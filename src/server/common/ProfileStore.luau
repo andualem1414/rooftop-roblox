@@ -145,9 +145,11 @@ function ProfileStore.load(player: Player): Profile
 			fromStore[player] = true
 		end
 	end
-	profiles[player] = p
 	loading[player] = nil
-	publish(player)
+	if player.Parent then
+		profiles[player] = p -- (one who left while it loaded isn't kept)
+		publish(player)
+	end
 	return p
 end
 
@@ -172,7 +174,15 @@ local function update(player: Player, what: string, fn: (Profile) -> Profile): P
 	end)
 	if ok and result then
 		local p = Progress.sanitize(result)
-		profiles[player] = p
+		-- settings changed here and not written yet stay as they are (the store still has the old ones:
+		-- taking those would undo the change, and the next settings write would save the old ones again)
+		local cur = profiles[player]
+		if cur and dirty[player] then
+			p.settings = cur.settings
+		end
+		if player.Parent then
+			profiles[player] = p
+		end
 		return p
 	end
 	return nil

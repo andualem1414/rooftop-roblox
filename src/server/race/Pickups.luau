@@ -276,15 +276,20 @@ function Pickups.forPlatform(deck: BasePart, loot: string): Pickup
 	return Pickups.spawn(kind, top * CFrame.Angles(0, rng:NextNumber() * math.pi * 2, 0), deck, nil)
 end
 
--- something left on the floor where a climber went down
+-- something left on the floor where a climber went down (on the walkway if they went down over the
+-- shaft: lying there it would hang in the air of the shaft)
 function Pickups.drop(kind: string, position: Vector3, floor: number)
 	local y = floor * Config.FLOOR_HEIGHT + 0.35
-	local pk = Pickups.spawn(
-		kind,
-		CFrame.new(position.X, y, position.Z) * CFrame.Angles(0, rng:NextNumber() * 6.28, 0),
-		nil,
-		floor
-	)
+	local x, z = position.X, position.Z
+	local edge = Config.SHAFT_HALF + 0.6 * Config.M
+	if math.abs(x) < edge and math.abs(z) < edge then
+		if math.abs(x) > math.abs(z) then
+			x = if x < 0 then -edge else edge
+		else
+			z = if z < 0 then -edge else edge
+		end
+	end
+	local pk = Pickups.spawn(kind, CFrame.new(x, y, z) * CFrame.Angles(0, rng:NextNumber() * 6.28, 0), nil, floor)
 	task.delay(Config.DROP_LIFE, function()
 		Pickups.remove(pk)
 	end)
@@ -293,9 +298,10 @@ end
 local function floorAmmo(floor: number)
 	local spot = tower.randomSpot(floor)
 	local pk = Pickups.spawn("ammo", CFrame.new(spot.X, floor * Config.FLOOR_HEIGHT + 0.35, spot.Z), nil, floor)
+	local race = folder -- (a box taken near the end of one race doesn't come back in the next)
 	pk.onTaken = function()
 		task.delay(Config.AMMO_RESPAWN, function()
-			if folder.Parent then
+			if race == folder and race.Parent then
 				floorAmmo(floor)
 			end
 		end)

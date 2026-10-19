@@ -10,11 +10,13 @@
 --   Bullet     what shots (raycasts) can hit: not the invisible gates
 --   Boosting   a climber flying up the shaft on a booster (their client puts its body in it): touches
 --              nothing, so nothing in the shaft can snag the flight
+--   Debris     what clients throw about for show (brass from a gun, confetti): it lands on floors and
+--              decks but never bumps into a climber
 local PhysicsService = game:GetService("PhysicsService")
 
 local CollisionGroups = {}
 
-local GROUPS = { "Climbers", "Tower", "Platform", "ShaftGate", "CrateFence", "Crates", "Bullet", "Boosting" }
+local GROUPS = { "Climbers", "Tower", "Platform", "ShaftGate", "CrateFence", "Crates", "Bullet", "Boosting", "Debris" }
 
 local function never(a: string, b: string)
 	PhysicsService:CollisionGroupSetCollidable(a, b, false)
@@ -40,6 +42,9 @@ function CollisionGroups.init()
 	never("CrateFence", "Tower")
 	never("Bullet", "ShaftGate")
 	never("Bullet", "CrateFence")
+	never("Debris", "Climbers")
+	never("Debris", "ShaftGate")
+	never("Debris", "CrateFence")
 	for _, g in GROUPS do
 		never("Boosting", g)
 	end
