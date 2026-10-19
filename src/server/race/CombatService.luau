@@ -18,6 +18,7 @@ local Tools = require(script.Parent.Tools)
 
 type Climber = Climbers.Climber
 type Fighter = Combat.Fighter
+type Landed = { body: number, head: number, at: Vector3, dir: Vector3 } -- one shot's pellets on one climber
 
 export type Hooks = {
 	onKnockedOut: (c: Climber, by: Climber?) -> (),
@@ -211,7 +212,9 @@ local function fire(c: Climber, aimPoint: Vector3, err: number)
 		return
 	end
 	local base = CFrame.lookAt(Vector3.zero, toAim.Unit)
-	local struck: { [Climber]: boolean } = {}
+	-- every pellet flies on its own; those that land on the same climber count as one blow (a shotgun)
+	local hits: { [Climber]: Landed } = {}
+	local order: { Climber } = {}
 	for _ = 1, math.max(1, w.pellets) do
 		local yaw, pitch = Combat.spread(w, err, rand)
 		local dir = (base * CFrame.Angles(pitch, yaw, 0)).LookVector
@@ -219,16 +222,39 @@ local function fire(c: Climber, aimPoint: Vector3, err: number)
 		local stop = if hit then hit.Position else start + dir * w.range
 		local vic = if hit then Climbers.fromPart(hit.Instance) else nil
 		ShotFx:FireAllClients(c.model, start, stop, if vic then "body" elseif hit then "wall" else "none", w.name)
-		if not vic or vic == c or vic.frozen or vic.fighter.dead or vic.fighter.invuln > 0 or struck[vic] then
+		if not vic or vic == c or vic.frozen or vic.fighter.dead or vic.fighter.invuln > 0 then
 			continue
 		end
-		struck[vic] = w.pellets <= 1 -- (shotguns: every pellet counts)
 		local vh = headOf(vic)
 		local headshot = vh ~= nil and hit ~= nil and hit.Position.Y > vh.Position.Y - vh.Size.Y / 2
+		local l = hits[vic]
+		if not l then
+			l = { body = 0, head = 0, at = stop, dir = dir }
+			hits[vic] = l
+			table.insert(order, vic)
+		end
+		if headshot then
+			l.head += 1
+		else
+			l.body += 1
+		end
+		l.at = stop
+	end
+	for _, vic in order do
+		local l = hits[vic]
+		if vic.fighter.dead then
+			continue
+		end
 		local d = Vector3.new(vic.fighter.x - f.x, 0, vic.fighter.z - f.z)
-		local n = if d.Magnitude > 1e-3 then d.Unit else Vector3.new(dir.X, 0, dir.Z).Unit
-		local r = Combat.applyHit(f, w, vic.fighter, n.X, n.Z, headshot)
-		landed(c, vic, r, n.X, n.Z, stop)
+		local n = if d.Magnitude > 1e-3 then d.Unit else Vector3.new(l.dir.X, 0, l.dir.Z).Unit
+		local r
+		if l.body + l.head == 1 then
+			r = Combat.applyHit(f, w, vic.fighter, n.X, n.Z, l.head == 1)
+		else
+			r = Combat.applyHit(f, w, vic.fighter, n.X, n.Z, false, l.body + l.head * Config.HEADSHOT)
+			r.headshot = l.head > 0
+		end
+		landed(c, vic, r, n.X, n.Z, l.at)
 	end
 end
 

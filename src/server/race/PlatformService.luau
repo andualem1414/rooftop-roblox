@@ -13,7 +13,7 @@ local Platforms = require(ReplicatedStorage.Shared.Platforms)
 local Rules = require(ReplicatedStorage.Shared.Rules)
 local Climbers = require(script.Parent.Climbers)
 local Pickups = require(script.Parent.Pickups)
-local Tower = require(script.Parent.Tower)
+local Tower = require(script.Parent.Parent.Common.Tower)
 
 type Climber = Climbers.Climber
 

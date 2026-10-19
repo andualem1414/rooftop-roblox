@@ -26,9 +26,15 @@ local folder: Folder
 local ownShotAt = 0
 local rng = Random.new()
 
+-- each gun's colour (as on its model: server/race/Tools)
 local ACCENT = {
 	pistol = Color3.fromRGB(255, 160, 70),
+	rifle = Color3.fromRGB(110, 210, 255),
+	smg = Color3.fromRGB(180, 255, 110),
+	shotgun = Color3.fromRGB(255, 110, 130),
 }
+-- (a shotgun's pellets arrive together: one flash for all)
+local lastMuzzle: { [Instance]: number } = setmetatable({}, { __mode = "k" }) :: any
 local SPARK_TEX = "rbxasset://textures/particles/sparkles_main.dds"
 local SMOKE_TEX = "rbxasset://textures/particles/smoke_main.dds"
 
@@ -204,7 +210,7 @@ function Fx.ownShot(w: Weapons.Weapon)
 	ownShotAt = os.clock()
 	local char = player.Character
 	muzzle(char, w.name, nil, nil)
-	CameraAim.kick(0.022 + w.damage * 0.0006)
+	CameraAim.kick(0.018 + w.damage * math.max(1, w.pellets) * 0.0006)
 end
 
 local function shot(model: Instance, from: Vector3, to: Vector3, kind: string, weapon: string?)
@@ -216,8 +222,11 @@ local function shot(model: Instance, from: Vector3, to: Vector3, kind: string, w
 		return
 	end
 	local color = ACCENT[weapon or ""] or ACCENT.pistol
-	-- (your own flash was already shown when you clicked)
-	if not (model == player.Character and os.clock() - ownShotAt < 0.4) then
+	-- (your own flash was already shown when you clicked; a shotgun's pellets share one flash)
+	local now = os.clock()
+	local own = model == player.Character and now - ownShotAt < 0.4
+	if not own and now - (lastMuzzle[model] or 0) > 0.03 then
+		lastMuzzle[model] = now
 		muzzle(model, weapon, from, d.Unit)
 	end
 	tracer(from, to, color)

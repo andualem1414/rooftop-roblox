@@ -13,6 +13,7 @@
 			"Shared": { "$path": "src/shared" }
 		},
 		"ServerScriptService": {
+			"Common": { "$path": "src/server/common" },
 			"Race": { "$path": "src/server/race" }
 		},
 		"Players": {
@@ -30,6 +31,7 @@
 				"AutoJumpEnabled": false
 			},
 			"StarterPlayerScripts": {
+				"Common": { "$path": "src/client/common" },
 				"Race": { "$path": "src/client/race" }
 			},
 			"StarterCharacterScripts": {

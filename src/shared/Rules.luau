@@ -32,6 +32,28 @@ function Rules.platformLoot(roll: () -> number): Loot
 	return "ammo"
 end
 
+-- The gun found on a platform or a floor: everyone already carries a pistol, so it's one of the others
+-- (the rifle and the SMG a little more often than the shotgun)
+local FOUND_GUNS = { { "rifle", 0.36 }, { "smg", 0.36 }, { "shotgun", 0.28 } }
+function Rules.foundGun(roll: () -> number): string
+	local r = roll()
+	for _, g in FOUND_GUNS do
+		if r < g[2] then
+			return g[1]
+		end
+		r -= g[2]
+	end
+	return FOUND_GUNS[#FOUND_GUNS][1]
+end
+
+-- A weapon lying on a floor at the start: a sword or a found gun
+function Rules.floorWeapon(roll: () -> number): string
+	if roll() < 0.4 then
+		return "sword"
+	end
+	return Rules.foundGun(roll)
+end
+
 -- A platform about to rise through the roof: only one can escape.
 --   "escape": exactly one rider, up they go
 --   "throw": more than one, it throws them all off ("Only one can escape")

@@ -11,6 +11,11 @@
 --   move: running speed while you carry it
 --   guns: pellets per shot, spread (radians of aim error), mag, reload (seconds), reserve (spare
 --   rounds you start with), auto (hold to keep firing)
+--   tier: how much a climber wants it (bots swap up to a higher tier)
+--
+-- The guns (no real brand names): everyone starts with the pistol. The rifle (full auto, long range),
+-- the SMG (full auto, fast, short range, sprays) and the shotgun (eight pellets, brutal up close, slow
+-- to reload) turn up on platforms and lying on floors.
 
 local Config = require("./Config")
 local M = Config.M
@@ -40,6 +45,7 @@ export type Weapon = {
 	reload: number,
 	reserve: number,
 	auto: boolean,
+	tier: number,
 }
 
 local function melee(w: { [string]: any }): Weapon
@@ -74,6 +80,7 @@ local Weapons: { [string]: Weapon } = {
 		heavy = false,
 		style = "swing",
 		move = 0.97,
+		tier = 2,
 	}),
 	sword = melee({
 		name = "sword",
@@ -90,6 +97,7 @@ local Weapons: { [string]: Weapon } = {
 		heavy = false,
 		style = "slash",
 		move = 0.97,
+		tier = 2.7,
 	}),
 	pistol = gun({
 		name = "pistol",
@@ -108,6 +116,64 @@ local Weapons: { [string]: Weapon } = {
 		knock = 0.6,
 		stagger = 0.1,
 		move = 1,
+		tier = 3.4,
+	}),
+	rifle = gun({
+		name = "rifle",
+		label = "Rifle",
+		range = 55,
+		damage = 13,
+		pellets = 1,
+		spread = 0.035,
+		windup = 0.01,
+		strike = 0.03,
+		recover = 0.075,
+		mag = 30,
+		reload = 1.9,
+		reserve = 90,
+		auto = true,
+		knock = 0.8,
+		stagger = 0.06,
+		move = 0.92,
+		tier = 4.5,
+	}),
+	smg = gun({
+		name = "smg",
+		label = "SMG",
+		range = 28,
+		damage = 8,
+		pellets = 1,
+		spread = 0.06,
+		windup = 0.01,
+		strike = 0.02,
+		recover = 0.045,
+		mag = 32,
+		reload = 1.5,
+		reserve = 128,
+		auto = true,
+		knock = 0.4,
+		stagger = 0.04,
+		move = 1,
+		tier = 4,
+	}),
+	shotgun = gun({
+		name = "shotgun",
+		label = "Shotgun",
+		range = 20,
+		damage = 9,
+		pellets = 8,
+		spread = 0.12,
+		windup = 0.02,
+		strike = 0.05,
+		recover = 0.78,
+		mag = 6,
+		reload = 2.1,
+		reserve = 24,
+		auto = false,
+		knock = 1.1,
+		stagger = 0.35,
+		move = 0.95,
+		tier = 4.2,
 	}),
 }
 

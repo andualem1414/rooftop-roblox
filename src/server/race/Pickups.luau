@@ -11,9 +11,10 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Config = require(ReplicatedStorage.Shared.Config)
 local Weapons = require(ReplicatedStorage.Shared.Weapons)
 local Combat = require(ReplicatedStorage.Shared.Combat)
+local Rules = require(ReplicatedStorage.Shared.Rules)
 local Climbers = require(script.Parent.Climbers)
 local Tools = require(script.Parent.Tools)
-local Tower = require(script.Parent.Tower)
+local Tower = require(script.Parent.Parent.Common.Tower)
 
 type Climber = Climbers.Climber
 
@@ -28,33 +29,94 @@ export type Pickup = {
 
 local Pickups = {}
 
-local GUNS = { "pistol" } -- every gun that can turn up (more in phase 3)
 local rng = Random.new()
 local all: { Pickup } = {}
 local folder: Folder
 local tower: Tower.Tower
 
-local LOOKS = {
-	ammo = { size = Vector3.new(1.6, 1.1, 1.1), color = Color3.fromRGB(72, 96, 58), text = "AMMO" },
-	sword = { size = Vector3.new(0.4, 0.2, 4.4), color = Color3.fromRGB(196, 200, 206), text = "SWORD" },
-	bat = { size = Vector3.new(0.55, 0.55, 3.8), color = Color3.fromRGB(150, 110, 70), text = "BAT" },
-	pistol = { size = Vector3.new(0.35, 0.8, 1.4), color = Color3.fromRGB(45, 45, 50), text = "PISTOL" },
-}
+-- the invisible part a pickup hangs on; the weapon itself (the same model as the tool) or an ammo crate
+-- lies on it
+local HOLDER = Vector3.new(1.2, 0.6, 1.2)
 
 local function labelOf(kind: string): string
 	local w = Weapons[kind]
 	return if w then w.label else "Ammo"
 end
 
+local function roll(): number
+	return rng:NextNumber()
+end
+
+-- weld every part of a model to the holder, so it moves with it (a platform) or stays put
+local function weldAll(holder: BasePart, model: Instance)
+	for _, d in model:GetDescendants() do
+		if d:IsA("BasePart") then
+			d.Anchored = false
+			d.Massless = true
+			d.CanCollide = false
+			d.CanTouch = false
+			d.CanQuery = false
+			local w = Instance.new("WeldConstraint")
+			w.Part0 = holder
+			w.Part1 = d
+			w.Parent = d
+		end
+	end
+end
+
+local function ammoCrate(): Model
+	local m = Instance.new("Model")
+	local box = Instance.new("Part")
+	box.Name = "Crate"
+	box.Size = Vector3.new(1.6, 1.0, 1.1)
+	box.Color = Color3.fromRGB(72, 96, 58)
+	box.Material = Enum.Material.SmoothPlastic
+	box.Parent = m
+	local band = Instance.new("Part")
+	band.Name = "Band"
+	band.Size = Vector3.new(1.64, 0.22, 1.14)
+	band.Color = Color3.fromRGB(255, 200, 70)
+	band.Material = Enum.Material.Neon
+	band.CFrame = CFrame.new(0, 0.18, 0)
+	band.Parent = m
+	m.PrimaryPart = box
+	return m
+end
+
+-- what lies on the holder: the weapon's own model, on its side, or an ammo crate
+local function visual(kind: string): Model
+	if not Weapons[kind] then
+		return ammoCrate()
+	end
+	local tool = Tools.make(kind)
+	local m = Instance.new("Model")
+	for _, d in tool:GetChildren() do
+		d.Parent = m
+	end
+	tool:Destroy()
+	m.PrimaryPart = m:FindFirstChild("Handle") :: BasePart?
+	return m
+end
+
 local function dress(pk: Pickup)
-	local look = LOOKS[pk.kind] or LOOKS.ammo
 	local p = pk.part
-	p.Size = look.size
-	p.Color = look.color
 	p.Name = "Pickup_" .. pk.kind
+	local old = p:FindFirstChild("Visual")
+	if old then
+		old:Destroy()
+	end
+	local m = visual(pk.kind)
+	m.Name = "Visual"
+	-- a weapon lies flat (its barrel or blade along the holder), a crate sits on it
+	local lie = if Weapons[pk.kind]
+		then p.CFrame * CFrame.new(0, 0.1, 0) * CFrame.Angles(0, 0, math.rad(90))
+		else p.CFrame * CFrame.new(0, 0.2, 0)
+	m:PivotTo(lie)
+	weldAll(p, m)
+	m.Parent = p
 	local tag = p:FindFirstChild("Tag") :: BillboardGui?
 	if tag then
-		(tag:FindFirstChild("Text") :: TextLabel).Text = look.text
+		(tag:FindFirstChild("Text") :: TextLabel).Text = string.upper(labelOf(pk.kind))
 	end
 	pk.prompt.ObjectText = labelOf(pk.kind)
 	pk.prompt.ActionText = if pk.kind == "ammo" then "Take" else "Pick up"
@@ -64,10 +126,11 @@ end
 function Pickups.spawn(kind: string, cf: CFrame, carrier: BasePart?, floor: number?): Pickup
 	local p = Instance.new("Part")
 	p.CFrame = cf
+	p.Size = HOLDER
+	p.Transparency = 1
 	p.CanCollide = false
 	p.CanTouch = false
 	p.CanQuery = false
-	p.Material = Enum.Material.SmoothPlastic
 	if carrier then
 		p.Anchored = false
 		p.Massless = true
@@ -96,6 +159,7 @@ function Pickups.spawn(kind: string, cf: CFrame, carrier: BasePart?, floor: numb
 	tag.Parent = p
 	local prompt = Instance.new("ProximityPrompt")
 	prompt.KeyboardKeyCode = Enum.KeyCode.E
+	prompt.GamepadKeyCode = Enum.KeyCode.ButtonB -- (X reloads)
 	prompt.HoldDuration = 0
 	prompt.MaxActivationDistance = 9
 	prompt.RequiresLineOfSight = false
@@ -171,15 +235,15 @@ function Pickups.take(c: Climber, pk: Pickup): boolean
 	return true
 end
 
--- the nearest pickup a climber could walk to on their floor (bots)
-function Pickups.nearest(c: Climber, maxDist: number, kind: string?): Pickup?
+-- the nearest pickup a climber could walk to on their floor that `keep` likes (bots)
+function Pickups.nearestWhere(c: Climber, maxDist: number, keep: (kind: string) -> boolean): Pickup?
 	local root = c.root
 	if not root then
 		return nil
 	end
 	local best, bd = nil, maxDist
 	for _, pk in all do
-		if pk.gone or pk.floor ~= c.floor or (kind and pk.kind ~= kind) then
+		if pk.gone or pk.floor ~= c.floor or not keep(pk.kind) then
 			continue
 		end
 		local d = (pk.part.Position - root.Position).Magnitude
@@ -190,16 +254,23 @@ function Pickups.nearest(c: Climber, maxDist: number, kind: string?): Pickup?
 	return best
 end
 
+-- the nearest pickup of a kind (or any) a climber could walk to on their floor (bots)
+function Pickups.nearest(c: Climber, maxDist: number, kind: string?): Pickup?
+	return Pickups.nearestWhere(c, maxDist, function(k: string): boolean
+		return kind == nil or k == kind
+	end)
+end
+
 -- what a platform carries: a gun, a sword or an ammo box
 function Pickups.forPlatform(deck: BasePart, loot: string): Pickup
-	local kind = if loot == "gun" then GUNS[rng:NextInteger(1, #GUNS)] else loot
-	local top = deck.CFrame * CFrame.new(0, deck.Size.Y / 2 + 0.7, 0)
+	local kind = if loot == "gun" then Rules.foundGun(roll) else loot
+	local top = deck.CFrame * CFrame.new(0, deck.Size.Y / 2 + 0.35, 0)
 	return Pickups.spawn(kind, top * CFrame.Angles(0, rng:NextNumber() * math.pi * 2, 0), deck, nil)
 end
 
 -- something left on the floor where a climber went down
 function Pickups.drop(kind: string, position: Vector3, floor: number)
-	local y = floor * Config.FLOOR_HEIGHT + 0.6
+	local y = floor * Config.FLOOR_HEIGHT + 0.35
 	local pk = Pickups.spawn(
 		kind,
 		CFrame.new(position.X, y, position.Z) * CFrame.Angles(0, rng:NextNumber() * 6.28, 0),
@@ -213,7 +284,7 @@ end
 
 local function floorAmmo(floor: number)
 	local spot = tower.randomSpot(floor)
-	local pk = Pickups.spawn("ammo", CFrame.new(spot.X, floor * Config.FLOOR_HEIGHT + 0.6, spot.Z), nil, floor)
+	local pk = Pickups.spawn("ammo", CFrame.new(spot.X, floor * Config.FLOOR_HEIGHT + 0.35, spot.Z), nil, floor)
 	pk.onTaken = function()
 		task.delay(Config.AMMO_RESPAWN, function()
 			if folder.Parent then
@@ -238,9 +309,10 @@ function Pickups.reset(t: Tower.Tower)
 			floorAmmo(floor)
 		end
 		if rng:NextNumber() < Config.FLOOR_WEAPON_CHANCE then
-			local kind = if rng:NextNumber() < 0.5 then "sword" else GUNS[rng:NextInteger(1, #GUNS)]
+			local kind = Rules.floorWeapon(roll)
 			local spot = tower.randomSpot(floor)
-			Pickups.spawn(kind, CFrame.new(spot.X, floor * Config.FLOOR_HEIGHT + 0.6, spot.Z), nil, floor)
+			local turn = CFrame.Angles(0, rng:NextNumber() * math.pi * 2, 0)
+			Pickups.spawn(kind, CFrame.new(spot.X, floor * Config.FLOOR_HEIGHT + 0.35, spot.Z) * turn, nil, floor)
 		end
 	end
 end

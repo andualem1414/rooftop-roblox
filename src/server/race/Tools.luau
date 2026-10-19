@@ -48,10 +48,105 @@ end
 -- a cylinder along Z (Roblox cylinders run along X)
 local ALONG_Z = CFrame.Angles(0, math.rad(90), 0)
 
--- each gun's accent colour (the drawn style in phase 4 keeps them)
+-- each gun's accent colour (the client's Fx uses the same ones for its flashes and tracers)
 local ACCENT = {
 	pistol = Color3.fromRGB(255, 140, 50),
+	rifle = Color3.fromRGB(90, 200, 255),
+	smg = Color3.fromRGB(170, 255, 90),
+	shotgun = Color3.fromRGB(255, 80, 110),
 }
+local DARK = Color3.fromRGB(34, 34, 40)
+local DARKER = Color3.fromRGB(26, 26, 30)
+local STEEL = Color3.fromRGB(150, 156, 166)
+local BARREL = Color3.fromRGB(60, 60, 66)
+
+-- the guns past the pistol, each from a handful of parts round its grip (the handle). Returns the muzzle's
+-- and the ejection port's positions.
+local function longGun(tool: Tool, handle: BasePart, name: string, accent: Color3): (Vector3, Vector3)
+	local function add(
+		n: string,
+		size: Vector3,
+		at: CFrame,
+		color: Color3,
+		material: Enum.Material?,
+		shape: Enum.PartType?
+	)
+		piece(tool, handle, part(n, size, color, material, shape), at)
+	end
+	if name == "rifle" then
+		add("Receiver", Vector3.new(0.34, 0.42, 2.0), CFrame.new(0, 0.5, -0.55), DARK)
+		add("Handguard", Vector3.new(0.3, 0.32, 1.1), CFrame.new(0, 0.48, -2.05), DARKER, Enum.Material.Fabric)
+		add(
+			"Barrel",
+			Vector3.new(1.3, 0.16, 0.16),
+			CFrame.new(0, 0.55, -3.0) * ALONG_Z,
+			BARREL,
+			Enum.Material.Metal,
+			Enum.PartType.Cylinder
+		)
+		add("Stock", Vector3.new(0.26, 0.5, 0.65), CFrame.new(0, 0.38, 0.45), DARK)
+		add(
+			"Mag",
+			Vector3.new(0.22, 0.75, 0.36),
+			CFrame.new(0, 0.05, -0.95) * CFrame.Angles(math.rad(12), 0, 0),
+			accent
+		)
+		add("Rail", Vector3.new(0.12, 0.1, 1.3), CFrame.new(0, 0.76, -0.6), STEEL, Enum.Material.Metal)
+		add("Stripe", Vector3.new(0.36, 0.06, 1.2), CFrame.new(0, 0.42, -0.6), accent, Enum.Material.Neon)
+		add("Sight", Vector3.new(0.1, 0.14, 0.1), CFrame.new(0, 0.88, -0.3), accent, Enum.Material.Neon)
+		return Vector3.new(0, 0.55, -3.7), Vector3.new(0.2, 0.62, -0.45)
+	elseif name == "smg" then
+		add("Body", Vector3.new(0.32, 0.4, 1.35), CFrame.new(0, 0.5, -0.35), DARK)
+		add(
+			"Barrel",
+			Vector3.new(0.45, 0.14, 0.14),
+			CFrame.new(0, 0.55, -1.25) * ALONG_Z,
+			BARREL,
+			Enum.Material.Metal,
+			Enum.PartType.Cylinder
+		)
+		add("Mag", Vector3.new(0.2, 0.95, 0.28), CFrame.new(0, -0.2, -0.75), accent)
+		add("Stock", Vector3.new(0.08, 0.08, 0.7), CFrame.new(0, 0.55, 0.55), STEEL, Enum.Material.Metal)
+		add("Butt", Vector3.new(0.08, 0.4, 0.08), CFrame.new(0, 0.38, 0.9), STEEL, Enum.Material.Metal)
+		add("Stripe", Vector3.new(0.34, 0.06, 0.9), CFrame.new(0, 0.62, -0.4), accent, Enum.Material.Neon)
+		return Vector3.new(0, 0.55, -1.5), Vector3.new(0.18, 0.62, -0.3)
+	end
+	-- the shotgun: a long barrel over a magazine tube, a pump, a stock
+	add("Receiver", Vector3.new(0.32, 0.4, 0.95), CFrame.new(0, 0.5, -0.25), DARK)
+	add(
+		"Barrel",
+		Vector3.new(2.2, 0.2, 0.2),
+		CFrame.new(0, 0.62, -1.8) * ALONG_Z,
+		BARREL,
+		Enum.Material.Metal,
+		Enum.PartType.Cylinder
+	)
+	add(
+		"Tube",
+		Vector3.new(1.6, 0.16, 0.16),
+		CFrame.new(0, 0.42, -1.5) * ALONG_Z,
+		BARREL,
+		Enum.Material.Metal,
+		Enum.PartType.Cylinder
+	)
+	add(
+		"Pump",
+		Vector3.new(0.32, 0.3, 0.7),
+		CFrame.new(0, 0.44, -1.35),
+		Color3.fromRGB(120, 80, 50),
+		Enum.Material.Wood
+	)
+	add(
+		"Stock",
+		Vector3.new(0.28, 0.52, 0.7),
+		CFrame.new(0, 0.36, 0.45),
+		Color3.fromRGB(120, 80, 50),
+		Enum.Material.Wood
+	)
+	add("Stripe", Vector3.new(0.34, 0.06, 0.8), CFrame.new(0, 0.66, -0.25), accent, Enum.Material.Neon)
+	add("Bead", Vector3.new(0.08, 0.08, 0.08), CFrame.new(0, 0.76, -2.85), accent, Enum.Material.Neon)
+	return Vector3.new(0, 0.62, -2.95), Vector3.new(0.18, 0.6, -0.25)
+end
 
 -- Models are built along -Z from the handle. Grips: a gun's barrel runs along your forearm with its
 -- top toward your thumb (an unrotated grip on R15); a bat or sword sticks out of your fist, so its grip
@@ -61,7 +156,9 @@ function Tools.make(name: string): Tool
 	local tool = Instance.new("Tool")
 	tool.Name = w.label
 	tool.CanBeDropped = false
-	tool.ManualActivationOnly = false
+	-- clicks and taps don't fire it by themselves: the race client's Controls decide (holding the
+	-- button keeps a full-auto gun firing; on a touch screen only the fire button shoots)
+	tool.ManualActivationOnly = true
 	tool:SetAttribute("Weapon", name)
 	tool:SetAttribute("Slot", w.slot)
 	local handle: Part
@@ -173,9 +270,9 @@ function Tools.make(name: string): Tool
 		attachment(handle, "TrailA", Vector3.new(0, 0, -1.0))
 		attachment(handle, "TrailB", Vector3.new(0, 0, -4.2))
 		tool.Grip = CFrame.new(0, 0, 0.2) * CFrame.Angles(math.rad(-90), 0, 0)
-	else -- guns: the handle is the grip; the slide sits above it (+Y) and runs forward (-Z)
-		local accent = ACCENT[name] or Color3.fromRGB(255, 140, 50)
-		handle = part("Handle", Vector3.new(0.28, 0.72, 0.42), Color3.fromRGB(34, 34, 40))
+	elseif name == "pistol" then -- the handle is the grip; the slide sits above it (+Y) and runs forward (-Z)
+		local accent = ACCENT.pistol
+		handle = part("Handle", Vector3.new(0.28, 0.72, 0.42), DARK)
 		piece(
 			tool,
 			handle,
@@ -185,7 +282,7 @@ function Tools.make(name: string): Tool
 		piece(
 			tool,
 			handle,
-			part("Slide", Vector3.new(0.32, 0.26, 1.3), Color3.fromRGB(150, 156, 166), Enum.Material.Metal),
+			part("Slide", Vector3.new(0.32, 0.26, 1.3), STEEL, Enum.Material.Metal),
 			CFrame.new(0, 0.6, -0.36)
 		)
 		piece(
@@ -197,13 +294,7 @@ function Tools.make(name: string): Tool
 		piece(
 			tool,
 			handle,
-			part(
-				"Barrel",
-				Vector3.new(0.18, 0.2, 0.2),
-				Color3.fromRGB(60, 60, 66),
-				Enum.Material.Metal,
-				Enum.PartType.Cylinder
-			),
+			part("Barrel", Vector3.new(0.18, 0.2, 0.2), BARREL, Enum.Material.Metal, Enum.PartType.Cylinder),
 			CFrame.new(0, 0.58, -1.08) * ALONG_Z
 		)
 		piece(
@@ -215,6 +306,12 @@ function Tools.make(name: string): Tool
 		piece(tool, handle, part("Mag", Vector3.new(0.24, 0.12, 0.36), accent), CFrame.new(0, -0.38, 0.02))
 		attachment(handle, "Muzzle", Vector3.new(0, 0.58, -1.2))
 		attachment(handle, "Eject", Vector3.new(0.18, 0.66, -0.3))
+		tool.Grip = CFrame.new(0, 0.05, 0)
+	else -- the long guns: the grip in your hand, the barrel along your forearm and on past it
+		handle = part("Handle", Vector3.new(0.28, 0.72, 0.42), DARK)
+		local muzzle, eject = longGun(tool, handle, name, ACCENT[name] or ACCENT.pistol)
+		attachment(handle, "Muzzle", muzzle)
+		attachment(handle, "Eject", eject)
 		tool.Grip = CFrame.new(0, 0.05, 0)
 	end
 	handle.Parent = tool

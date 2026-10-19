@@ -5,7 +5,8 @@
 --   slides in front of walls rather than through them (ignoring the floors cut away above you). Right
 --   mouse / L2 aims: the view tightens over the shoulder and the shot steadies. The cursor comes back
 --   while a menu, the chat or a text box is open, or while Left Alt is held.
---   On a touch screen or with a controller it's Roblox's own camera (drag / right stick to look).
+--   On a touch screen or with a controller it's Roblox's own camera (drag / right stick to look); with a
+--   gun in hand you face where it looks, and shots go through the crosshair in the middle.
 local GuiService = game:GetService("GuiService")
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
@@ -63,15 +64,17 @@ function CameraAim.set(on: boolean)
 	CameraAim.aiming = on
 end
 
--- the ray through the crosshair (mouse camera) or under the finger / cursor
+-- the ray through the crosshair, in the middle of the screen (mouse, touch and controller alike)
 function CameraAim.ray(): Ray
 	local camera = workspace.CurrentCamera
-	if mouseMode or CameraAim.aiming then
-		local size = camera.ViewportSize
-		return camera:ViewportPointToRay(size.X / 2, size.Y / 2)
-	end
-	local m = UserInputService:GetMouseLocation()
-	return camera:ViewportPointToRay(m.X, m.Y)
+	local size = camera.ViewportSize
+	return camera:ViewportPointToRay(size.X / 2, size.Y / 2)
+end
+
+-- true with a gun in hand: on a touch screen or a controller you then face where the camera looks
+local function gunInHand(char: Model): boolean
+	local tool = char:FindFirstChildOfClass("Tool")
+	return tool ~= nil and tool:GetAttribute("Slot") == "gun"
 end
 
 -- the camera's heading (yaw) on the ground
@@ -190,7 +193,12 @@ local function update(dt: number)
 			UserInputService.MouseBehavior = Enum.MouseBehavior.Default
 		end
 		UserInputService.MouseIconEnabled = true
-		if hum then
+		if hum and root and char and hum.Health > 0 and gunInHand(char) then
+			-- a gun in hand: face where the camera looks (strafing), so the gun points at the crosshair
+			hum.AutoRotate = false
+			local look = camera.CFrame.LookVector
+			root.CFrame = CFrame.new(root.Position) * CFrame.Angles(0, math.atan2(-look.X, -look.Z), 0)
+		elseif hum then
 			hum.AutoRotate = true
 		end
 		-- (Roblox's own camera: the tremble goes on top of its view)

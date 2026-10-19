@@ -15,13 +15,14 @@ local ServerStorage = game:GetService("ServerStorage")
 
 local Config = require(ReplicatedStorage.Shared.Config)
 local Combat = require(ReplicatedStorage.Shared.Combat)
+local Weapons = require(ReplicatedStorage.Shared.Weapons)
 local Platforms = require(ReplicatedStorage.Shared.Platforms)
 local Climbers = require(script.Parent.Climbers)
 local Tools = require(script.Parent.Tools)
 local Pickups = require(script.Parent.Pickups)
 local PlatformService = require(script.Parent.PlatformService)
 local CombatService = require(script.Parent.CombatService)
-local Tower = require(script.Parent.Tower)
+local Tower = require(script.Parent.Parent.Common.Tower)
 
 type Climber = Climbers.Climber
 
@@ -84,6 +85,7 @@ local PANTS = {
 local M = Config.M
 local FLOORS = Config.FLOORS
 local THINK = 0.25
+local STUDIO = RunService:IsStudio()
 
 local Bots = {}
 
@@ -197,6 +199,7 @@ function Bots.create(i: number): Climber
 		target = nil :: Climber?,
 		think = rr(0, THINK),
 		fireT = 0,
+		burst = 0, -- shots left in this burst (full-auto guns)
 		swingT = 0,
 		guardT = 0,
 		wander = nil :: Vector3?,
@@ -307,24 +310,36 @@ local function fight(c: Climber, foe: Climber, goal: Vector3?): Vector3?
 	local skip = { c.model :: Model, foe.model :: Model }
 	if hasAmmo and d > 3.5 * M then
 		Tools.equip(c, "gun")
+		local gw = Weapons[f.gun :: string]
 		if f.mag <= 0 then
 			Combat.startReload(f)
-		elseif b.fireT <= 0 then
+			b.burst = 0
+		elseif b.fireT <= 0 and d < gw.range then
 			local head = (c.model :: Model):FindFirstChild("Head") :: BasePart?
 			local aim = froot.Position + Vector3.new(0, rr(-0.5, 1.5), 0)
 			if head and clearShot(head.Position, aim, skip) then
 				face(c, aim)
 				CombatService.botFire(c, aim, b.skill)
-				b.fireT = rr(0.35, 0.9) * (1.3 - b.skill * 0.5)
+				local interval = gw.windup + gw.strike + gw.recover
+				if gw.auto then
+					-- full auto: bursts of a few rounds, then a pause to steady the aim
+					if b.burst <= 0 then
+						b.burst = rng:NextInteger(3, 4 + math.floor(b.skill * 6))
+					end
+					b.burst -= 1
+					b.fireT = if b.burst > 0 then interval else rr(0.3, 0.8) * (1.3 - b.skill * 0.5)
+				else
+					b.fireT = math.max(interval, rr(0.35, 0.9) * (1.3 - b.skill * 0.5))
+				end
 			end
 		end
 		if goal then
 			return goal
 		end
-		if d > 12 * M then
+		-- close in to where the gun does its work (a shotgun wants them near), else circle them a little
+		if d > math.min(12 * M, gw.range * 0.6) then
 			return froot.Position
 		end
-		-- circle them a little
 		local side = flat(root.Position - froot.Position).Unit:Cross(Vector3.yAxis)
 		return root.Position + side * (if c.id % 2 == 0 then 6 else -6)
 	end
@@ -451,6 +466,13 @@ local function think(c: Climber)
 	if not goal or not b.target then
 		local want = if f.reserve < 12 then Pickups.nearest(c, 30, "ammo") else nil
 		want = want or (if f.melee == "bat" then Pickups.nearest(c, 25, "sword") else nil)
+		-- a better gun than the one it carries
+		local mine = if f.gun then Weapons[f.gun].tier else 0
+		want = want
+			or Pickups.nearestWhere(c, 30, function(kind: string): boolean
+				local w = Weapons[kind]
+				return w ~= nil and w.slot == "gun" and w.tier > mine
+			end)
 		if want then
 			if (want.part.Position - pos).Magnitude < 6 then
 				Pickups.take(c, want)
@@ -469,8 +491,9 @@ local function think(c: Climber)
 		goal = b.wander
 	end
 
-	if c.model and c.model:GetAttribute("BotMode") ~= mode then
-		c.model:SetAttribute("BotMode", mode) -- (what it's up to, for debugging in Studio)
+	-- what it's up to, for debugging (Studio only: in the live game it would be replicated for nothing)
+	if STUDIO and c.model and c.model:GetAttribute("BotMode") ~= mode then
+		c.model:SetAttribute("BotMode", mode)
 	end
 	hum:MoveTo(goal :: Vector3)
 	-- stuck against cover: hop

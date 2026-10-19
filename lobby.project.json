@@ -3,14 +3,30 @@
 	"servePort": 34873,
 	"tree": {
 		"$className": "DataModel",
+		"Workspace": {
+			"$properties": { "StreamingEnabled": false }
+		},
+		"ReplicatedFirst": {
+			"Loading": { "$path": "src/client/first" }
+		},
 		"ReplicatedStorage": {
 			"Shared": { "$path": "src/shared" }
 		},
 		"ServerScriptService": {
+			"Common": { "$path": "src/server/common" },
 			"Lobby": { "$path": "src/server/lobby" }
 		},
 		"StarterPlayer": {
+			"$properties": {
+				"CharacterWalkSpeed": 16,
+				"CharacterUseJumpPower": false,
+				"CharacterJumpHeight": 3.9,
+				"EnableMouseLockOption": false,
+				"CameraMaxZoomDistance": 40,
+				"AutoJumpEnabled": false
+			},
 			"StarterPlayerScripts": {
+				"Common": { "$path": "src/client/common" },
 				"Lobby": { "$path": "src/client/lobby" }
 			}
 		}

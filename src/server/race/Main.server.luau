@@ -5,9 +5,9 @@ local RunService = game:GetService("RunService")
 
 local Version = require(ReplicatedStorage.Shared.Version)
 local Look = require(ReplicatedStorage.Shared.Look)
-local CollisionGroups = require(script.Parent.CollisionGroups)
-local Tower = require(script.Parent.Tower)
-local World = require(script.Parent.World)
+local CollisionGroups = require(script.Parent.Parent.Common.CollisionGroups)
+local Tower = require(script.Parent.Parent.Common.Tower)
+local World = require(script.Parent.Parent.Common.World)
 local RaceService = require(script.Parent.RaceService)
 
 CollisionGroups.init()

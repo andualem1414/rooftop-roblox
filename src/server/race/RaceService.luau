@@ -17,13 +17,13 @@ local Combat = require(ReplicatedStorage.Shared.Combat)
 local Rules = require(ReplicatedStorage.Shared.Rules)
 local Net = require(ReplicatedStorage.Shared.Net)
 local Climbers = require(script.Parent.Climbers)
-local CollisionGroups = require(script.Parent.CollisionGroups)
+local CollisionGroups = require(script.Parent.Parent.Common.CollisionGroups)
 local Tools = require(script.Parent.Tools)
 local Pickups = require(script.Parent.Pickups)
 local PlatformService = require(script.Parent.PlatformService)
 local CombatService = require(script.Parent.CombatService)
 local Bots = require(script.Parent.Bots)
-local Tower = require(script.Parent.Tower)
+local Tower = require(script.Parent.Parent.Common.Tower)
 
 type Climber = Climbers.Climber
 

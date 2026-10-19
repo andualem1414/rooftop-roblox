@@ -318,8 +318,17 @@ end
 
 -- Land a blow (melee or bullet) on one victim; (nx, nz) is the direction from the attacker to them.
 -- Knockback is left to the caller: push the victim along (nx, nz) at result.knock studs/s.
-function Combat.applyHit(att: Fighter, w: Weapon, v: Fighter, nx: number, nz: number, headshot: boolean?): HitResult
-	local dmg = w.damage * att.dmgScale
+-- scale: several pellets landing together count as one blow this many times as hard (a shotgun)
+function Combat.applyHit(
+	att: Fighter,
+	w: Weapon,
+	v: Fighter,
+	nx: number,
+	nz: number,
+	headshot: boolean?,
+	scale: number?
+): HitResult
+	local dmg = w.damage * att.dmgScale * (scale or 1)
 	if w.slot == "gun" and headshot then
 		dmg *= Config.HEADSHOT
 	end
@@ -340,7 +349,7 @@ function Combat.applyHit(att: Fighter, w: Weapon, v: Fighter, nx: number, nz: nu
 	v.sinceHurt = 0
 	v.hitBy = att
 	v.hitAge = 0
-	local knock = w.knock
+	local knock = w.knock * (scale or 1)
 	if blocked and not broke then
 		-- a clean block: barely moves you, and their weapon bounces off (they reel)
 		knock *= 0.3
