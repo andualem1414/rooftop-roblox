@@ -51,8 +51,9 @@ powershell -ExecutionPolicy Bypass -File publish\publish.ps1              # both
 powershell -ExecutionPolicy Bypass -File publish\publish.ps1 -Place race  # only one
 ```
 
-It runs the tests, lint and format check, then `rojo upload`s each place (built from this repo) as a new
-**published** version. New servers run it; running ones keep the old version until they empty (in a private
+It runs the tests, lint and format check, then builds each place (`rojo build`) and uploads it to Open
+Cloud's place publishing as a new **published** version (from PowerShell, not `rojo upload`: Avast's HTTPS
+scanning makes rojo fail with "invalid peer certificate: UnknownIssuer"; Windows trusts Avast's root). New servers run it; running ones keep the old version until they empty (in a private
 game: leave and rejoin). Publish both places whenever `src/shared` or a `common` folder changed: they share
 that code. Bump `src/shared/Version.luau` for a release so the lobby corner shows which one you're in.
 

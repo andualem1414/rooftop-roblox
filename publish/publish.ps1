@@ -1,5 +1,7 @@
-# Publishes the game from this repo: checks the code, then builds and uploads the places straight to Roblox
-# (Open Cloud, through `rojo upload`), live for new servers. No Studio needed.
+# Publishes the game from this repo: checks the code, then builds the places (rojo build) and uploads them
+# straight to Roblox (Open Cloud's place publishing, the same call `rojo upload` makes), live for new
+# servers. No Studio needed. The upload goes through PowerShell rather than rojo: an antivirus that scans
+# HTTPS (Avast) re-signs connections with its own root, which Windows trusts and rojo doesn't.
 #
 #   powershell -ExecutionPolicy Bypass -File publish\publish.ps1            # both places
 #   powershell -ExecutionPolicy Bypass -File publish\publish.ps1 -Place race
@@ -59,9 +61,22 @@ $dirty = git status --porcelain -- src *.project.json
 if ($dirty) { Write-Host "Note: publishing changes that aren't committed yet (on top of $commit)." -ForegroundColor Yellow }
 
 $version = [regex]::Match((Get-Content "src\shared\Version.luau" -Raw), '"([^"]+)"').Groups[1].Value
+New-Item -ItemType Directory -Force "build" | Out-Null
 foreach ($t in $targets) {
 	Write-Host "Publishing $t (place $($ids[$t])), version $version, commit $commit..."
-	rojo upload "$t.project.json" --asset_id $ids[$t] --universe_id $universe --api_key $key
-	if ($LASTEXITCODE -ne 0) { Write-Host "Publishing $t failed." -ForegroundColor Red; exit 1 }
+	$file = Join-Path $root "build\$t-publish.rbxl"
+	rojo build "$t.project.json" -o $file
+	if ($LASTEXITCODE -ne 0) { Write-Host "Building $t failed: nothing published." -ForegroundColor Red; exit 1 }
+	$url = "https://apis.roblox.com/universes/v1/$universe/places/$($ids[$t])/versions?versionType=Published"
+	try {
+		$res = Invoke-RestMethod -Method Post -Uri $url -Headers @{ "x-api-key" = $key } `
+			-ContentType "application/octet-stream" -InFile $file -TimeoutSec 300
+		Write-Host "  $t is now version $($res.versionNumber) of place $($ids[$t])."
+	} catch {
+		$why = $_.Exception.Message
+		if ($_.ErrorDetails -and $_.ErrorDetails.Message) { $why = $_.ErrorDetails.Message }
+		Write-Host "Publishing $t failed: $why" -ForegroundColor Red
+		exit 1
+	}
 }
 Write-Host "Published: $($targets -join ', '). New servers run it; rejoin to play the new version." -ForegroundColor Green
