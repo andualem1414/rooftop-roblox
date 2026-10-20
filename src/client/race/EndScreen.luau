@@ -4,11 +4,12 @@
 --     place); in Studio, where there's no lobby, the button is Play again and starts the next race
 --   won: a strip along the bottom: explore the roof, take the skydive from the pad by the sign, or End game
 --     (the button, G, or the controller's Y); the skydive itself ends on its own card (SkydiveFlight)
---   Studio only: a Win now button while racing puts you on the roof as the winner, to try all of this
+--   Studio only: T while racing puts you on the roof as the winner, to try all of this
 local ContextActionService = game:GetService("ContextActionService")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
 
 local Net = require(ReplicatedStorage.Shared.Net)
 local Common = script.Parent.Parent:WaitForChild("Common")
@@ -83,17 +84,15 @@ function EndScreen.init()
 		leave(endGame)
 	end)
 
-	-- Studio: Win now
-	local win: TextButton? = nil
+	-- Studio: T wins now (not while typing in the chat)
 	if STUDIO then
-		local w = Ui.button(gui, "Win now (Studio)", function()
-			Audio.play("click")
-			Net.event("Dev"):FireServer("win")
-		end, Color3.fromRGB(120, 90, 20))
-		w.Size = UDim2.fromOffset(150, 32)
-		w.Position = UDim2.new(0, 20, 1, -140)
-		w.TextSize = 14
-		win = w
+		UserInputService.InputBegan:Connect(function(input: InputObject, processed: boolean)
+			local phase = state:GetAttribute("Phase")
+			if not processed and input.KeyCode == Enum.KeyCode.T and (phase == "climb" or phase == "roof") then
+				Audio.play("click")
+				Net.event("Dev"):FireServer("win")
+			end
+		end)
 	end
 
 	local bound = false
@@ -119,9 +118,6 @@ function EndScreen.init()
 		local phase = state:GetAttribute("Phase")
 		local winner = state:GetAttribute("Winner")
 		local sky = state:GetAttribute("Skydive")
-		if win then
-			win.Visible = phase == "climb" or phase == "roof"
-		end
 		if phase ~= "over" then
 			card.Visible = false
 			strip.Visible = false

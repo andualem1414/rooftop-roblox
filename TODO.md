@@ -163,6 +163,16 @@ Camera, look, sound
 
 ## Done
 
+- [x] 2026-10-20 — **Cover, crouching, fairer bots, one health bar** (the user's playtest asks; written,
+  waiting on the user's own playtest): C / Left Ctrl / R3 / a touch Crouch button crouches (again or jump to
+  stand): the server lowers the body by `Config.CROUCH_DROP` of its hip height (the hitbox too), half speed,
+  no jumping, and no shooting till you stand (refused on the server; a "Stand up to shoot" hint, dimmed
+  crosshair); every screen folds the knees (`client/race/Poser`). Furniture with bulk stops bullets
+  (`Themes` "cover" pieces: sofa backs and arms, mattresses, car cabins, foliage...; desks and pool tables got
+  solid fronts so shots don't go under). Bots react before their first shot, miss by a skill-based error that
+  settles as they keep firing, shoot where a moving target was (`Combat.botAimError` / `botLag`, specced),
+  and never fire without a clear line to the body. Roblox's own top-right health bar is off; ours goes green
+  to yellow to red. Studio: T wins now (the Win now button is gone).
 - [x] 2026-10-20 — Audio overhaul (`shared/Sounds`, `client/common/Audio`, with a Lune spec): real gunshots,
   per-gun mechanics and reloads timed to the hands (`client/race/Poser`), impacts, ricochets, whizzes,
   casings, body / bat / blocked hits, knock-out body falls, new beeps and clicks; race, roof and lobby music.

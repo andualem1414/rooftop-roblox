@@ -1,12 +1,15 @@
 --!strict
 -- What each floor is: 20 themes, bottom to top, each with its own floor, colours, lights and furniture.
--- Furniture doubles as cover:
---   "low"   you can jump over it and see / shoot across it (desks, sofas, beds, counters)
+-- Furniture doubles as cover, and every bit of it with any bulk stops bullets:
+--   "low"   you can jump over it and shoot across it, or crouch behind it out of sight (desks, sofas,
+--           beds, counters)
 --   "high"  it blocks you, your view and shots (shelves, racks, lockers, vending machines)
 --   "crate" a loose crate you can shove
 -- Props are built from parts here, in their own frame: origin on the floor at the middle of the
 -- footprint, front facing -Z, footprint w (x) by d (z) studs. Pieces that aren't the main body don't
--- collide (and don't stop shots), so cover behaves like its silhouette.
+-- collide, so moving round it stays simple; the ones with bulk (a sofa's back and arms, a mattress, a
+-- car's cabin, foliage) are "cover": walked through, but they stop a shot. Thin trims, screens and
+-- handles stop nothing.
 
 local Themes = {}
 
@@ -41,7 +44,7 @@ local function piece(
 	size: Vector3,
 	color: Color3,
 	mat: Enum.Material?,
-	solid: boolean?,
+	solid: (boolean | "cover")?,
 	shape: Enum.PartType?
 ): Part
 	local p = Instance.new("Part")
@@ -54,10 +57,10 @@ local function piece(
 	p.TopSurface = Enum.SurfaceType.Smooth
 	p.BottomSurface = Enum.SurfaceType.Smooth
 	p.CollisionGroup = "Tower"
-	if solid == false then
+	if solid == false or solid == "cover" then
 		p.CanCollide = false
-		p.CanQuery = false
 		p.CanTouch = false
+		p.CanQuery = solid == "cover" -- (shots are raycasts: cover stops them)
 	end
 	p.Parent = parent
 	return p
@@ -85,7 +88,9 @@ local PROPS: { [string]: Prop } = {
 			for _, x in { -4, 4 } do
 				piece(m, at(cf, x, 1.25, 0), Vector3.new(0.4, 2.5, 4), DARK, Enum.Material.Metal)
 			end
-			piece(m, at(cf, -1.2, 4.1, 1.2), Vector3.new(3.4, 2.2, 0.25), DARK, nil, false)
+			-- the panel down its back: shots don't go under the desk at someone crouched behind it
+			piece(m, at(cf, 0, 1.5, 1.9), Vector3.new(7.6, 2, 0.25), WOOD:Lerp(DARK, 0.35), Enum.Material.Wood)
+			piece(m, at(cf, -1.2, 4.1, 1.2), Vector3.new(3.4, 2.2, 0.25), DARK, nil, "cover")
 			piece(
 				m,
 				at(cf, -1.2, 4.1, 1.05),
@@ -101,9 +106,9 @@ local PROPS: { [string]: Prop } = {
 				Vector3.new(2.6, 0.5, 2.6),
 				th.accent2,
 				Enum.Material.Fabric,
-				false
+				"cover"
 			)
-			piece(m, at(cf, 0, 2.6, -4.5), Vector3.new(2.6, 2.6, 0.4), th.accent2, Enum.Material.Fabric, false)
+			piece(m, at(cf, 0, 2.6, -4.5), Vector3.new(2.6, 2.6, 0.4), th.accent2, Enum.Material.Fabric, "cover")
 		end,
 	},
 	sofa = {
@@ -114,7 +119,7 @@ local PROPS: { [string]: Prop } = {
 		wall = false,
 		build = function(m, cf, th)
 			piece(m, at(cf, 0, 0.9, 0), Vector3.new(9, 1.8, 4), th.accent2, Enum.Material.Fabric)
-			piece(m, at(cf, 0, 2.3, 1.5), Vector3.new(9, 1.6, 1), th.accent2, Enum.Material.Fabric, false)
+			piece(m, at(cf, 0, 2.3, 1.5), Vector3.new(9, 1.6, 1), th.accent2, Enum.Material.Fabric, "cover")
 			for _, x in { -4.1, 4.1 } do
 				piece(
 					m,
@@ -122,10 +127,10 @@ local PROPS: { [string]: Prop } = {
 					Vector3.new(0.9, 1.4, 4),
 					th.accent2:Lerp(DARK, 0.25),
 					Enum.Material.Fabric,
-					false
+					"cover"
 				)
 			end
-			piece(m, at(cf, -2, 2.1, -0.4), Vector3.new(1.6, 1.2, 0.5), th.accent, Enum.Material.Fabric, false)
+			piece(m, at(cf, -2, 2.1, -0.4), Vector3.new(1.6, 1.2, 0.5), th.accent, Enum.Material.Fabric, "cover")
 		end,
 	},
 	plant = {
@@ -151,7 +156,7 @@ local PROPS: { [string]: Prop } = {
 				Vector3.new(3.6, 3.6, 3.6),
 				green,
 				Enum.Material.Grass,
-				false,
+				"cover",
 				Enum.PartType.Ball
 			)
 			piece(
@@ -160,7 +165,7 @@ local PROPS: { [string]: Prop } = {
 				Vector3.new(2.6, 2.6, 2.6),
 				green:Lerp(WHITE, 0.15),
 				Enum.Material.Grass,
-				false,
+				"cover",
 				Enum.PartType.Ball
 			)
 		end,
@@ -187,7 +192,7 @@ local PROPS: { [string]: Prop } = {
 						Vector3.new(1.8, 1.5, 2.2),
 						c,
 						Enum.Material.Cardboard,
-						false
+						"cover"
 					)
 				end
 			end
@@ -280,10 +285,10 @@ local PROPS: { [string]: Prop } = {
 		wall = true,
 		build = function(m, cf, th)
 			piece(m, at(cf, 0, 0.8, 0), Vector3.new(7, 1.6, 10), WOOD, Enum.Material.Wood)
-			piece(m, at(cf, 0, 1.9, 0), Vector3.new(6.6, 0.7, 9.6), WHITE, Enum.Material.Fabric, false)
-			piece(m, at(cf, 0, 2.3, -1.2), Vector3.new(6.7, 0.3, 6.5), th.accent2, Enum.Material.Fabric, false)
-			piece(m, at(cf, 0, 2.5, 3.8), Vector3.new(4.5, 0.7, 1.6), WHITE, Enum.Material.Fabric, false)
-			piece(m, at(cf, 0, 2.8, 4.9), Vector3.new(7, 4, 0.4), WOOD, Enum.Material.Wood, false)
+			piece(m, at(cf, 0, 1.9, 0), Vector3.new(6.6, 0.7, 9.6), WHITE, Enum.Material.Fabric, "cover")
+			piece(m, at(cf, 0, 2.3, -1.2), Vector3.new(6.7, 0.3, 6.5), th.accent2, Enum.Material.Fabric, "cover")
+			piece(m, at(cf, 0, 2.5, 3.8), Vector3.new(4.5, 0.7, 1.6), WHITE, Enum.Material.Fabric, "cover")
+			piece(m, at(cf, 0, 2.8, 4.9), Vector3.new(7, 4, 0.4), WOOD, Enum.Material.Wood, "cover")
 		end,
 	},
 	car = {
@@ -301,7 +306,7 @@ local PROPS: { [string]: Prop } = {
 				rgb(240, 240, 240),
 			})[rng:NextInteger(1, 5)]
 			piece(m, at(cf, 0, 1.6, 0), Vector3.new(7, 2.2, 13), paint, Enum.Material.SmoothPlastic)
-			piece(m, at(cf, 0, 3.4, 0.6), Vector3.new(6.2, 1.8, 7), rgb(40, 50, 70), Enum.Material.Glass, false).Reflectance =
+			piece(m, at(cf, 0, 3.4, 0.6), Vector3.new(6.2, 1.8, 7), rgb(40, 50, 70), Enum.Material.Glass, "cover").Reflectance =
 				0.3
 			for _, x in { -3.3, 3.3 } do
 				for _, z in { -4, 4 } do
@@ -410,7 +415,7 @@ local PROPS: { [string]: Prop } = {
 				false
 			)
 			piece(m, at(cf, 0, 6.8, -1.2), Vector3.new(3.4, 0.7, 0.1), th.accent, Enum.Material.Neon, false)
-			piece(m, at(cf, 0, 3.2, -1.6), Vector3.new(3.4, 0.4, 1.2), DARK, nil, false)
+			piece(m, at(cf, 0, 3.2, -1.6), Vector3.new(3.4, 0.4, 1.2), DARK, nil, "cover")
 		end,
 	},
 	pooltable = {
@@ -427,6 +432,8 @@ local PROPS: { [string]: Prop } = {
 					piece(m, at(cf, x, 1.05, z), Vector3.new(0.8, 2.1, 0.8), DARK)
 				end
 			end
+			-- its cabinet: shots don't go under the table at someone crouched behind it
+			piece(m, at(cf, 0, 1.3, 0), Vector3.new(4.2, 1.6, 8.4), WOOD:Lerp(DARK, 0.55), Enum.Material.Wood)
 			piece(
 				m,
 				at(cf, 0, 3.15, -2),
@@ -480,7 +487,7 @@ local PROPS: { [string]: Prop } = {
 				Vector3.new(1, 4.4, 4.4),
 				METAL,
 				Enum.Material.Metal,
-				false,
+				"cover",
 				Enum.PartType.Cylinder
 			)
 		end,
@@ -522,7 +529,7 @@ local PROPS: { [string]: Prop } = {
 					Vector3.new(1.4, 1.6, 1.4),
 					c,
 					Enum.Material.Grass,
-					false,
+					"cover",
 					Enum.PartType.Ball
 				)
 			end
@@ -573,7 +580,7 @@ local PROPS: { [string]: Prop } = {
 				Vector3.new(3, 2.4, 0.15),
 				WHITE,
 				Enum.Material.Fabric,
-				false
+				"cover"
 			)
 			for _ = 1, 3 do
 				local c = Color3.fromHSV(rng:NextNumber(), 0.8, 1)
@@ -636,7 +643,7 @@ local PROPS: { [string]: Prop } = {
 					Vector3.new(0.2, 2.2, 2.2),
 					DARK,
 					nil,
-					false,
+					"cover",
 					Enum.PartType.Cylinder
 				)
 			end
@@ -704,7 +711,7 @@ local PROPS: { [string]: Prop } = {
 				Vector3.new(6, 0.2, 3.5),
 				rgb(16, 14, 18),
 				nil,
-				false
+				"cover"
 			)
 			for _, x in { -2.6, 2.6 } do
 				piece(m, at(cf, x, 0.8, 0.4), Vector3.new(0.6, 1.6, 0.6), rgb(16, 14, 18))
@@ -725,7 +732,7 @@ local PROPS: { [string]: Prop } = {
 				Vector3.new(1.4, 6.4, 6.4),
 				rgb(180, 140, 60),
 				Enum.Material.Metal,
-				false,
+				"cover",
 				Enum.PartType.Cylinder
 			)
 			piece(m, at(cf, 0, 3, -3.52), Vector3.new(7, 0.6, 0.05), th.accent, Enum.Material.Neon, false)

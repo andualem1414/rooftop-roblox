@@ -16,7 +16,7 @@
 -- rings. Nothing restarts by itself: once the race is over the winner explores the roof, takes the skydive
 -- or ends the game, and everyone else sees the result and goes back to the main screen (the lobby place)
 -- when they press, or after a while. In Studio (no lobby) the next race starts when someone presses Play
--- again; a Studio-only Win now button (and RooftopDev "win") puts you on the roof as the winner.
+-- again; in Studio, T (and RooftopDev "win") puts you on the roof as the winner.
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
@@ -550,7 +550,7 @@ function RaceService.start(t: Tower.Tower)
 			return { phase = state:GetAttribute("Phase"), t = RaceService.time(), winner = winner and winner.name }
 		end
 		dev.Parent = game:GetService("ServerStorage")
-		-- the HUD's Win now button (Studio only: the server never listens to it in a live game)
+		-- the T key's win (Studio only: the server never listens to it in a live game)
 		Net.event("Dev").OnServerEvent:Connect(function(p: Player, cmd: unknown)
 			if cmd == "win" then
 				devWin(p)

@@ -59,6 +59,18 @@ Config.WALK_SPEED = 16 -- studs/s (Roblox's default, ~5.3 m/s; the original ran 
 Config.JUMP_HEIGHT = 1.3 * M -- feet clear any crate or barrier
 Config.HEADSHOT = 1.5 -- gun damage times this on the head
 Config.BOT_DAMAGE = 0.8 -- bots' blows land a little softer than players'
+-- crouching (C / Ctrl / R3 / the touch Crouch button): low behind cover, slow, and no shooting till you stand
+Config.CROUCH_SPEED = 0.5 -- of your running speed
+Config.CROUCH_DROP = 0.8 -- the body sinks this much of its hip height (a blocky avatar's head: ~5.1 -> ~3.5 studs)
+-- How true a bot shoots: its aim error (radians, one standard deviation) is BOT_AIM + BOT_AIM_UNSKILLED for
+-- the clumsiest, less for the skilled; half again on its first shots at someone (it settles as it keeps
+-- firing at them) and more on the move. At 30 studs an average bot lands a third of its first shots on
+-- someone standing still and about half once it has settled (the best: four in five; at 10 studs nearly
+-- all); a target on the move is shot at where it was a moment ago (BOT_LAG seconds), so running across
+-- its sights mostly makes it miss.
+Config.BOT_AIM = 0.035
+Config.BOT_AIM_UNSKILLED = 0.06
+Config.BOT_LAG = 0.3 -- the clumsiest; the most skilled half that
 
 -- pickups
 Config.FLOOR_AMMO = { 1, 2 } -- ammo boxes on each floor

@@ -16,6 +16,9 @@
 --   jumping:   the knees tuck in the air and reach for the ground on the way down; a landing sinks into the
 --              knees as hard as it hit (a long drop raises dust and a thud); a platform setting off or
 --              stopping is felt in the knees too
+--   crouched:  the server lowers the body (its hip height: the Crouch attribute says by how much), so the
+--              knees fold to keep the feet on the floor, the chest leans in and a gun is carried low (it
+--              won't fire till they stand)
 --   idle:      breathing (harder for a while after a run, and when hurt), a slow shift of weight, a glance at
 --              whoever is near, and now and then a fidget with the weapon in hand
 -- Guns (held up in both hands and aimed where the climber looks: their Aim pitch)
@@ -117,6 +120,7 @@ type Rig = {
 	hurtDip: Spring,
 	headSnap: Spring,
 	stumble: number,
+	crouch: number, -- how far the Humanoid has the body down (studs), eased as it goes
 	lookYaw: number,
 	lookT: number,
 	glanceYaw: number,
@@ -670,6 +674,7 @@ local function build(model: Model): Rig?
 		hurtDip = Motion.spring(14, 0.5),
 		headSnap = Motion.spring(20, 0.38),
 		stumble = 0,
+		crouch = 0,
 		lookYaw = 0,
 		lookT = rng:NextNumber() * 0.4,
 		glanceYaw = 0,
@@ -830,6 +835,7 @@ end
 -- what the frame's layers add up to, written into the joints at the end
 type Body = {
 	drop: number, -- the hips sink this far (studs), the knees taking it
+	crouch: number, -- the whole body is this far down (the Humanoid's crouch): the knees take it too
 	rootYaw: number, -- the legs and hips turned from where they face (+ left)
 	rootPitch: number,
 	rootRoll: number,
@@ -1089,6 +1095,7 @@ local function pose(r: Rig, dt: number, now: number, others: { Model })
 
 	local b: Body = {
 		drop = 0,
+		crouch = 0,
 		rootYaw = r.legYaw,
 		rootPitch = 0,
 		rootRoll = 0,
@@ -1135,6 +1142,13 @@ local function pose(r: Rig, dt: number, now: number, others: { Model })
 		b.lift[first] = bump(u, 0, 0.6) * 0.5
 		b.lift[3 - first] = bump(u, 0.4, 1) * 0.4
 	end
+	-- crouched: the body is down (the Humanoid lowered it): the knees fold under it, the chest leans in
+	local crouchTo = model:GetAttribute("Crouch")
+	r.crouch += ((if type(crouchTo) == "number" and alive then crouchTo else 0) - r.crouch) * follow(14, dt)
+	local crouchK = math.clamp(r.crouch / (1.4 * k), 0, 1)
+	b.crouch = r.crouch
+	b.chestPitch -= 0.28 * crouchK
+	b.headPitch += 0.1 * crouchK
 	-- hurt: hunched, head low
 	b.chestPitch -= 0.14 * wounded
 	b.headPitch -= 0.12 * wounded
@@ -1310,6 +1324,8 @@ local function pose(r: Rig, dt: number, now: number, others: { Model })
 			else 0.85
 		if slumped then
 			wantAim = 0
+		elseif crouchK > 0.3 and not ads then
+			wantAim = math.min(wantAim, 0.25) -- (crouched: carried low, it won't fire)
 		end
 		r.aimW = Motion.approach(r.aimW, wantAim, if wantAim > r.aimW then 9 else 3, dt)
 		r.adsW += ((if ads and not reloading then 1 else 0) - r.adsW) * follow(12, dt)
@@ -1610,7 +1626,7 @@ local function pose(r: Rig, dt: number, now: number, others: { Model })
 	-- the legs: the knees take the drop with the feet where they were; tucked in the air; a step's lift;
 	-- the jets' straight legs; a hero's landing on one knee; spread on the air
 	for i, leg in r.legs do
-		local bend = Motion.kneeBend(math.max(0, b.drop), leg.thigh, leg.shin)
+		local bend = Motion.kneeBend(math.max(0, b.drop + b.crouch), leg.thigh, leg.shin)
 		local lift = b.lift[i] or 0
 		local isLeft = leg.left
 		local hip = bend + b.tuck + lift * 0.6

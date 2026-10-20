@@ -7,6 +7,8 @@
 --           from YOUR gun (or head) toward where that ray points, with the server's own spread, and hits
 --           the first thing in its way: no shooting through walls, no hitting from out of range
 -- Health lives in the fighter state and is mirrored onto the Humanoid; 0 hp is a knock-out.
+-- Crouching (the client asks; standing up again too): the body really goes down (the Humanoid's hip
+-- height, so shots go over it behind cover), slower, and its gun doesn't fire till it stands.
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 
@@ -32,6 +34,8 @@ local rng = Random.new()
 local owner: { [Fighter]: Climber } = {}
 -- players holding the guard button (a swing or a stagger drops the guard; it comes back while it's held)
 local guardHeld: { [Climber]: boolean } = {}
+-- crouched climbers: their standing hip height (their body is down by Config.CROUCH_DROP of it)
+local standHip: { [Climber]: number } = {}
 local MAX_CAMERA_DISTANCE = 40 -- how far a shot's camera ray may start from your head (zoomed-out camera)
 local CHEST = 1.5 * Config.M -- melee line of sight is checked at chest height (low cover doesn't block it)
 
@@ -316,8 +320,9 @@ local function onShoot(player: Player, origin: unknown, dir: unknown, aiming: un
 	Tools.publish(c)
 end
 
--- a bot's shot at a point; skill 0..1 steadies its aim
-function CombatService.botFire(c: Climber, at: Vector3, skill: number): boolean
+-- a bot's shot at a point, off by its own aim error (radians, one standard deviation: shared/Combat
+-- botAimError) on top of the gun's spread
+function CombatService.botFire(c: Climber, at: Vector3, aimError: number): boolean
 	if c.frozen or c.fighter.equipped ~= "gun" or c.fighter.dead then
 		return false
 	end
@@ -326,23 +331,54 @@ function CombatService.botFire(c: Climber, at: Vector3, skill: number): boolean
 		return false
 	end
 	local head = headOf(c)
-	if head and c.model then
-		local d = at - head.Position
+	local from = if head then head.Position else root.Position
+	local d = at - from
+	if d.Magnitude > 0.1 then
+		local yaw, pitch = Combat.botAimOffset(aimError, rand)
+		local dir = (CFrame.lookAt(Vector3.zero, d.Unit) * CFrame.Angles(pitch, yaw, 0)).LookVector
+		at = from + dir * d.Magnitude
+	end
+	if c.model then
 		c.model:SetAttribute("Aim", math.atan2(d.Y, Vector3.new(d.X, 0, d.Z).Magnitude))
 	end
-	fire(c, at, 1.75 - skill)
+	fire(c, at, 1)
 	return true
+end
+
+-- down or up: the hip height carries the body (and its hitbox) down; every screen bends the knees to
+-- match (client/race/Poser reads the Crouch attribute: how far it went down)
+local function applyCrouch(c: Climber, hum: Humanoid, model: Model)
+	local f = c.fighter
+	local want = f.crouch and not f.dead and not c.frozen and model:GetAttribute("Boosting") ~= true
+	if not want then
+		f.crouch = false
+	end
+	local stand = standHip[c]
+	if want and not stand then
+		stand = hum.HipHeight
+		standHip[c] = stand
+		local drop = stand * Config.CROUCH_DROP
+		hum.HipHeight = stand - drop
+		model:SetAttribute("Crouch", drop)
+	elseif not want and stand then
+		standHip[c] = nil
+		hum.HipHeight = stand
+		model:SetAttribute("Crouch", nil)
+	end
 end
 
 -- what CombatService knows about whose fighter is whose
 function CombatService.register(c: Climber)
 	owner[c.fighter] = c
 	guardHeld[c] = nil -- (a fresh body: the client starts with the guard down too)
+	standHip[c] = nil -- (and standing)
+	c.fighter.crouch = false
 end
 
 function CombatService.unregister(c: Climber)
 	owner[c.fighter] = nil
 	guardHeld[c] = nil
+	standHip[c] = nil
 end
 
 local publishT = 0
@@ -368,6 +404,7 @@ local function step(dt: number)
 		elseif guardHeld[c] and not f.blocking and Combat.canBlock(f) then
 			f.blocking = true
 		end
+		applyCrouch(c, hum, c.model :: Model)
 		local blow = Combat.tick(f, dt)
 		if blow then
 			landMelee(c, blow)
@@ -377,7 +414,7 @@ local function step(dt: number)
 				hum.Health = f.hp
 			end
 			hum.WalkSpeed = if c.frozen then 0 else Config.WALK_SPEED * Combat.moveScale(f)
-			hum.JumpHeight = if c.frozen then 0 else Config.JUMP_HEIGHT
+			hum.JumpHeight = if c.frozen or f.crouch then 0 else Config.JUMP_HEIGHT
 			-- fell out of the tower (or down the pit)
 			if root.Position.Y < -2 * Config.FLOOR_HEIGHT - 10 then
 				CombatService.knockOut(c, nil, "fell out")
@@ -427,6 +464,14 @@ function CombatService.init(h: Hooks)
 				guardHeld[c] = nil
 			end
 			c.fighter.blocking = on == true and not c.frozen and Combat.canBlock(c.fighter)
+		end
+	end)
+	Net.event("Crouch").OnServerEvent:Connect(function(player: Player, on: unknown)
+		local c = Climbers.forPlayer(player)
+		if c and c.humanoid then
+			-- (not in mid-air: you crouch on something; standing up is always allowed)
+			local grounded = c.humanoid.FloorMaterial ~= Enum.Material.Air
+			c.fighter.crouch = on == true and not c.frozen and not c.fighter.dead and (grounded or c.fighter.crouch)
 		end
 	end)
 	Net.event("Reload").OnServerEvent:Connect(function(player: Player)

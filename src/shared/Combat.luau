@@ -44,6 +44,7 @@ export type Fighter = {
 	melee: string,
 	gun: string?,
 	equipped: "melee" | "gun" | "none",
+	crouch: boolean, -- low behind cover: slow, and no shooting (stand up first)
 	mag: number,
 	reserve: number,
 	reloadT: number,
@@ -92,6 +93,7 @@ function Combat.newFighter(dmgScale: number?): Fighter
 		melee = "bat",
 		gun = nil,
 		equipped = "none",
+		crouch = false,
 		mag = 0,
 		reserve = 0,
 		reloadT = 0,
@@ -137,6 +139,7 @@ function Combat.revive(f: Fighter)
 	f.cool = 0
 	f.stagger = 0
 	f.blocking = false
+	f.crouch = false
 	f.sinceHurt = math.huge
 	f.hitBy = nil
 	f.hitAge = math.huge
@@ -177,7 +180,8 @@ function Combat.startReload(f: Fighter): boolean
 end
 
 -- Start an attack toward `heading` with the weapon in hand (fixed from here on: step out of the way and
--- it misses). Returns the attack, or nil and why not: "busy", "unarmed", "empty" (it starts reloading).
+-- it misses). Returns the attack, or nil and why not: "busy", "unarmed", "crouched" (a gun: stand up to
+-- shoot), "empty" (it starts reloading).
 function Combat.startAttack(f: Fighter, heading: number): (Attack?, string?)
 	local w = Combat.weapon(f)
 	if not w then
@@ -187,6 +191,9 @@ function Combat.startAttack(f: Fighter, heading: number): (Attack?, string?)
 		return nil, "busy"
 	end
 	if w.slot == "gun" then
+		if f.crouch then
+			return nil, "crouched"
+		end
 		if f.mag <= 0 then
 			Combat.startReload(f)
 			return nil, "empty"
@@ -217,6 +224,9 @@ function Combat.moveScale(f: Fighter): number
 	end
 	if f.blocking then
 		k *= 0.5
+	end
+	if f.crouch then
+		k *= Config.CROUCH_SPEED
 	end
 	return k
 end
@@ -392,6 +402,27 @@ function Combat.spread(w: Weapon, err: number, rand: () -> number): (number, num
 	local yaw = (rand() + rand() - 1) * w.spread * err
 	local pitch = (rand() + rand() - 1) * w.spread * err * 0.5
 	return yaw, pitch
+end
+
+-- A bot's aim error (radians, one standard deviation) for its next shot: steadier with skill (0..1),
+-- worse on its first shots at someone (focus 0, settling toward 1 as it keeps firing at them) and when it's
+-- on the move itself.
+function Combat.botAimError(skill: number, focus: number, moving: boolean): number
+	local base = Config.BOT_AIM + Config.BOT_AIM_UNSKILLED * (1 - math.clamp(skill, 0, 1))
+	return base * (1.5 - 0.5 * math.clamp(focus, 0, 1)) * (if moving then 1.3 else 1)
+end
+
+-- how long ago a bot sees where someone was (seconds): it shoots there, so a moving target is hard to hit
+function Combat.botLag(skill: number): number
+	return Config.BOT_LAG * (1 - 0.5 * math.clamp(skill, 0, 1))
+end
+
+-- One shot's aim error (yaw, pitch) in radians, normally distributed with standard deviation `sigma`
+-- (pitch a little less: a miss goes wide more than high), cut off at three of them. rand() returns 0..1.
+function Combat.botAimOffset(sigma: number, rand: () -> number): (number, number)
+	local r = math.min(3, math.sqrt(-2 * math.log(math.max(rand(), 1e-9)))) * sigma
+	local a = rand() * math.pi * 2
+	return r * math.cos(a), r * math.sin(a) * 0.7
 end
 
 return table.freeze(Combat)

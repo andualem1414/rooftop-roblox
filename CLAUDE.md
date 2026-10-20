@@ -63,9 +63,9 @@ powershell -ExecutionPolicy Bypass -File publish\publish.ps1   # publish both pl
   or "Moonlit Ink" switches the lighting live while playing.
 - Fewer bots for a test: select Workspace in Studio, Properties → Attributes → add a number attribute
   `TestBots` (e.g. 3; 0 = none). Studio only; delete the attribute for a full race of 20.
-- **Win now** (Studio only): a button above Settings in the race HUD puts you on the roof as the winner, to try
-  the roof, the skydive and the end. After a race nothing restarts by itself: press Play again (Studio) or
-  Main screen (live) on the end card; the winner has End game (G).
+- **Win now** (Studio only): press **T** while racing (not while typing in the chat) to be put on the roof as
+  the winner, to try the roof, the skydive and the end. After a race nothing restarts by itself: press Play
+  again (Studio) or Main screen (live) on the end card; the winner has End game (G).
 - Skip the race clock in a test (Studio only): `game.ServerStorage.RooftopDev:Invoke("skip", seconds)` from the
   server command bar or the MCP's execute_luau. Also `("restart")` (end the race now), `("win")` (the first
   player gets out) and `("give", "rifle")` (the first player gets a weapon).

@@ -6,6 +6,7 @@
 --   Shoot(origin, direction, aim)  fire the gun in hand along the camera ray; aim: aiming down sights
 --   Guard(on)                      hold up the melee weapon to block
 --   Reload()
+--   Crouch(on)                     get down behind cover, or stand up
 --   Look(pitch, aiming)            (unreliable, ~15 a second) where you look up / down, and whether you aim
 --                                  down the sights, so everyone sees your arms and head follow it
 --   Ready()                        this client's scripts are running (the race waits for it)
@@ -41,6 +42,7 @@ local NAMES = {
 	"Shoot",
 	"Guard",
 	"Reload",
+	"Crouch",
 	"Ready",
 	"Knock",
 	"ShotFx",

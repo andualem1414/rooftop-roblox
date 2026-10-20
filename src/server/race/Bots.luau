@@ -4,6 +4,10 @@
 -- whoever is in the way. Hit one and it hits back. Each has its own temper (aggression, skill, courage),
 -- like the original's bots.js. With a gun and ammo they shoot from range; close up they swing the bat.
 -- They pick up ammo when low and swords over the bat.
+-- They shoot like people, not aimbots: a moment to react when someone comes into view, shots that go
+-- wide (less so the longer they keep at the same target, more on the move: shared/Combat botAimError),
+-- and aimed where a moving target was a moment ago. Nobody behind cover gets shot at: they only fire with
+-- a clear line to the body (so crouching behind a sofa hides you; they come round it instead).
 --
 -- Bots are Roblox avatars built from HumanoidDescriptions, with Roblox's default animations for the legs
 -- and body (the ids are read from the rig's own Animate script and played from the server); their arms
@@ -241,6 +245,9 @@ function Bots.create(i: number): Climber
 		think = rr(0, THINK),
 		fireT = 0,
 		burst = 0, -- shots left in this burst (full-auto guns)
+		focus = 0, -- 0..1: how settled its aim is on the one it's shooting at
+		focusOn = nil :: Climber?,
+		sighted = false, -- it had a clear shot at them last time it looked
 		swingT = 0,
 		guardT = 0,
 		wander = nil :: Vector3?,
@@ -357,12 +364,33 @@ local function fight(c: Climber, foe: Climber, goal: Vector3?): Vector3?
 		if f.mag <= 0 then
 			Combat.startReload(f)
 			b.burst = 0
-		elseif b.fireT <= 0 and d < gw.range then
+		elseif d < gw.range then
+			if b.focusOn ~= foe then
+				-- someone new: it takes a moment to react and line up
+				b.focusOn = foe
+				b.focus = 0
+				b.sighted = false
+			end
 			local head = (c.model :: Model):FindFirstChild("Head") :: BasePart?
-			local aim = froot.Position + Vector3.new(0, rr(-0.5, 1.5), 0)
-			if head and clearShot(head.Position, aim, skip) then
+			-- a point on the body (lower on someone crouched: their body is lower)
+			local aim = froot.Position + Vector3.new(0, rr(-0.4, 1.3), 0)
+			local clear = head ~= nil and clearShot(head.Position, aim, skip)
+			if clear and not b.sighted then
+				-- just came into view (or out from behind cover): react first
+				b.fireT = math.max(b.fireT, rr(0.3, 0.7) * (1.3 - b.skill * 0.5))
+				b.focus *= 0.4
+			end
+			b.sighted = clear
+			if clear then
 				face(c, aim)
-				CombatService.botFire(c, aim, b.skill)
+			end
+			if clear and b.fireT <= 0 then
+				-- where they were a moment ago (as it sees them move across its sights)
+				local rel = froot.AssemblyLinearVelocity - root.AssemblyLinearVelocity
+				local seen = aim - rel * Combat.botLag(b.skill) * rr(0.6, 1.3)
+				local moving = flat(root.AssemblyLinearVelocity).Magnitude > 4
+				CombatService.botFire(c, seen, Combat.botAimError(b.skill, b.focus, moving))
+				b.focus = math.min(1, b.focus + 0.2)
 				local interval = gw.windup + gw.strike + gw.recover
 				if gw.auto then
 					-- full auto: bursts of a few rounds, then a pause to steady the aim

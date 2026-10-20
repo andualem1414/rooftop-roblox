@@ -186,3 +186,64 @@ describe("health", function()
 		expect(f.invuln).toBe(Config.WAKE_PROTECTION)
 	end)
 end)
+
+describe("crouching", function()
+	it("can't shoot crouched, can once standing", function()
+		local f = fighter(0, 0)
+		f.equipped = "gun"
+		f.crouch = true
+		local a, why = Combat.startAttack(f, 0)
+		expect(a).toBe(nil)
+		expect(why).toBe("crouched")
+		expect(f.mag).toBe(Weapons.pistol.mag)
+		f.crouch = false
+		expect(Combat.startAttack(f, 0) ~= nil).toBe(true)
+	end)
+	it("slows you down", function()
+		local f = fighter(0, 0)
+		local k = Combat.moveScale(f)
+		f.crouch = true
+		expect(Combat.moveScale(f)).toBeNear(k * Config.CROUCH_SPEED)
+	end)
+	it("is undone by coming to", function()
+		local f = fighter(0, 0)
+		f.crouch = true
+		Combat.revive(f)
+		expect(f.crouch).toBe(false)
+	end)
+end)
+
+describe("bot aim", function()
+	-- the share of shots an average bot lands on someone standing still `d` studs away (a body about 3
+	-- studs wide and 4.5 tall round where it aims)
+	local function hitRate(d: number, skill: number, focus: number): number
+		local seed = 7
+		local function rand(): number -- (a small fixed-seed generator: the same numbers every run)
+			seed = (seed * 1103515245 + 12345) % 2147483648
+			return seed / 2147483648
+		end
+		local hits, n = 0, 4000
+		for _ = 1, n do
+			local yaw, pitch = Combat.botAimOffset(Combat.botAimError(skill, focus, false), rand)
+			if math.abs(math.tan(yaw) * d) < 1.5 and math.abs(math.tan(pitch) * d) < 2.25 then
+				hits += 1
+			end
+		end
+		return hits / n
+	end
+	it("misses often at range, rarely up close", function()
+		local far = hitRate(30, 0.6, 0.5)
+		expect(far > 0.25 and far < 0.65).toBe(true)
+		expect(hitRate(60, 0.6, 0.5) < far).toBe(true)
+		expect(hitRate(8, 0.6, 0.5) > 0.8).toBe(true)
+	end)
+	it("is steadier with skill and once settled on a target", function()
+		expect(Combat.botAimError(0.9, 0, false) < Combat.botAimError(0.3, 0, false)).toBe(true)
+		expect(Combat.botAimError(0.6, 1, false) < Combat.botAimError(0.6, 0, false)).toBe(true)
+		expect(Combat.botAimError(0.6, 1, true) > Combat.botAimError(0.6, 1, false)).toBe(true)
+	end)
+	it("can't keep up with someone running across its sights", function()
+		-- even the best bot shoots more than a body's half-width behind a runner
+		expect(Combat.botLag(1) * Config.WALK_SPEED > 1.5).toBe(true)
+	end)
+end)

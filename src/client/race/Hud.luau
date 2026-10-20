@@ -3,8 +3,11 @@
 --   top:          a plate with the race clock ("Roof opens in 3:12"), your floor and the next platform
 --   middle:       the crosshair (gun in hand), banners ("Only one can escape!")
 --   top right:    the kill feed
---   bottom left:  health; bottom right: a plate with the weapon and ammo (top right on a touch screen,
---                 where the thumb buttons aren't)
+--   bottom left:  health, the only health bar (Roblox's own, top right, is off): green, yellow as it
+--                 goes, red when low; bottom right: a plate with the weapon and ammo (top right on a touch
+--                 screen, where the thumb buttons aren't)
+--   under the crosshair: a short hint now and then ("Stand up to shoot"); the crosshair dims while you
+--                 crouch (no shooting till you stand)
 --   bottom left:  Settings (or P / the controller's View button), above health: the settings panel
 -- With the countdown's last seconds ticking, and a chime under each banner.
 local ContextActionService = game:GetService("ContextActionService")
@@ -33,6 +36,26 @@ local Hud = {}
 local INK = Color3.fromRGB(22, 19, 28)
 local CHALK = Color3.fromRGB(236, 232, 220)
 local RED = Color3.fromRGB(196, 72, 60)
+local HP_FULL = Color3.fromRGB(96, 206, 108)
+local HP_HALF = Color3.fromRGB(240, 196, 64)
+local HP_LOW = Color3.fromRGB(226, 70, 56)
+
+local showHint: ((text: string) -> ())? = nil
+
+-- a short line under the crosshair for a moment (before init: nothing)
+function Hud.hint(text: string)
+	if showHint then
+		showHint(text)
+	end
+end
+
+-- the health bar's colour for a share of health left (0..1): green, through yellow, to red
+local function healthColor(k: number): Color3
+	if k >= 0.6 then
+		return HP_HALF:Lerp(HP_FULL, math.min(1, (k - 0.6) / 0.3))
+	end
+	return HP_LOW:Lerp(HP_HALF, math.clamp((k - 0.25) / 0.35, 0, 1))
+end
 
 local function label(
 	parent: Instance,
@@ -64,6 +87,8 @@ function Hud.init()
 	gui.ResetOnSpawn = false
 	gui.IgnoreGuiInset = false
 	gui.Parent = player:WaitForChild("PlayerGui")
+	-- one health bar: ours, bottom left (Roblox's own shows top right once you're hurt)
+	pcall(StarterGui.SetCoreGuiEnabled, StarterGui, Enum.CoreGuiType.Health, false)
 
 	local touch = UserInputService.TouchEnabled and not UserInputService.MouseEnabled
 	local function plate(name: string, size: UDim2, pos: UDim2, anchor: Vector2): Frame
@@ -111,7 +136,7 @@ function Hud.init()
 	hpBack.Parent = gui
 	local hpBar = Instance.new("Frame")
 	hpBar.Size = UDim2.fromScale(1, 1)
-	hpBar.BackgroundColor3 = CHALK
+	hpBar.BackgroundColor3 = HP_FULL
 	hpBar.BorderSizePixel = 0
 	Ui.corner(hpBar, 7)
 	local shine = Instance.new("UIGradient")
@@ -167,6 +192,29 @@ function Hud.init()
 	dot.Size = UDim2.fromOffset(2, 2)
 	dot.Parent = cross
 	local crossGap = 9
+
+	-- the hint under the crosshair
+	local hint = label(gui, "Hint", UDim2.fromOffset(400, 24), UDim2.new(0.5, 0, 0.5, 46), Vector2.new(0.5, 0), 18)
+	hint.Font = Ui.TITLE
+	hint.TextTransparency = 1
+	hint.TextStrokeTransparency = 1
+	local hintToken = 0
+	showHint = function(text: string)
+		hintToken += 1
+		local mine = hintToken
+		if hint.Text ~= text or hint.TextTransparency > 0.5 then
+			Audio.play("empty")
+		end
+		hint.Text = text
+		hint.TextTransparency = 0
+		hint.TextStrokeTransparency = 0.35
+		task.delay(1.4, function()
+			if mine == hintToken then
+				TweenService:Create(hint, TweenInfo.new(0.4), { TextTransparency = 1, TextStrokeTransparency = 1 })
+					:Play()
+			end
+		end)
+	end
 
 	-- the kill feed
 	local feed = Instance.new("Frame")
@@ -375,7 +423,7 @@ function Hud.init()
 			where.Text = line
 			local k = math.clamp(hum.Health / math.max(1, hum.MaxHealth), 0, 1)
 			hpBar.Size = UDim2.fromScale(k, 1)
-			hpBar.BackgroundColor3 = if k < 0.3 then RED else CHALK
+			hpBar.BackgroundColor3 = healthColor(k)
 			-- the red edges: a flash when hit, a slow pulse while low
 			local low = if k < 0.3 and hum.Health > 0 then 0.25 + 0.15 * math.sin(os.clock() * 5) else 0
 			hurtK = math.max(0, hurtK - 1.6 * dt)
@@ -391,6 +439,12 @@ function Hud.init()
 		local w = if type(wname) == "string" then Weapons[wname] else nil
 		-- the crosshair: wide with a gun, tight while aiming, small with a melee weapon (you swing where it is)
 		cross.Visible = w ~= nil and (w.slot == "gun" or CameraAim.mouseLook())
+		-- crouched with a gun: dimmed (it won't fire till you stand)
+		local crossFade = if w and w.slot == "gun" and char and char:GetAttribute("Crouch") ~= nil then 0.65 else 0
+		dot.BackgroundTransparency = crossFade
+		for _, ct in crossTicks do
+			ct.frame.BackgroundTransparency = crossFade
+		end
 		local wantGap
 		if w and w.slot == "gun" then
 			weapon.Text = w.label

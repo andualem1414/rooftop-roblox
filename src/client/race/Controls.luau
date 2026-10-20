@@ -5,6 +5,8 @@
 --   aim (right mouse / L2 / the touch Aim button, which toggles): with a gun, aim (tighter view, steadier
 --        shot); with a melee weapon, guard
 --   reload (R / X / the touch Reload button)
+--   crouch (C or Left Ctrl / R3 / the touch Crouch button; again, or jump, to stand): down behind cover,
+--        slow; the gun doesn't fire till you stand (the server holds you to it too)
 --   swap weapons (Q / Y / the touch Swap button), or Roblox's backpack: 1 / 2, tapping the slot
 --   pick up (E / B / tapping the prompt): the pickups' own ProximityPrompts
 -- The tools only fire when this says so (ManualActivationOnly): tapping the world on a phone doesn't
@@ -21,6 +23,7 @@ local Net = require(ReplicatedStorage.Shared.Net)
 local CameraAim = require(script.Parent.CameraAim)
 local Fx = require(script.Parent.Fx)
 local Poser = require(script.Parent.Poser)
+local Hud = require(script.Parent.Hud)
 local Audio = require(script.Parent.Parent:WaitForChild("Common"):WaitForChild("Audio")) :: any
 
 local player = Players.LocalPlayer
@@ -29,6 +32,7 @@ local Swing = Net.event("Swing")
 local Shoot = Net.event("Shoot")
 local Guard = Net.event("Guard")
 local Reload = Net.event("Reload")
+local Crouch = Net.event("Crouch")
 local Look = Net.unreliable("Look")
 
 local Controls = {}
@@ -37,6 +41,8 @@ local lastUse = 0
 local aimHeld = false
 local guarding = false
 local firing = false -- the fire button is held
+local crouched = false -- down (asked for; the server's Crouch attribute on the body follows)
+local lastInput = "key" -- what you play with, for the hints: "key", "pad" or "touch"
 -- your swings alternate forehand / backhand when one follows the last within the combo window (as the
 -- server counts them in shared/Combat), so your own arms can start the right one at once
 local COMBO_WINDOW = 0.45
@@ -64,6 +70,16 @@ local function use()
 	-- don't ask faster than the weapon allows (the server checks this too)
 	local now = os.clock()
 	if now - lastUse < (w.windup + w.strike + w.recover) * 0.97 then
+		return
+	end
+	if w.slot == "gun" and (crouched or char:GetAttribute("Crouch") ~= nil) then
+		-- crouched: stand up to shoot
+		Hud.hint(
+			if lastInput == "pad"
+				then "Stand up to shoot (R3)"
+				elseif lastInput == "touch" then "Stand up to shoot"
+				else "Stand up to shoot (C)"
+		)
 		return
 	end
 	lastUse = now
@@ -111,6 +127,30 @@ local function setAim(on: boolean)
 	end
 end
 
+-- down behind cover, or up again (jumping stands you up too: no jumping from a crouch)
+local function setCrouch(on: boolean)
+	local char = player.Character
+	local hum = char and char:FindFirstChildOfClass("Humanoid")
+	if on == crouched or not hum then
+		return
+	end
+	if on and (hum.Health <= 0 or CameraAim.cinematic or hum.FloorMaterial == Enum.Material.Air) then
+		return
+	end
+	crouched = on
+	hum:SetStateEnabled(Enum.HumanoidStateType.Jumping, not on)
+	Crouch:FireServer(on)
+	if on and char then
+		-- the server said no (getting ready, a set piece): standing after all
+		task.delay(0.8, function()
+			if crouched and player.Character == char and char:GetAttribute("Crouch") == nil then
+				crouched = false
+				hum:SetStateEnabled(Enum.HumanoidStateType.Jumping, true)
+			end
+		end)
+	end
+end
+
 -- the other weapon in hand (Q / Y / the touch Swap button)
 local function swap()
 	local char = player.Character
@@ -145,6 +185,17 @@ local function hookCharacter(char: Model)
 	CameraAim.set(false)
 	guarding = false
 	firing = false
+	crouched = false -- (a new body stands)
+	-- the server stood you up (a set piece, the jets, a knock-out): so are you
+	char:GetAttributeChangedSignal("Crouch"):Connect(function()
+		if char == player.Character and char:GetAttribute("Crouch") == nil and crouched then
+			crouched = false
+			local h = char:FindFirstChildOfClass("Humanoid")
+			if h then
+				h:SetStateEnabled(Enum.HumanoidStateType.Jumping, true)
+			end
+		end
+	end)
 	-- you don't trip over or climb walls (your client owns your body, so it decides this)
 	local hum = char:WaitForChild("Humanoid", 10) :: Humanoid?
 	if hum then
@@ -206,12 +257,19 @@ local function bindButtons()
 		end
 		return Enum.ContextActionResult.Sink
 	end, true, Enum.KeyCode.ButtonY)
+	ContextActionService:BindAction("RooftopCrouch", function(_, state: Enum.UserInputState)
+		if state == Enum.UserInputState.Begin then
+			setCrouch(not crouched)
+		end
+		return Enum.ContextActionResult.Sink
+	end, true, Enum.KeyCode.C, Enum.KeyCode.LeftControl, Enum.KeyCode.ButtonR3)
 	-- round the jump button: fire biggest and nearest the thumb
 	local layout = {
 		RooftopFire = { "Fire", UDim2.new(1, -95, 1, -205), 78 },
 		RooftopAim = { "Aim", UDim2.new(1, -185, 1, -175), 58 },
 		RooftopReload = { "Reload", UDim2.new(1, -170, 1, -95), 50 },
 		RooftopSwap = { "Swap", UDim2.new(1, -60, 1, -280), 50 },
+		RooftopCrouch = { "Crouch", UDim2.new(1, -255, 1, -120), 50 },
 	}
 	for action, l in layout do
 		ContextActionService:SetTitle(action, l[1])
@@ -239,6 +297,22 @@ function Controls.init()
 	end
 	player.CharacterAdded:Connect(hookCharacter)
 	bindButtons()
+
+	-- jump to stand up
+	UserInputService.JumpRequest:Connect(function()
+		if crouched then
+			setCrouch(false)
+		end
+	end)
+	UserInputService.LastInputTypeChanged:Connect(function(t: Enum.UserInputType)
+		if t == Enum.UserInputType.Touch then
+			lastInput = "touch"
+		elseif t.Name:sub(1, 7) == "Gamepad" then
+			lastInput = "pad"
+		elseif t == Enum.UserInputType.Keyboard or t.Name:sub(1, 5) == "Mouse" then
+			lastInput = "key"
+		end
+	end)
 
 	UserInputService.InputBegan:Connect(function(input: InputObject, processed: boolean)
 		if input.UserInputType == Enum.UserInputType.MouseButton2 then
