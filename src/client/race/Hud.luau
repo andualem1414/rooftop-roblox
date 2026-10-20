@@ -166,13 +166,21 @@ function Hud.init()
 	-- crosshair: four short ticks round a dot. The gap shows how true a shot goes: the gun's own spread,
 	-- tighter while aiming, blooming out with the kick while you fire and settling back; small and tight
 	-- with a melee weapon (you swing where it is)
+	-- the crosshair's layer covers the whole screen, Roblox's top bar too, so its middle is the screen's
+	-- middle: where shots go (CameraAim.ray). On the HUD's own layer (below the top bar) it sat half the
+	-- bar's height too low, and shots landed above it.
+	local center = Instance.new("ScreenGui")
+	center.Name = "RaceCrosshair"
+	center.ResetOnSpawn = false
+	center.IgnoreGuiInset = true
+	center.Parent = gui.Parent
 	local cross = Instance.new("Frame")
 	cross.Name = "Crosshair"
 	cross.BackgroundTransparency = 1
 	cross.Size = UDim2.fromOffset(64, 64)
 	cross.Position = UDim2.fromScale(0.5, 0.5)
 	cross.AnchorPoint = Vector2.new(0.5, 0.5)
-	cross.Parent = gui
+	cross.Parent = center
 	local crossTicks: { { frame: Frame, dir: Vector2 } } = {}
 	for _, d in { Vector2.new(0, -1), Vector2.new(0, 1), Vector2.new(-1, 0), Vector2.new(1, 0) } do
 		local tick = Instance.new("Frame")
@@ -194,7 +202,7 @@ function Hud.init()
 	local crossGap = 9
 
 	-- the hint under the crosshair
-	local hint = label(gui, "Hint", UDim2.fromOffset(400, 24), UDim2.new(0.5, 0, 0.5, 46), Vector2.new(0.5, 0), 18)
+	local hint = label(center, "Hint", UDim2.fromOffset(400, 24), UDim2.new(0.5, 0, 0.5, 46), Vector2.new(0.5, 0), 18)
 	hint.Font = Ui.TITLE
 	hint.TextTransparency = 1
 	hint.TextStrokeTransparency = 1
@@ -314,7 +322,7 @@ function Hud.init()
 	marker.Size = UDim2.fromOffset(34, 34)
 	marker.Position = UDim2.fromScale(0.5, 0.5)
 	marker.AnchorPoint = Vector2.new(0.5, 0.5)
-	marker.Parent = gui
+	marker.Parent = center
 	local markerScale = Instance.new("UIScale")
 	markerScale.Parent = marker
 	local ticks = {}
@@ -378,6 +386,7 @@ function Hud.init()
 		if show ~= hudShown then
 			hudShown = show
 			gui.Enabled = show
+			center.Enabled = show
 			pcall(StarterGui.SetCoreGuiEnabled, StarterGui, Enum.CoreGuiType.Backpack, show)
 		end
 		local phase = state:GetAttribute("Phase")

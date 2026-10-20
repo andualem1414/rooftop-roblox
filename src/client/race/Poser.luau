@@ -339,6 +339,12 @@ local PUMP = 0.4 -- studs the shotgun's pump travels
 local SLIDE = 0.22 -- studs the pistol's slide snaps back
 -- drawing a weapon: a gun comes up from the hip, a bat or sword over the shoulder (DRAW seconds)
 local DRAW = 0.32
+-- Your own gun, on your own screen: the camera sits behind you, over the right shoulder, so a gun held in
+-- the middle of the chest was hidden by your back, your head and your hair. Yours is held out to the right
+-- (this far, in studs, in the aim's frame) with the chest turned a little so the other hand still gets to
+-- it. Everyone else (and the server's shot) sees the usual stance.
+local OWN_GUN = Vector3.new(1.0, 0.65, 0)
+local OWN_BLADE = -0.45
 local HOLSTER = { hand = Vector3.new(0.8, -0.75, 0.05), dir = Vector3.new(0, -1, 0.12).Unit }
 local OVER_SHOULDER = { hand = Vector3.new(0.5, 1.15, 0.35), dir = Vector3.new(0.1, 0.45, 0.88).Unit }
 
@@ -1332,10 +1338,16 @@ local function pose(r: Rig, dt: number, now: number, others: { Model })
 		local aimW, adsW = ease(r.aimW), ease(r.adsW)
 		-- the stance: side-on behind a long gun, as far as it's up (standing, the feet turn with it)
 		chestYaw = lerp(st.lowBlade, st.blade, aimW) * (1 - 0.15 * adsW * aimW)
+		if mine then
+			chestYaw += OWN_BLADE * aimW
+		end
 		b.rootYaw += chestYaw * 0.35 * idleK
 		-- the arms take the aim the chest doesn't (the chest's lean and breathing don't tip the gun)
 		b.chestPitch += pitch * 0.25 * aimW
 		local hand = st.low:Lerp(st.ready, aimW):Lerp(st.ads, adsW * aimW) * k
+		if mine then
+			hand += OWN_GUN * aimW * k
+		end
 		local dir = st.lowDir.Unit:Lerp(v(0, 0, -1), aimW).Unit
 		local up = v(0, 1, 0)
 		-- in step: the gun bobs and sways with the stride, and breathes

@@ -272,7 +272,10 @@ local function shot(model: Instance, from: Vector3, to: Vector3, kind: string, w
 		lastMuzzle[model] = now
 		muzzle(model, weapon, from, d.Unit)
 	end
-	tracer(from, to, color)
+	-- your own streak leaves the gun as you see it (on your screen it's held out to the right:
+	-- client/race/Poser), not where the server has it
+	local seenFrom = if model == player.Character then muzzleOf(model) else nil
+	tracer(seenFrom or from, to, color)
 	whiz(model, from, to)
 	if kind == "wall" then
 		Audio.play("impact", to)
