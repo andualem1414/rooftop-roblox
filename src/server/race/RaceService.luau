@@ -215,9 +215,11 @@ local function onSkydive(player: Player, what: unknown, rings: unknown)
 	end
 	local sky = state:GetAttribute("Skydive")
 	if what == "launch" and sky == "ready" then
+		-- on the pad, as this server sees them (a few studs' slack: their own screen is a moment ahead)
 		local p = c.root.Position
 		local x, y, z = Skydive.padAt()
-		if not Skydive.onPad(p.X, p.Z) or math.abs(p.Y - 3 - y) > 6 then
+		local near = Vector3.new(p.X - x, 0, p.Z - z).Magnitude < Skydive.PAD.r + 4
+		if not near or math.abs(p.Y - 3 - y) > 6 then
 			return
 		end
 		state:SetAttribute("Skydive", "flying")

@@ -380,22 +380,23 @@ end
 
 function SkydiveFlight.init()
 	local state = ReplicatedStorage:WaitForChild("RaceState")
-	local asked = false
+	local askedAt = -math.huge
 	local function onSky()
 		local sky = state:GetAttribute("Skydive")
 		if sky == "ready" then
 			clear()
 			buildPad()
-			asked = false
+			askedAt = -math.huge
 		elseif sky == "" or sky == nil then
 			clear()
 		end
 	end
 	state:GetAttributeChangedSignal("Skydive"):Connect(onSky)
 	onSky()
-	-- the winner on the pad: tell the server (once)
+	-- the winner on the pad: tell the server, and again every so often while they stand there (the server
+	-- sees you a moment late: stepping on at the edge, it can still have you just off the pad and say no)
 	RunService.Heartbeat:Connect(function()
-		if asked or state:GetAttribute("Skydive") ~= "ready" then
+		if os.clock() - askedAt < 0.25 or state:GetAttribute("Skydive") ~= "ready" then
 			return
 		end
 		local char = player.Character
@@ -406,7 +407,7 @@ function SkydiveFlight.init()
 		end
 		local _, y = Skydive.padAt()
 		if Skydive.onPad(root.Position.X, root.Position.Z) and math.abs(root.Position.Y - 3 - y) < 6 then
-			asked = true
+			askedAt = os.clock()
 			Net.event("Skydive"):FireServer("launch")
 		end
 	end)
