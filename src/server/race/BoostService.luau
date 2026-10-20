@@ -72,20 +72,56 @@ local function buildPad(floor: number, parent: Instance)
 		Color3.fromRGB(30, 26, 40),
 		Enum.Material.SmoothPlastic
 	)
-	-- an up arrow in the middle
-	for _, a in { 1, -1 } do
-		local p = Instance.new("Part")
-		p.Name = "Arrow"
-		p.Size = Vector3.new(0.4, 0.1, r * 0.75)
-		p.CFrame = CFrame.new(x, y + 0.42, z) * CFrame.Angles(0, math.rad(45 + a * 35), 0) * CFrame.new(0, 0, -r * 0.18)
-		p.Color = GOLD
-		p.Material = Enum.Material.Neon
-		p.Anchored = true
-		p.CanCollide = false
-		p.CanQuery = false
-		p.CanTouch = false
-		p.Parent = model
-	end
+	-- a launch pad (two flat bars for an arrow read as a clock's hands from above): a lit inner ring, a
+	-- column of light going up, gold sparks rising off it, and its name over it
+	disc("InnerRing", Vector3.new(0.4, r * 1.1, r * 1.1), 0.2, GOLD, Enum.Material.Neon)
+	disc(
+		"InnerCore",
+		Vector3.new(0.44, r * 1.1 - 0.5, r * 1.1 - 0.5),
+		0.22,
+		Color3.fromRGB(30, 26, 40),
+		Enum.Material.SmoothPlastic
+	)
+	local beam = disc("Beam", Vector3.new(7, r * 1.5, r * 1.5), 3.7, GOLD, Enum.Material.Neon)
+	beam.Transparency = 0.86
+	beam.CastShadow = false
+	local emitter = Instance.new("Part")
+	emitter.Name = "Sparks"
+	emitter.Size = Vector3.new(r * 1.3, 0.1, r * 1.3)
+	emitter.CFrame = CFrame.new(x, y + 0.3, z)
+	emitter.Transparency = 1
+	emitter.Anchored = true
+	emitter.CanCollide = false
+	emitter.CanQuery = false
+	emitter.CanTouch = false
+	emitter.Parent = model
+	local sparks = Instance.new("ParticleEmitter")
+	sparks.EmissionDirection = Enum.NormalId.Top
+	sparks.Rate = 14
+	sparks.Lifetime = NumberRange.new(0.8, 1.3)
+	sparks.Speed = NumberRange.new(5, 9)
+	sparks.SpreadAngle = Vector2.new(4, 4)
+	sparks.Color = ColorSequence.new(GOLD)
+	sparks.LightEmission = 1
+	sparks.Size = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0.28), NumberSequenceKeypoint.new(1, 0) })
+	sparks.Transparency = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0.1), NumberSequenceKeypoint.new(1, 1) })
+	sparks.Parent = emitter
+	local sign = Instance.new("BillboardGui")
+	sign.Name = "Label"
+	sign.Size = UDim2.fromOffset(150, 34)
+	sign.StudsOffset = Vector3.new(0, 7.5, 0)
+	sign.MaxDistance = 90
+	sign.LightInfluence = 0
+	local text = Instance.new("TextLabel")
+	text.BackgroundTransparency = 1
+	text.Size = UDim2.fromScale(1, 1)
+	text.Font = Enum.Font.LuckiestGuy
+	text.TextScaled = true
+	text.TextColor3 = GOLD
+	text.TextStrokeTransparency = 0.3
+	text.Text = "BOOST UP"
+	text.Parent = sign
+	sign.Parent = emitter
 	local light = Instance.new("PointLight")
 	light.Color = GOLD
 	light.Range = 10

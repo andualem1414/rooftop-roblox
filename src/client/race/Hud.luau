@@ -442,6 +442,14 @@ function Hud.init()
 			end
 			hpText.Text = if hum.Health <= 0 then "Knocked out" else `{math.ceil(hum.Health)}`
 		end
+		if player:GetAttribute("Out") == true then
+			-- out of the race (watching the others: client/race/Spectate)
+			hpText.Text = "Out"
+			hpBar.Size = UDim2.fromScale(0, 1)
+			for _, f in edges do
+				f.BackgroundTransparency = 1
+			end
+		end
 
 		local tool = char and char:FindFirstChildOfClass("Tool")
 		local wname = tool and tool:GetAttribute("Weapon")

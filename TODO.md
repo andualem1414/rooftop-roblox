@@ -163,6 +163,15 @@ Camera, look, sound
 
 ## Done
 
+- [x] 2026-10-20 — **Out once the roof is open, one wall cut, a real boost pad** (the user's playtest asks;
+  checked in a Studio playtest): a knock-out after the roof opens is final: bots are removed, a player is
+  marked Out and watches the climbers still in (`client/race/Spectate`: Prev / Next, ← / →, L1 / R1; Main
+  screen, or Play again in Studio); nobody left in ends the race with no winner. The outer wall on the
+  camera's side of you (or of whoever you watch) is cut away, one wall only, and the camera stays out past
+  it (`Cutaway`; `Tower` tags each wall piece with its Side). The boost pad's flat arrow read as clock hands:
+  now an inner ring, a column of light, rising sparks and a BOOST UP label. Also: crosshair on the shot's
+  line, your own gun held where your camera sees it, the skydive pad launches reliably. Studio hook
+  `RooftopDev:Invoke("ko", who)`.
 - [x] 2026-10-20 — **Cover, crouching, fairer bots, one health bar** (the user's playtest asks; written,
   waiting on the user's own playtest): C / Left Ctrl / R3 / a touch Crouch button crouches (again or jump to
   stand): the server lowers the body by `Config.CROUCH_DROP` of its hip height (the hitbox too), half speed,

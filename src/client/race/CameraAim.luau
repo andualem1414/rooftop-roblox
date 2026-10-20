@@ -24,6 +24,9 @@ local gameSettings = UserSettings():GetService("UserGameSettings")
 local CameraAim = {}
 CameraAim.aiming = false
 CameraAim.cinematic = false -- a set piece (Cinematic.luau) has the camera
+-- out of the race, watching someone (client/race/Spectate): Roblox's own camera orbits them (drag to look
+-- round, the wheel zooms) and the cursor is free for the buttons
+CameraAim.watching = nil :: Model?
 
 local SHOULDER = Vector3.new(1.9, 0.4, 0) -- right, up (studs, in the camera's frame)
 local AIM_SHOULDER = Vector3.new(2.2, 0.6, 0)
@@ -218,6 +221,20 @@ local function update(dt: number)
 		return
 	end
 	local camera = workspace.CurrentCamera
+	local watched = CameraAim.watching
+	if watched then
+		locked, wasLocked = false, false
+		UserInputService.MouseBehavior = Enum.MouseBehavior.Default
+		UserInputService.MouseIconEnabled = true
+		if camera.CameraType ~= Enum.CameraType.Custom then
+			camera.CameraType = Enum.CameraType.Custom
+		end
+		local subject = watched:FindFirstChildOfClass("Humanoid")
+		if subject and camera.CameraSubject ~= subject then
+			camera.CameraSubject = subject
+		end
+		return
+	end
 	local char = player.Character
 	local hum = char and char:FindFirstChildOfClass("Humanoid")
 	local root = char and char:FindFirstChild("HumanoidRootPart") :: BasePart?

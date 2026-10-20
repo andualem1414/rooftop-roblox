@@ -12,6 +12,9 @@
 --   starts), RoofOpen, Winner (name, "" if nobody), WinnerId (the winner's UserId, 0 for a bot or nobody:
 --   display names aren't unique), Race (a number, +1 each race), Skydive ("" / "ready" / "flying" / "done":
 --   the winner's skydive, shared/Skydive). The winner's body carries Escaped = true.
+-- Once the roof is open a knock-out is final: the climber is out of the race (a bot is gone; a player
+-- watches the others, client/race/Spectate, and may leave), their player carrying Out = true. With
+-- nobody left in, the race ends with no winner.
 -- A player who wins gets the skydive: a pad on the roof flings them out over the valley to glide through
 -- rings. Nothing restarts by itself: once the race is over the winner explores the roof, takes the skydive
 -- or ends the game, and everyone else sees the result and goes back to the main screen (the lobby place)
@@ -148,12 +151,46 @@ local function spawn(c: Climber, floor: number)
 	end
 end
 
+-- out of the race (knocked out after the roof opened): the body goes once it has faded; a bot goes with
+-- it, a player stays on the list (their race still counts) and watches the others
+local function eliminate(c: Climber)
+	c.out = true
+	Feed:FireAllClients(`{c.name} is out of the race`, "ko")
+	local p = c.player
+	if p then
+		p:SetAttribute("Out", true)
+		Notice:FireClient(p, "You're out: the roof is open, so there's no coming to.", "bad")
+	end
+	local race = raceNo
+	task.delay(Config.KNOCKED_OUT_FOR, function()
+		if race ~= raceNo then
+			return
+		end
+		local model = c.model
+		Climbers.dropModel(c)
+		if p and p.Character == model then
+			p.Character = nil
+		end
+		if model then
+			model:Destroy()
+		end
+		if c.kind == "bot" then
+			CombatService.unregister(c)
+			Climbers.remove(c)
+		end
+	end)
+end
+
 local function onKnockedOut(c: Climber, _by: Climber?)
 	Pickups.dropFrom(c)
+	if roofOpen then
+		eliminate(c)
+		return
+	end
 	local race = raceNo
 	local floor = c.floor
 	task.delay(Config.KNOCKED_OUT_FOR, function()
-		if race ~= raceNo or finished or not table.find(Climbers.all(), c) then
+		if race ~= raceNo or finished or c.out or not table.find(Climbers.all(), c) then
 			return
 		end
 		local to = Rules.comeToFloor(floor, function(a, b)
@@ -241,9 +278,25 @@ local function goHome(p: Player)
 	end
 end
 
--- the race is over for this player (they pressed Main screen / End game, or the skydive ended)
+-- the race is over for this player (they pressed Main screen / End game, or the skydive ended; or they're
+-- out of the race and leave rather than watch the rest)
 local function onFinish(p: Player, what: unknown)
-	if what ~= "leave" or state:GetAttribute("Phase") ~= "over" then
+	if what ~= "leave" then
+		return
+	end
+	local phase = state:GetAttribute("Phase")
+	local c = Climbers.forPlayer(p)
+	if phase ~= "over" and c and c.out and (phase == "climb" or phase == "roof") then
+		if RESERVED then
+			goHome(p)
+		elseif STUDIO then
+			-- (Studio: no lobby to go back to; the next race starts, as Play again does at the end)
+			skipCelebration = true
+			finished = true
+		end
+		return
+	end
+	if phase ~= "over" then
 		return
 	end
 	if RESERVED then
@@ -324,6 +377,9 @@ local function runRace()
 	state:SetAttribute("StartAt", 0)
 	state:SetAttribute("RoofSceneAt", nil)
 	state:SetAttribute("Skydive", "")
+	for _, p in Players:GetPlayers() do
+		p:SetAttribute("Out", nil)
+	end
 	setPhase("waiting")
 	while #Players:GetPlayers() == 0 do
 		task.wait(0.5)
@@ -409,7 +465,7 @@ local function runRace()
 			state:SetAttribute("RoofOpen", true)
 			setPhase("roof")
 			tower.openHatch()
-			Notice:FireAllClients("The roof is open!", "roof")
+			Notice:FireAllClients("The roof is open! Get knocked out now and you're out.", "roof")
 			-- everyone stops for a moment to watch it open (every camera goes to the roof)
 			state:SetAttribute("RoofSceneAt", now())
 			freezeAll(true)
@@ -423,6 +479,18 @@ local function runRace()
 		PlatformService.step(t, roofOpen)
 		if finished or t >= Config.RACE_LIMIT then
 			break
+		end
+		-- everyone's out: nobody can win
+		if roofOpen then
+			local left = 0
+			for _, c in Climbers.all() do
+				if not c.out then
+					left += 1
+				end
+			end
+			if left == 0 then
+				break
+			end
 		end
 		RunService.Heartbeat:Wait()
 	end
@@ -516,7 +584,8 @@ function RaceService.start(t: Tower.Tower)
 	Purchases.init(BoostService.onCredit)
 
 	-- Studio only: test hooks (`RooftopDev:Invoke(...)`): "skip" seconds of the race clock, "win" (the first
-	-- player gets out), "restart" the race, "give" the first player a weapon
+	-- player gets out), "restart" the race, "give" the first player a weapon, "ko" knocks someone out (the
+	-- first player; "bot": the first bot still up; or a climber's name)
 	if RunService:IsStudio() then
 		local dev = Instance.new("BindableFunction")
 		dev.Name = "RooftopDev"
@@ -543,6 +612,17 @@ function RaceService.start(t: Tower.Tower)
 					end
 					Tools.sync(c)
 					Tools.publish(c)
+				end
+			elseif cmd == "ko" then
+				for _, c in Climbers.all() do
+					local pick = if arg == nil
+						then c.kind == "player"
+						elseif arg == "bot" then c.kind == "bot"
+						else c.name == arg
+					if pick and c.model and not c.fighter.dead then
+						CombatService.knockOut(c, nil, "test")
+						break
+					end
 				end
 			elseif cmd == "restart" then
 				-- end this race at once (no winner, no celebration): the next one starts

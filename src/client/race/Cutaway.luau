@@ -3,6 +3,10 @@
 -- above. Only on your screen: each client hides the floors above its own player, and anyone or
 -- anything up there (pickup labels included). Parts that reach the client late are hidden as they
 -- arrive, so this holds even with instance streaming on.
+-- The outer wall between the camera and you is cut away too, like the original's dollhouse view, but only
+-- one wall (the floors are big here): the one on the camera's side of you, kept until another is clearly
+-- more so (no flicker at a corner). The camera then stays out past it (client/race/CameraAim).
+-- While you watch someone else (out of the race: client/race/Spectate) all of this follows them.
 -- Hidden floors are only not drawn (LocalTransparencyModifier): to the lighting they're still there,
 -- like the original's invisible-but-shadowing ceiling. Making them truly transparent changed the
 -- building's shape for the lighting, which took seconds to catch up: rooms started dark.
@@ -19,6 +23,7 @@ local Cutaway = {}
 
 local shown = math.huge -- the highest floor shown (everything above it is hidden)
 local suspended = false -- a set piece wants the whole tower shown
+Cutaway.focus = nil :: Model? -- whose floor is shown (nil: your own body); Spectate sets the one you watch
 
 local function setPart(d: Instance, hidden: boolean)
 	if d:IsA("BasePart") then
@@ -47,6 +52,34 @@ end
 -- whether the floor is hidden now: a new cut only touches the floors that change side
 local floors: { [number]: { [Instance]: boolean } } = {}
 local hiddenFloors: { [number]: boolean } = {}
+-- each floor's outer walls, by side ("+x", "-x", "+z", "-z": server/common/Tower tags the parts)
+local sides: { [number]: { [string]: { [BasePart]: boolean } } } = {}
+local cutFloor: number?, cutSide: string? = nil, nil
+
+local function showSide(f: number, side: string, cut: boolean)
+	local set = sides[f] and sides[f][side]
+	if not set then
+		return
+	end
+	local hide = cut or hiddenFloors[f] == true
+	for p in set do
+		p.LocalTransparencyModifier = if hide then 1 else 0
+	end
+end
+
+-- cut away this wall (nil: none), putting the last one back
+local function setCut(f: number?, side: string?)
+	if f == cutFloor and side == cutSide then
+		return
+	end
+	if cutFloor and cutSide then
+		showSide(cutFloor, cutSide, false)
+	end
+	cutFloor, cutSide = f, side
+	if f and side then
+		showSide(f, side, true)
+	end
+end
 
 local function apply(top: number)
 	shown = top
@@ -58,6 +91,9 @@ local function apply(top: number)
 				setPart(d, hidden)
 			end
 		end
+	end
+	if cutFloor and cutSide then
+		showSide(cutFloor, cutSide, true) -- (a floor shown again comes back whole: keep its cut)
 	end
 end
 
@@ -135,9 +171,17 @@ local function hideAbove(cutY: number)
 	end
 end
 
-local function track(items: { [Instance]: boolean }, d: Instance)
+local function track(f: number, items: { [Instance]: boolean }, d: Instance)
 	if d:IsA("BasePart") or d:IsA("Light") or d:IsA("SurfaceGui") then
 		items[d] = true
+	end
+	local side = d:GetAttribute("Side")
+	if d:IsA("BasePart") and type(side) == "string" then
+		local bySide = sides[f] or {}
+		sides[f] = bySide
+		local set = bySide[side] or {}
+		bySide[side] = set
+		set[d] = true
 	end
 end
 
@@ -145,13 +189,15 @@ local function watch(tower: Instance)
 	shown = math.huge
 	table.clear(floors)
 	table.clear(hiddenFloors)
+	table.clear(sides)
+	cutFloor, cutSide = nil, nil
 	for _, m in tower:GetChildren() do
 		local f = m:GetAttribute("Floor")
 		if type(f) == "number" then
 			local items = floors[f] or {}
 			floors[f] = items
 			for _, d in m:GetDescendants() do
-				track(items, d)
+				track(f, items, d)
 			end
 		end
 	end
@@ -162,7 +208,7 @@ local function watch(tower: Instance)
 		end
 		local items = floors[f] or {}
 		floors[f] = items
-		track(items, d)
+		track(f, items, d)
 		if items[d] and hiddenFloors[f] then
 			setPart(d, true)
 		end
@@ -172,6 +218,11 @@ local function watch(tower: Instance)
 		local items = f and floors[f]
 		if items then
 			items[d] = nil
+		end
+		local side = d:GetAttribute("Side")
+		local set = f and type(side) == "string" and sides[f] and sides[f][side]
+		if set then
+			set[d :: BasePart] = nil
 		end
 	end)
 end
@@ -240,6 +291,33 @@ function Cutaway.init()
 		end
 	end)
 
+	-- the wall on the camera's side of you (every frame: the camera swings fast)
+	RunService.RenderStepped:Connect(function()
+		local char = Cutaway.focus or player.Character
+		local root = char and char:FindFirstChild("HumanoidRootPart") :: BasePart?
+		if suspended or not root or shown >= Config.FLOORS then
+			setCut(nil, nil)
+			return
+		end
+		local cam = workspace.CurrentCamera.CFrame.Position
+		local v = Vector3.new(cam.X - root.Position.X, 0, cam.Z - root.Position.Z)
+		if v.Magnitude < 0.5 then
+			return -- (straight above: keep what's cut)
+		end
+		v = v.Unit
+		local dots = { ["+x"] = v.X, ["-x"] = -v.X, ["+z"] = v.Z, ["-z"] = -v.Z }
+		local best, bd = nil, 0.2
+		for side, d in dots do
+			if d > bd then
+				best, bd = side, d
+			end
+		end
+		if cutSide and cutFloor == shown and dots[cutSide] > 0.2 and dots[cutSide] > bd - 0.25 then
+			best = cutSide
+		end
+		setCut(if best then shown else nil, best)
+	end)
+
 	local acc = 0
 	RunService.RenderStepped:Connect(function(dt: number)
 		acc += dt
@@ -247,7 +325,7 @@ function Cutaway.init()
 			return
 		end
 		acc = 0
-		local char = player.Character
+		local char = Cutaway.focus or player.Character
 		local root = char and char:FindFirstChild("HumanoidRootPart") :: BasePart?
 		local hum = char and char:FindFirstChildOfClass("Humanoid")
 		local top = Config.FLOORS

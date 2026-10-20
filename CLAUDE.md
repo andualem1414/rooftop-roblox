@@ -68,7 +68,8 @@ powershell -ExecutionPolicy Bypass -File publish\publish.ps1   # publish both pl
   again (Studio) or Main screen (live) on the end card; the winner has End game (G).
 - Skip the race clock in a test (Studio only): `game.ServerStorage.RooftopDev:Invoke("skip", seconds)` from the
   server command bar or the MCP's execute_luau. Also `("restart")` (end the race now), `("win")` (the first
-  player gets out) and `("give", "rifle")` (the first player gets a weapon).
+  player gets out), `("give", "rifle")` (the first player gets a weapon) and `("ko")` / `("ko", "bot")` /
+  `("ko", name)` (knock someone out; after the roof opens that puts them out of the race).
 - A running playtest keeps the code it started with: stop and play again after a change. Rojo syncs file
   changes but not changes to a `*.project.json` tree: restart `rojo serve` after editing one (and reconnect).
 - The lobby in Studio: `rojo build lobby.project.json -o build/lobby.rbxl`, open it in a second Studio window,

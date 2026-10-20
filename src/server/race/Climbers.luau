@@ -18,6 +18,7 @@ export type Climber = {
 	floor: number, -- the floor they're on (FLOORS = the roof)
 	frozen: boolean, -- getting ready, or the race is over: no moving, no fighting
 	knockedAt: number?, -- os.clock() when they went down
+	out: boolean, -- knocked out after the roof opened: out of the race for good (no coming to)
 	knockouts: number, -- climbers they knocked out this race
 	highest: number, -- highest floor reached this race
 	brain: any, -- bots only (Bots.luau)
@@ -43,6 +44,7 @@ function Climbers.add(name: string, kind: "player" | "bot", player: Player?): Cl
 		floor = 0,
 		frozen = false,
 		knockedAt = nil,
+		out = false,
 		knockouts = 0,
 		highest = 0,
 		brain = nil,
@@ -65,6 +67,14 @@ end
 function Climbers.clear()
 	table.clear(list)
 	table.clear(byModel)
+end
+
+-- let go of a climber's body (it's being taken away: out of the race)
+function Climbers.dropModel(c: Climber)
+	if c.model then
+		byModel[c.model] = nil
+	end
+	c.model, c.humanoid, c.root = nil, nil, nil
 end
 
 -- attach a (new) character model to a climber

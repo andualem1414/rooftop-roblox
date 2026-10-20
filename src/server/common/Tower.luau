@@ -118,14 +118,19 @@ local function wall(parent: Instance, side: string, y0: number, y1: number, th: 
 		mat: Enum.Material?
 	): Part
 		local a, b = F - d1, F - d0
+		local p
 		if side == "+x" then
-			return box(parent, "Wall", a, b, v0, v1, u0, u1, color, mat)
+			p = box(parent, "Wall", a, b, v0, v1, u0, u1, color, mat)
 		elseif side == "-x" then
-			return box(parent, "Wall", -b, -a, v0, v1, u0, u1, color, mat)
+			p = box(parent, "Wall", -b, -a, v0, v1, u0, u1, color, mat)
 		elseif side == "+z" then
-			return box(parent, "Wall", u0, u1, v0, v1, a, b, color, mat)
+			p = box(parent, "Wall", u0, u1, v0, v1, a, b, color, mat)
+		else
+			p = box(parent, "Wall", u0, u1, v0, v1, -b, -a, color, mat)
 		end
-		return box(parent, "Wall", u0, u1, v0, v1, -b, -a, color, mat)
+		-- which wall it's part of: the one between the camera and you is cut away (client/race/Cutaway)
+		p:SetAttribute("Side", side)
+		return p
 	end
 	local inner = F - WALL
 	local top = y0 + SILL + WIN_H
