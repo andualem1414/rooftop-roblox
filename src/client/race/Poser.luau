@@ -831,7 +831,7 @@ type Body = {
 	lift: { number }, -- per leg: a step's lift
 }
 
-local function sense(r: Rig, dt: number, now: number)
+local function sense(r: Rig, dt: number)
 	local root, hum = r.root, r.hum
 	local pos = root.Position
 	-- velocity from where it went (the jets and the skydive move the body by hand, at zero velocity)
@@ -1024,7 +1024,7 @@ local function pose(r: Rig, dt: number, now: number, others: { Model })
 	if not r.animator then
 		r.animator = hum:FindFirstChildOfClass("Animator") -- (a bot's arrives after its body)
 	end
-	sense(r, dt, now)
+	sense(r, dt)
 	local mine = model == player.Character
 	if alive then
 		lookAround(r, dt, others)
@@ -1636,9 +1636,7 @@ local function ownGait()
 		local name = anim and anim.Name
 		if name == "RunAnim" or name == "WalkAnim" then
 			local s = tr.Speed
-			if r.backward and s > 0 then
-				tr:AdjustSpeed(-s)
-			elseif not r.backward and s < 0 then
+			if (r.backward and s > 0) or (not r.backward and s < 0) then
 				tr:AdjustSpeed(-s)
 			end
 		end
