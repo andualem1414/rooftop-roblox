@@ -148,15 +148,23 @@ task.spawn(function()
 		ContentProvider:PreloadAsync(toLoad)
 	end)
 	preloaded = true
-	-- (as Sound instances: a bare id would be fetched as an image)
+	-- (as Sound instances: a bare id would be fetched as an image; music streams as it plays)
 	local ok, sounds = pcall(require, shared:WaitForChild("Sounds"))
 	if ok and type(sounds) == "table" then
 		local byId: { [string]: Sound } = {}
-		for _, cue in sounds do
-			if type(cue) == "table" and type(cue.id) == "string" and not byId[cue.id] then
+		local function add(id: any)
+			if type(id) == "string" and not byId[id] then
 				local s = Instance.new("Sound")
-				s.SoundId = cue.id
-				byId[cue.id] = s
+				s.SoundId = id
+				byId[id] = s
+			end
+		end
+		for _, cue in sounds do
+			if type(cue) == "table" and cue.kind ~= "music" then
+				add(cue.id)
+				for _, take in (cue.takes or {}) :: { any } do
+					add(take.id)
+				end
 			end
 		end
 		local list: { Instance } = {}

@@ -2,7 +2,10 @@
 -- Shots, hits and knock-outs, drawn on every screen:
 --   a shot:    a muzzle flash (a bright star in the gun's colour and a burst of light that lights up the
 --              room), a glowing tracer to where the bullet stopped, brass flying out of the gun, and at
---              the far end sparks and a mark on a wall, or a bright burst on a body (no blood: Mild)
+--              the far end sparks and a mark on a wall, or a bright burst on a body (no blood: Mild);
+--              heard: the shot (a burst from one gun turns its earlier shots down), the shotgun's pump,
+--              brass ringing on the floor, the bullet striking a wall (now and then a ricochet), and the
+--              whiz of one going past your head
 --   a hit:     an impact star and a shockwave ring, sparks; a blue-white clang off a guard; a damage
 --              number that pops up and drifts off (yellow for a headshot)
 --   your own:  the flash, the kick and the camera recoil play the moment you shoot; being hit shakes the
@@ -155,8 +158,8 @@ local function tracer(from: Vector3, to: Vector3, color: Color3)
 	end)
 end
 
--- brass out of the side of the gun
-local function casing(model: Instance?)
+-- brass out of the side of the gun (it rings on the floor; a shotgun's shell lands with a dull clack)
+local function casing(model: Instance?, weapon: string?)
 	if not model or not model:IsA("Model") then
 		return
 	end
@@ -181,6 +184,11 @@ local function casing(model: Instance?)
 	p.AssemblyLinearVelocity = right * rng:NextNumber(8, 12) + Vector3.new(0, rng:NextNumber(8, 12), 0)
 	p.AssemblyAngularVelocity = Vector3.new(rng:NextNumber(-20, 20), rng:NextNumber(-20, 20), 0)
 	Debris:AddItem(p, 1.2)
+	task.delay(rng:NextNumber(0.4, 0.55), function()
+		if p.Parent then
+			Audio.play(if weapon == "shotgun" then "hull" else "casing", p.Position)
+		end
+	end)
 end
 
 local function muzzleOf(model: Instance?): (Vector3?, Vector3?)
@@ -205,12 +213,39 @@ local function muzzle(model: Instance?, weapon: string?, fallback: Vector3?, fac
 		return
 	end
 	local color = ACCENT[weapon or ""] or ACCENT.pistol
-	Audio.play(weapon or "pistol", at)
+	Audio.play(weapon or "pistol", at, nil, model)
+	if weapon == "shotgun" and model then
+		-- racked as the pump goes back (client/race/Poser)
+		task.delay(0.18, function()
+			Audio.play("pump", model:FindFirstChild("HumanoidRootPart"))
+		end)
+	end
 	star(at + (look :: Vector3) * 0.3, look :: Vector3, color, 1.3, 0.06)
 	flashLight(at, color, 7, 16, 0.09)
 	burst(at, Color3.fromRGB(120, 116, 112), 3, 4, 0.8, 0.5, SMOKE_TEX, -2)
-	casing(model)
+	casing(model, weapon)
 	Poser.shot(model, weapon)
+end
+
+-- a bullet past your head: the whiz of it going by (not your own, not one that stopped short of you)
+local lastWhiz = 0
+local function whiz(model: Instance, from: Vector3, to: Vector3)
+	local me = player.Character
+	local head = me and me:FindFirstChild("Head") :: BasePart?
+	if not head or model == me or os.clock() - lastWhiz < 0.06 then
+		return
+	end
+	local d = to - from
+	local t = (head.Position - from):Dot(d) / d:Dot(d)
+	if t <= 0.05 or t >= 0.97 then
+		return
+	end
+	local by = from + d * t
+	local miss = (head.Position - by).Magnitude
+	if miss > 0.6 and miss < 7 then
+		lastWhiz = os.clock()
+		Audio.play("whiz", by)
+	end
 end
 
 -- your own shot, the moment you click
@@ -238,7 +273,12 @@ local function shot(model: Instance, from: Vector3, to: Vector3, kind: string, w
 		muzzle(model, weapon, from, d.Unit)
 	end
 	tracer(from, to, color)
+	whiz(model, from, to)
 	if kind == "wall" then
+		Audio.play("impact", to)
+		if rng:NextNumber() < 0.2 then
+			Audio.play("ricochet", to)
+		end
 		local n = -d.Unit
 		bit(
 			Vector3.new(0.12, 0.42, 0.42),
@@ -305,7 +345,7 @@ local function number(at: Vector3, dmg: number, kind: string)
 	Debris:AddItem(anchor, 0.95)
 end
 
-local function hit(at: Vector3, dmg: number, kind: string, victim: Instance?, attacker: Instance?)
+local function hit(at: Vector3, dmg: number, kind: string, victim: Instance?, attacker: Instance?, weapon: string?)
 	if typeof(at) ~= "Vector3" then
 		return
 	end
@@ -330,7 +370,15 @@ local function hit(at: Vector3, dmg: number, kind: string, victim: Instance?, at
 		burst(at, Color3.fromRGB(255, 200, 120), 12, 24, 0.35, 0.35)
 	end
 	number(at, dmg, kind)
-	Audio.play(if kind == "block" then "block" else "hit", at)
+	-- a body takes it with a thud (a bat's whack on top); a guarded blow clangs
+	if kind == "block" then
+		Audio.play("block", at)
+	else
+		Audio.play("bodyHit", at, if weapon == "bat" or weapon == "sword" then 1.3 else 1)
+		if weapon == "bat" then
+			Audio.play("batHit", at)
+		end
+	end
 	-- feel it when it's you
 	if victim and victim == me then
 		CameraAim.shake(if kind == "block" then 0.15 else 0.35 + dmg * 0.01)
@@ -451,12 +499,6 @@ local function watch(model: Instance)
 		jets(model, model:GetAttribute("Boosting") == true)
 	end)
 	outline(model)
-	-- a reload's clatter, from the gun
-	model:GetAttributeChangedSignal("Reloading"):Connect(function()
-		if model:GetAttribute("Reloading") == true then
-			Audio.play("reload", model:FindFirstChild("HumanoidRootPart"))
-		end
-	end)
 	local hum = model:WaitForChild("Humanoid", 5) :: Humanoid?
 	if hum then
 		hum.Died:Connect(function()

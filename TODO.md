@@ -19,7 +19,10 @@ What's left is mostly the user's: looking, playing and publishing. Claude's code
 - [ ] **Playtest by the user** in Studio (Test → Clients and Servers, 2–4 players): the race place
       (guns, full auto, touch / controller buttons, sounds, settings, looks on bots) and the lobby place
       (open `build/lobby.rbxl`; see CLAUDE.md → Studio), then fixes
-- [ ] Listen to the sounds and swap any that don't fit (`src/shared/Sounds.luau`: one table, ids and trims)
+- [ ] **Listen to the new sounds** (2026-10-20, every id loads and plays in Studio, nobody has heard them
+      yet): each gun from close and from across the tower, a full-auto burst, reloads, the shotgun's pump,
+      bullets past your head, bat and sword hits, the countdown beeps and clicks; the race music (a
+      playlist), the roof's, the lobby's. Swap or retune in `src/shared/Sounds.luau` (ids, cuts, volumes)
 - [x] **Published privately** (2026-10-19): experience **Rooftop** (universe 10771906434), lobby place
       96194017293551 (start place), race place 127585457284186 "Rooftop Race"; ids in `src/shared/Places.luau`;
       R15 only, max 20 per place, Studio API access on, access private
@@ -107,6 +110,16 @@ Camera, look, sound
   leaderboards: most escapes, most knock-outs, fastest escape.
 - **Sound**: only Roblox's own licensed library on the Creator Store (ProSoundEffects, APM Music) and the sounds
   that ship with Roblox; long recordings are trimmed to the bit we want (measured in Studio).
+- **Real gun sounds and fun music** (the user, 2026-10-20: the old ones were "atrocious"): each gun is a real
+  recording of a real gun (9mm Beretta pistol and SMG, .223 CAR-16 rifle, 12 gauge Mossberg pump), several
+  takes each, built like a real shot is heard: the crack and body, the echo, and the gun's mechanics as their
+  own sounds where they happen (pump, brass on the floor, magazine out / dropped / slapped in, slide or bolt,
+  shells loaded one by one). Bullets strike walls (sometimes ricochet) and whiz past your head; far shots
+  lose their top end; a full-auto burst turns its earlier shots down. Cuts and volumes were measured from the
+  recordings themselves (downloaded and analysed, loudness and spectrum). Music: APM's "Gaming Drum & Bass"
+  album (made for games): a five-track race playlist, "Fighting Robots" on the roof, "Game Lobby" (and its
+  alternate) in the lobby, their volumes evened out by measured loudness. Uploading outside audio would need
+  rights and an upload key; the licensed library covered everything.
 - **Settings**: music, effects, mouse sensitivity, camera shake, damage numbers; kept with the profile.
 - **The flow** (the user, 2026-10-19, like the original): opening the game shows a **main screen** (Play, How
   to play, Looks, Stats, Leaderboards, Settings) over a slow orbit of the tower. Play → the forecourt → the
@@ -150,6 +163,11 @@ Camera, look, sound
 
 ## Done
 
+- [x] 2026-10-20 — Audio overhaul (`shared/Sounds`, `client/common/Audio`, with a Lune spec): real gunshots,
+  per-gun mechanics and reloads timed to the hands (`client/race/Poser`), impacts, ricochets, whizzes,
+  casings, body / bat / blocked hits, knock-out body falls, new beeps and clicks; race, roof and lobby music.
+  Checked in a Studio playtest: all 64 ids load, each gun's shot / pump / casing / reload plays in order, a
+  burst ducks its earlier shots, a shot 200 studs off is filtered
 - [x] 2026-10-19 — A full read of the code and the fixes it found: bullets lifted their target (full auto
   kept it floating); a held guard dropped for good after a swing; the crosshair never changed size; ammo
   boxes from one race respawned into the next and full climbers used them up; drops hung in the shaft;

@@ -13,6 +13,7 @@ require("@self/Progress.spec")
 require("@self/Booster.spec")
 require("@self/Skydive.spec")
 require("@self/Motion.spec")
+require("@self/Sounds.spec")
 
 if not Test.finish() then
 	process.exit(1)

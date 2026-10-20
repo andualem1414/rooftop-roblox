@@ -394,7 +394,12 @@ local RELOADS: { [string]: Reload } = {
 			{ t = 0.9, at = HOLD },
 			{ t = 1, at = HOLD },
 		},
-		events = { { t = 0.12, what = "out" }, { t = 0.36, what = "grab" }, { t = 0.61, what = "in" } },
+		events = {
+			{ t = 0.12, what = "out" },
+			{ t = 0.36, what = "grab" },
+			{ t = 0.61, what = "in" },
+			{ t = 0.7, what = "rack" },
+		},
 		shifts = { { part = "Slide", from = 0.7, to = 0.82, back = SLIDE } },
 		roll = 0.55,
 		dip = 0.1,
@@ -414,7 +419,12 @@ local RELOADS: { [string]: Reload } = {
 			{ t = 0.9, at = HOLD },
 			{ t = 1, at = HOLD },
 		},
-		events = { { t = 0.15, what = "out" }, { t = 0.42, what = "grab" }, { t = 0.61, what = "in" } },
+		events = {
+			{ t = 0.15, what = "out" },
+			{ t = 0.42, what = "grab" },
+			{ t = 0.61, what = "in" },
+			{ t = 0.7, what = "rack" },
+		},
 		shifts = {},
 		roll = 0.45,
 		dip = 0.25,
@@ -434,7 +444,12 @@ local RELOADS: { [string]: Reload } = {
 			{ t = 0.9, at = HOLD },
 			{ t = 1, at = HOLD },
 		},
-		events = { { t = 0.15, what = "out" }, { t = 0.42, what = "grab" }, { t = 0.61, what = "in" } },
+		events = {
+			{ t = 0.15, what = "out" },
+			{ t = 0.42, what = "grab" },
+			{ t = 0.61, what = "in" },
+			{ t = 0.7, what = "rack" },
+		},
 		shifts = {},
 		roll = 0.45,
 		dip = 0.25,
@@ -446,6 +461,7 @@ local RELOADS: { [string]: Reload } = {
 		table.insert(keys, 2, { t = 0.08, at = HOLD })
 		table.insert(keys, { t = 0.88, at = HOLD })
 		table.insert(keys, { t = 1, at = HOLD })
+		table.insert(events, { t = 0.88, what = "rack" })
 		return {
 			keys = keys,
 			events = events,
@@ -1413,16 +1429,29 @@ local function pose(r: Rig, dt: number, now: number, others: { Model })
 					r.fired[i] = true
 					if e.what == "out" then
 						Gunwork.magOut(tool, true)
+						Audio.play("magOut", r.root)
+						local floor = r.root.Position - Vector3.new(0, 3, 0)
+						task.delay(0.4, function()
+							Audio.play("magDrop", floor)
+						end)
 					elseif e.what == "grab" then
 						Gunwork.hold(tool, "Mag", model:FindFirstChild("LeftHand") :: BasePart?)
 					elseif e.what == "in" then
 						Gunwork.magIn(tool)
 						Motion.kick(r.jolt, 9) -- (slapped home: the gun jumps)
+						Audio.play(if wname == "rifle" then "magInRifle" else "magIn", r.root)
 					elseif e.what == "shell" then
 						Gunwork.hold(tool, "Shell", model:FindFirstChild("LeftHand") :: BasePart?)
 					elseif e.what == "load" then
 						Gunwork.hold(tool, "Shell", nil)
 						Motion.kick(r.jolt, 4)
+						Audio.play("shellIn", r.root)
+					elseif e.what == "rack" then
+						-- the slide, the bolt or the pump worked
+						Audio.play(
+							if wname == "pistol" then "slide" elseif wname == "shotgun" then "pump" else "bolt",
+							r.root
+						)
 					end
 				end
 			end
