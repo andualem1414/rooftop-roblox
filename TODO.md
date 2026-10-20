@@ -53,7 +53,8 @@ What's left is mostly the user's: looking, playing and publishing. Claude's code
 
 The flow
 - Press Play → a **lobby** (the forecourt in front of the tower). Lobby servers hold **20**.
-- A **45 s countdown** starts with the first player in; it drops to 5 s when 20 are waiting. At zero, **everyone in
+- A **20 s countdown** (45 s until the user's call on 2026-10-20) starts with the first player in; it drops to
+  5 s when 20 are waiting. At zero, **everyone in
   the lobby goes** (no opting out) into a fresh **reserved server** of the Race place; bots fill up to **20
   climbers**. Players who arrive meanwhile wait in a lobby for the next countdown. Reserved servers are Roblox's
   (free, nothing to host).
@@ -141,6 +142,11 @@ Camera, look, sound
   Every purchase becomes a saved boost credit first (counted once per purchase), then spent on the flight:
   a boost that can't happen right then waits for the next pad. Untouchable and unable to attack while
   flying; the feed says who boosted. Bots never boost.
+- **Nobody walks off the roof or the plaza** (the user, 2026-10-20): the winner can't walk, jump or be
+  flung off the roof (the skydive is the only way down), and players on the lobby's plaza can't leave it.
+  Invisible walls in a `Barrier` collision group that only climbers bump into (`CollisionGroups.fence`),
+  so the camera, shots, platforms, debris, a boost and the skydive pass through; the lobby's bodies are
+  climbers too.
 
 ## Inbox
 
@@ -163,6 +169,13 @@ Camera, look, sound
 
 ## Done
 
+- [x] 2026-10-20 — **Fenced roof and plaza, a 20 s lobby countdown** (the user's asks): an invisible fence
+  on the roof parapet's inner face, from the roof up 60 studs (the floors below don't have it), and round
+  the lobby plaza's kerbs and across the walkway (see Decisions). Checked in a Studio playtest of the race:
+  walking and jumping at every side and a corner, and a 120 studs/s fling, all stop at the parapet (with
+  the fence switched off, a jump clears the parapet in 1.3 s); camera-style, plain and bullet casts pass
+  through; the skydive pad still launches (0.4 s) and flies out over the valley. `Config.LOBBY_COUNTDOWN`
+  45 → 20. The plaza's fence isn't checked in Studio yet (same code as the roof's; try it in the lobby).
 - [x] 2026-10-20 — **Out once the roof is open, one wall cut, a real boost pad** (the user's playtest asks;
   checked in a Studio playtest): a knock-out after the roof opens is final: bots are removed, a player is
   marked Out and watches the climbers still in (`client/race/Spectate`: Prev / Next, ← / →, L1 / R1; Main

@@ -1,6 +1,6 @@
 --!strict
 -- The lobby's rules, pure: when the next group goes, and how long a race server waits for its group.
---   the countdown starts (45 s) when the first player is waiting, drops to 5 s once 20 are waiting, and
+--   the countdown starts (20 s) when the first player is waiting, drops to 5 s once 20 are waiting, and
 --   stops if everyone leaves; at zero everyone in the lobby goes, together, to a fresh race server
 --   a race server waits for the whole group the lobby sent (its size rides along in the teleport data)
 --   before it starts, but not forever: stragglers join a race already under way

@@ -14,6 +14,7 @@ local Config = require(ReplicatedStorage.Shared.Config)
 local Booster = require(ReplicatedStorage.Shared.Booster)
 local Themes = require(script.Parent.Themes)
 local Roof = require(script.Parent.Roof)
+local CollisionGroups = require(script.Parent.CollisionGroups)
 
 local FLOORS = Config.FLOORS
 local FH = Config.FLOOR_HEIGHT
@@ -453,6 +454,10 @@ function Tower.build(): Tower
 	roof.Parent = root
 	floors[FLOORS] = roof
 	covers[FLOORS] = Roof.dress(roof, ry)
+	-- an invisible fence on the parapet's inner face, from the roof up (the floors below don't have it): the
+	-- winner can't walk or jump off; the only way down is the skydive, which flies through it (Boosting)
+	local edge = F - WALL
+	CollisionGroups.fence(roof, -edge, edge, -edge, edge, ry, ry + 60)
 
 	root.Parent = workspace
 

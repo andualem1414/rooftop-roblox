@@ -8,9 +8,12 @@
 --                        written by the server every minute
 --   the rules board      how a race goes, in a few lines
 --   lamps, benches, kerbs, and the spawn in the middle
+--   an invisible fence round it all: you can roam the plaza but not walk, jump or fall off it (only
+--                        climbers bump into it, and LobbyService makes the bodies here climbers)
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Progress = require(ReplicatedStorage.Shared.Progress)
+local CollisionGroups = require(script.Parent.Parent.Common.CollisionGroups)
 
 local Forecourt = {}
 
@@ -156,6 +159,8 @@ function Forecourt.build()
 		part("Kerb", Vector3.new(1.2, 0.8, Z1 - Z0), CFrame.new(sx * (X + 0.6), G + 0.1, ZC), CONCRETE_DARK)
 	end
 	part("Kerb", Vector3.new(2 * X + 2.4, 0.8, 1.2), CFrame.new(0, G + 0.1, Z1 + 0.6), CONCRETE_DARK)
+	-- the fence: round the kerbs' outer edges, and across the walkway where it meets the plaza
+	CollisionGroups.fence(folder, -X - 1.2, X + 1.2, Z0, Z1 + 1.2, G - 2, G + 40)
 	for _, z in { Z0 + 10, ZC, Z1 - 8 } do
 		lamp(-X + 2, z)
 		lamp(X - 2, z)

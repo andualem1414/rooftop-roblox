@@ -25,7 +25,7 @@ Config.HALF_WALL = 2.1 * M -- half walls: too high to jump
 
 -- the lobby and the race
 Config.CLIMBERS = 20 -- every race has this many: real players, bots fill the rest
-Config.LOBBY_COUNTDOWN = 45 -- seconds, from the first player in the lobby
+Config.LOBBY_COUNTDOWN = 20 -- seconds, from the first player in the lobby
 Config.LOBBY_FULL_COUNTDOWN = 5 -- seconds left once 20 are waiting
 Config.GROUP_WAIT = 20 -- seconds a race server waits for the rest of its group before it starts
 Config.TELEPORT_TRIES = 4 -- a teleport that fails is tried again this many times

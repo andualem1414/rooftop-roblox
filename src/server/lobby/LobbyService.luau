@@ -4,7 +4,7 @@
 --   everyone arrives on the main screen (client/lobby/LobbyUi): no body yet, not waiting. Play gives them
 --   a body on the forecourt and counts them in; Main screen takes them out again. Coming back from a race
 --   (lost, ended the game, or after the skydive) lands them on the main screen too.
---   the first player in starts a 45 s countdown; 20 waiting cuts it to 5 s; at zero everyone in the
+--   the first player in starts a 20 s countdown; 20 waiting cuts it to 5 s; at zero everyone in the
 --   lobby goes, together, into a fresh reserved race server (the group's size rides along, so the race
 --   waits for all of them); anyone arriving meanwhile waits for the next countdown
 --   friends: joining a friend from Roblox's friends list lands you in their lobby, so you go together
@@ -20,6 +20,7 @@ local Net = require(ReplicatedStorage.Shared.Net)
 local ProfileStore = require(script.Parent.Parent.Common.ProfileStore)
 local LookService = require(script.Parent.Parent.Common.LookService)
 local Travel = require(script.Parent.Parent.Common.Travel)
+local CollisionGroups = require(script.Parent.Parent.Common.CollisionGroups)
 local Forecourt = require(script.Parent.Forecourt)
 
 local LobbyService = {}
@@ -138,6 +139,7 @@ end
 
 local function playerAdded(p: Player)
 	p.CharacterAdded:Connect(function(char: Model)
+		CollisionGroups.climber(char) -- (the plaza's fence stops climbers: Forecourt)
 		dress(p, char)
 	end)
 	task.spawn(function()
