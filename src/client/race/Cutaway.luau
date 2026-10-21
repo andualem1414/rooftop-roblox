@@ -10,6 +10,11 @@
 -- Hidden floors are only not drawn (LocalTransparencyModifier): to the lighting they're still there,
 -- like the original's invisible-but-shadowing ceiling. Making them truly transparent changed the
 -- building's shape for the lighting, which took seconds to catch up: rooms started dark.
+-- A floor's flat art and effects (signs, screens, paintings, labels such as the booster's BOOST UP,
+-- particles, light beams) only show on the floor you're on: the floors below are out of sight under it,
+-- and the ones above are cut away (a label there would float in the air). The furniture and dressing of
+-- the floors two or more below you aren't drawn either (out of sight under your floor; the one just below
+-- shows through the shaft): only their shells are, for the windows and the view down the shaft.
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
@@ -25,13 +30,30 @@ local shown = math.huge -- the highest floor shown (everything above it is hidde
 local suspended = false -- a set piece wants the whole tower shown
 Cutaway.focus = nil :: Model? -- whose floor is shown (nil: your own body); Spectate sets the one you watch
 
-local function setPart(d: Instance, hidden: boolean)
+-- what a floor's things do as it changes: "hidden" (cut away above you), "near" (the floor you're on),
+-- "below" (the floor under you, or every floor during a set piece) or "far" (further down). Parts are
+-- drawn unless hidden or their wall is cut away, and furniture and dressing not when far; lights shine
+-- unless hidden (a light up there would shine down through the floors); flat art and effects show only
+-- when near (and don't hide with their part, so they're switched off with it)
+local function isDetail(d: Instance): boolean
+	return d:IsA("LayerCollector")
+		or d:IsA("ParticleEmitter")
+		or d:IsA("Beam")
+		or d:IsA("Fire")
+		or d:IsA("Smoke")
+		or d:IsA("Sparkles")
+end
+
+local inside: { [Instance]: boolean } = setmetatable({}, { __mode = "k" }) :: any -- furniture and dressing
+
+local function setItem(d: Instance, state: string, cut: boolean)
 	if d:IsA("BasePart") then
-		d.LocalTransparencyModifier = if hidden then 1 else 0
-	elseif d:IsA("Light") or d:IsA("SurfaceGui") then
-		-- (a light up there would shine down through the floors; painted numbers don't hide with
-		-- their part)
-		d.Enabled = not hidden
+		local drawn = state ~= "hidden" and not cut and not (state == "far" and inside[d])
+		d.LocalTransparencyModifier = if drawn then 0 else 1
+	elseif d:IsA("Light") then
+		d.Enabled = state ~= "hidden"
+	else
+		(d :: any).Enabled = state == "near" and not cut
 	end
 end
 
@@ -48,12 +70,13 @@ local function floorOf(d: Instance): number?
 	return nil
 end
 
--- each floor's parts, lights and painted numbers (gathered once, kept up as parts arrive or go), and
--- whether the floor is hidden now: a new cut only touches the floors that change side
+-- each floor's parts, lights and flat art (gathered once, kept up as they arrive or go), and its state
+-- now: a new cut only touches the floors whose state changes
 local floors: { [number]: { [Instance]: boolean } } = {}
-local hiddenFloors: { [number]: boolean } = {}
--- each floor's outer walls, by side ("+x", "-x", "+z", "-z": server/common/Tower tags the parts)
-local sides: { [number]: { [string]: { [BasePart]: boolean } } } = {}
+local floorState: { [number]: string } = {}
+-- each floor's outer walls and what hangs on them, by side ("+x", "-x", "+z", "-z": server/common/Tower
+-- tags the parts)
+local sides: { [number]: { [string]: { [Instance]: boolean } } } = {}
 local cutFloor: number?, cutSide: string? = nil, nil
 
 local function showSide(f: number, side: string, cut: boolean)
@@ -61,9 +84,9 @@ local function showSide(f: number, side: string, cut: boolean)
 	if not set then
 		return
 	end
-	local hide = cut or hiddenFloors[f] == true
-	for p in set do
-		p.LocalTransparencyModifier = if hide then 1 else 0
+	local state = floorState[f] or "near"
+	for d in set do
+		setItem(d, state, cut)
 	end
 end
 
@@ -81,14 +104,40 @@ local function setCut(f: number?, side: string?)
 	end
 end
 
+local function stateOf(f: number, top: number): string
+	if f > top then
+		return "hidden"
+	elseif f == top then
+		return "near"
+	end
+	return if f == top - 1 or suspended then "below" else "far"
+end
+
+-- is this part of the tower a floor's furniture or dressing (not its shell)?
+local function isInside(d: Instance): boolean
+	if d.Name == "Crate" then
+		return true
+	end
+	local node = d.Parent
+	while node and node ~= workspace do
+		if node.Name == "Furniture" or node.Name == "Dressing" then
+			return true
+		elseif node:GetAttribute("Floor") ~= nil then
+			return false
+		end
+		node = node.Parent
+	end
+	return false
+end
+
 local function apply(top: number)
 	shown = top
 	for f, items in floors do
-		local hidden = f > top
-		if (hiddenFloors[f] or false) ~= hidden then
-			hiddenFloors[f] = hidden
+		local state = stateOf(f, top)
+		if floorState[f] ~= state then
+			floorState[f] = state
 			for d in items do
-				setPart(d, hidden)
+				setItem(d, state, false)
 			end
 		end
 	end
@@ -171,12 +220,25 @@ local function hideAbove(cutY: number)
 	end
 end
 
-local function track(f: number, items: { [Instance]: boolean }, d: Instance)
-	if d:IsA("BasePart") or d:IsA("Light") or d:IsA("SurfaceGui") then
-		items[d] = true
-	end
+-- the wall a thing is on (its own Side, or its part's for the art drawn on it)
+local function sideOf(d: Instance): string?
 	local side = d:GetAttribute("Side")
-	if d:IsA("BasePart") and type(side) == "string" then
+	if side == nil and not d:IsA("BasePart") and d.Parent then
+		side = d.Parent:GetAttribute("Side")
+	end
+	return if type(side) == "string" then side else nil
+end
+
+local function track(f: number, items: { [Instance]: boolean }, d: Instance)
+	-- (the roof's searchlight beams sweep the sky over the tower from wherever you are)
+	if d:IsA("BasePart") or d:IsA("Light") or (isDetail(d) and not (d:IsA("Beam") and f >= Config.FLOORS)) then
+		items[d] = true
+		if d:IsA("BasePart") and isInside(d) then
+			inside[d] = true
+		end
+	end
+	local side = sideOf(d)
+	if side and items[d] and not d:IsA("Light") then
 		local bySide = sides[f] or {}
 		sides[f] = bySide
 		local set = bySide[side] or {}
@@ -188,7 +250,7 @@ end
 local function watch(tower: Instance)
 	shown = math.huge
 	table.clear(floors)
-	table.clear(hiddenFloors)
+	table.clear(floorState)
 	table.clear(sides)
 	cutFloor, cutSide = nil, nil
 	for _, m in tower:GetChildren() do
@@ -209,8 +271,9 @@ local function watch(tower: Instance)
 		local items = floors[f] or {}
 		floors[f] = items
 		track(f, items, d)
-		if items[d] and hiddenFloors[f] then
-			setPart(d, true)
+		local state = floorState[f]
+		if items[d] and state then
+			setItem(d, state, f == cutFloor and sideOf(d) == cutSide)
 		end
 	end)
 	tower.DescendantRemoving:Connect(function(d)
@@ -219,10 +282,10 @@ local function watch(tower: Instance)
 		if items then
 			items[d] = nil
 		end
-		local side = d:GetAttribute("Side")
-		local set = f and type(side) == "string" and sides[f] and sides[f][side]
+		local side = sideOf(d)
+		local set = f and side and sides[f] and sides[f][side]
 		if set then
-			set[d :: BasePart] = nil
+			set[d] = nil
 		end
 	end)
 end
@@ -230,7 +293,7 @@ end
 -- is this part of the tower on a floor that's cut away right now?
 function Cutaway.hides(d: Instance): boolean
 	local f = floorOf(d)
-	return f ~= nil and hiddenFloors[f] == true
+	return f ~= nil and floorState[f] == "hidden"
 end
 
 -- the building's own shell: walls, floors, glass and trim are never ghosted (client/race/Sightline)
@@ -249,11 +312,18 @@ local SHELL = {
 	Band = true,
 	FloorPaint = true,
 	Pit = true,
+	Trim = true,
+	Sill = true,
+	Cap = true,
+	Frame = true,
+	Border = true,
+	Walk = true,
 }
 
 -- What may turn see-through when it stands between the camera and you (client/race/Sightline), and the
--- camera may pass through (client/race/CameraAim): a piece of furniture (the whole piece), a loose crate,
--- or one of the roof's props. nil for the building itself and anything outside it.
+-- camera may pass through (client/race/CameraAim): a piece of furniture (the whole piece; in a set, such
+-- as sofas round a table, the one piece), a loose crate, or one of the roof's props. nil for the building
+-- itself, its dressing and anything outside it.
 function Cutaway.ghostOf(part: BasePart): Instance?
 	if SHELL[part.Name] then
 		return nil
@@ -264,8 +334,8 @@ function Cutaway.ghostOf(part: BasePart): Instance?
 	local node: Instance? = part
 	while node and node ~= workspace do
 		local parent = node.Parent
-		if parent and parent.Name == "Furniture" then
-			return node -- (one piece: a Model under the floor's Furniture)
+		if parent and (parent.Name == "Furniture" or parent:GetAttribute("Set") == true) then
+			return node -- (one piece: a Model under the floor's Furniture, or a piece of a set)
 		elseif parent and parent.Name == "Roof" and parent:GetAttribute("Floor") ~= nil then
 			return node -- (the roof's units, the water tower, the sign...)
 		end
@@ -276,7 +346,10 @@ end
 
 -- show the whole tower for a while (the intro's opening shot, the roof opening, the win)
 function Cutaway.suspend(on: boolean)
-	suspended = on
+	if suspended ~= on then
+		suspended = on
+		shown = math.huge -- (every floor's state is looked at again on the next tick)
+	end
 end
 
 function Cutaway.init()

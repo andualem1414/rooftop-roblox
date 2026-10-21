@@ -33,7 +33,7 @@ end
 look()
 workspace:GetAttributeChangedSignal("LookPreset"):Connect(look)
 
-Tower.build()
+Tower.build({ interiors = false }) -- (seen only from out on the forecourt: no furniture)
 World.build()
 Forecourt.build()
 LobbyService.start()

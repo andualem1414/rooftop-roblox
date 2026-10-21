@@ -1,8 +1,10 @@
 --!strict
 -- Builds the tower: 20 floors of 24 × 24 m round a platform shaft, each with its own theme (Themes.luau):
--- floor finish, coloured inner walls with a glowing baseboard, windows tinted in the floor's colour (so
--- from outside the tower glows in many colours), four ceiling lights, the floor's number and name
--- painted big on the floor, and furniture that doubles as cover. Then the roof with its hatch.
+-- its floor with a border and a walkway round the shaft, walls finished all over on the room side (round
+-- the window reveals too) with a skirting and its glowing line, a sill and a cornice, framed windows
+-- tinted in the floor's colour (so from outside the tower glows in many colours), four soft lights, the
+-- floor's number and name painted big on the floor, furniture placed by the theme's plan (it doubles as
+-- cover: Props), and the theme's dressing (signs, paintings, pipes, floor markings). Then the roof.
 --
 -- Floor i's surface is at y = i × FLOOR_HEIGHT (i = 0 is the ground floor). Every floor is a Model
 -- named FloorNN with a Floor attribute (the roof is Floor = FLOORS) so clients can cut away the
@@ -12,6 +14,8 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Config = require(ReplicatedStorage.Shared.Config)
 local Booster = require(ReplicatedStorage.Shared.Booster)
+local Kit = require(script.Parent.Kit)
+local Props = require(script.Parent.Props)
 local Themes = require(script.Parent.Themes)
 local Roof = require(script.Parent.Roof)
 local CollisionGroups = require(script.Parent.CollisionGroups)
@@ -26,6 +30,7 @@ local M = Config.M
 
 local CONCRETE = Color3.fromRGB(150, 146, 140)
 local CONCRETE_DARK = Color3.fromRGB(104, 101, 98)
+local CAP = Color3.fromRGB(40, 36, 44) -- the cut top of the walls, seen once the floors above are cut away
 
 export type Rect = { x0: number, x1: number, z0: number, z1: number }
 
@@ -40,6 +45,10 @@ export type Tower = {
 	openHatch: () -> (),
 	closeHatch: () -> (),
 }
+
+-- interiors = false: only the floors' shells and lights, no furniture or dressing (the lobby, which only
+-- sees the tower from out on the forecourt)
+export type Options = { interiors: boolean? }
 
 local Tower = {}
 
@@ -63,7 +72,7 @@ local function box(
 	local p = Instance.new("Part")
 	p.Name = name
 	p.Anchored = true
-	p.Size = Vector3.new(x1 - x0, y1 - y0, z1 - z0)
+	p.Size = Vector3.new(math.abs(x1 - x0), math.abs(y1 - y0), math.abs(z1 - z0))
 	p.CFrame = CFrame.new((x0 + x1) / 2, (y0 + y1) / 2, (z0 + z1) / 2)
 	p.Color = color
 	p.Material = material or Enum.Material.Concrete
@@ -100,12 +109,26 @@ local function slabRing(
 end
 
 -- one outer wall with a row of windows (glass you can't climb through; bullets pass): raw concrete
--- outside; inside, the floor's own colour on the solid bands and a glowing baseboard
+-- outside; on the room side one finish all over (the theme's wall, and below the sills its lower finish)
+-- that turns into the window reveals up to the glass, a skirting with a glowing line, a sill all along the
+-- windows, a cornice, and window frames (a transom across them all, a mullion in each)
 local WIN_W = 1.44 * M
 local WIN_H = 1.36 * M
 local SILL = 1.0 * M
 local WIN_STEP = 3 * M
 local SKIN = 0.15
+local FACE = F - WALL - SKIN -- the walls' room faces, this far from the middle
+local COUNT = math.floor(2 * F / WIN_STEP)
+local FIRST = -F + (2 * F - (COUNT - 1) * WIN_STEP) / 2
+local WINDOWS: { number } = {} -- the windows' middles along a wall
+local PILLARS: { number } = {} -- the stretches of wall between them
+for k = 0, COUNT - 1 do
+	table.insert(WINDOWS, FIRST + k * WIN_STEP)
+	if k > 0 then
+		table.insert(PILLARS, FIRST + (k - 0.5) * WIN_STEP)
+	end
+end
+
 local function wall(parent: Instance, side: string, y0: number, y1: number, th: Themes.Theme)
 	-- along u (the wall's length), v (height) and d (0 = the outside face .. WALL = the inside face)
 	local function place(
@@ -116,57 +139,157 @@ local function wall(parent: Instance, side: string, y0: number, y1: number, th: 
 		d0: number,
 		d1: number,
 		color: Color3,
-		mat: Enum.Material?
+		mat: Enum.Material?,
+		name: string
 	): Part
 		local a, b = F - d1, F - d0
 		local p
 		if side == "+x" then
-			p = box(parent, "Wall", a, b, v0, v1, u0, u1, color, mat)
+			p = box(parent, name, a, b, v0, v1, u0, u1, color, mat)
 		elseif side == "-x" then
-			p = box(parent, "Wall", -b, -a, v0, v1, u0, u1, color, mat)
+			p = box(parent, name, -b, -a, v0, v1, u0, u1, color, mat)
 		elseif side == "+z" then
-			p = box(parent, "Wall", u0, u1, v0, v1, a, b, color, mat)
+			p = box(parent, name, u0, u1, v0, v1, a, b, color, mat)
 		else
-			p = box(parent, "Wall", u0, u1, v0, v1, -b, -a, color, mat)
+			p = box(parent, name, u0, u1, v0, v1, -b, -a, color, mat)
 		end
 		-- which wall it's part of: the one between the camera and you is cut away (client/race/Cutaway)
 		p:SetAttribute("Side", side)
 		return p
 	end
+	local function trim(
+		u0: number,
+		u1: number,
+		v0: number,
+		v1: number,
+		d0: number,
+		d1: number,
+		color: Color3,
+		mat: Enum.Material?,
+		name: string
+	)
+		decor(place(u0, u1, v0, v1, d0, d1, color, mat, name))
+	end
 	local inner = F - WALL
-	local top = y0 + SILL + WIN_H
-	place(-F, F, y0, y0 + SILL, 0, WALL, CONCRETE)
-	place(-F, F, top, y1, 0, WALL, CONCRETE)
-	-- the room's side: coloured bands and a glowing strip along the floor
-	place(-inner, inner, y0, y0 + SILL, WALL, WALL + SKIN, th.wall, Enum.Material.SmoothPlastic).Name = "Skin"
-	place(-inner, inner, top, y1, WALL, WALL + SKIN, th.wall, Enum.Material.SmoothPlastic).Name = "Skin"
-	local board =
-		decor(place(-inner, inner, y0 + 0.25, y0 + 0.5, WALL + SKIN, WALL + SKIN + 0.08, th.accent, Enum.Material.Neon))
-	board.Name = "Baseboard"
-	local count = math.floor(2 * F / WIN_STEP)
-	local first = -F + (2 * F - (count - 1) * WIN_STEP) / 2
+	local sill = y0 + SILL
+	local top = sill + WIN_H
+	local reveal = WALL * 0.62 -- the room's finish turns into the reveals up to here (just inside the glass)
+	local room = WALL + SKIN
+	-- the concrete shell, and the room's finish over it
+	place(-F, F, y0, sill, 0, WALL, CONCRETE, nil, "Wall")
+	place(-F, F, top, y1, 0, WALL, CONCRETE, nil, "Wall")
+	place(-inner, inner, y0, sill, WALL, room, th.lower, th.lowerMat, "Skin")
+	place(-inner, inner, top, y1, WALL, room, th.wall, th.wallMat, "Skin")
+	local function pier(u0: number, u1: number)
+		place(u0, u1, sill, top, 0, WALL, CONCRETE, nil, "Wall")
+		place(
+			math.max(u0 - 0.03, -inner),
+			math.min(u1 + 0.03, inner),
+			sill,
+			top,
+			reveal,
+			room,
+			th.wall,
+			th.wallMat,
+			"Skin"
+		)
+	end
 	local edge = -F
-	for k = 0, count - 1 do
-		local u = first + k * WIN_STEP
-		place(edge, u - WIN_W / 2, y0 + SILL, top, 0, WALL, CONCRETE)
+	for _, u in WINDOWS do
+		pier(edge, u - WIN_W / 2)
 		edge = u + WIN_W / 2
 	end
-	place(edge, F, y0 + SILL, top, 0, WALL, CONCRETE)
-	-- one pane along the whole row, inside the wall: the pillars between the windows hide it (one see-through
-	-- part a wall rather than one a window: far fewer to draw)
+	pier(edge, F)
+	-- one pane along the whole row, inside the wall: the piers hide it (one see-through part a wall rather
+	-- than one a window: far fewer to draw)
+	local last = WINDOWS[#WINDOWS]
 	local glass = place(
-		first - WIN_W / 2,
-		first + (count - 1) * WIN_STEP + WIN_W / 2,
-		y0 + SILL,
+		FIRST - WIN_W / 2,
+		last + WIN_W / 2,
+		sill,
 		top,
 		WALL * 0.4,
 		WALL * 0.6,
 		th.light:Lerp(Color3.new(1, 1, 1), 0.25),
-		Enum.Material.Glass
+		Enum.Material.Glass,
+		"Glass"
 	)
-	glass.Name = "Glass"
 	glass.Transparency = 0.55
 	glass.CanQuery = false
+	-- the frames: a transom across every window (the piers hide it between them) and a mullion in each
+	local transom = sill + WIN_H * 0.66
+	trim(
+		FIRST - WIN_W / 2,
+		last + WIN_W / 2,
+		transom - 0.09,
+		transom + 0.09,
+		WALL * 0.3,
+		WALL * 0.7,
+		th.frame,
+		Enum.Material.Metal,
+		"Frame"
+	)
+	for _, u in WINDOWS do
+		trim(u - 0.09, u + 0.09, sill, top, WALL * 0.3, WALL * 0.7, th.frame, Enum.Material.Metal, "Frame")
+	end
+	-- the skirting and its glowing line, the sill and its apron, the cornice
+	trim(-inner, inner, y0, y0 + 0.55, room, room + 0.1, th.trim, th.trimMat, "Trim")
+	trim(-inner, inner, y0 + 0.1, y0 + 0.24, room + 0.1, room + 0.16, th.accent, Enum.Material.Neon, "Baseboard")
+	trim(-inner, inner, sill - 0.12, sill + 0.1, reveal, room + 0.38, th.trim, th.trimMat, "Sill")
+	trim(-inner, inner, sill - 0.42, sill - 0.12, room, room + 0.06, th.trim, th.trimMat, "Trim")
+	trim(-inner, inner, y1 - 0.4, y1, room, room + 0.2, th.trim, th.trimMat, "Trim")
+	-- the wall's cut top, one dark band (inside the slab above while that's drawn)
+	trim(-F, F, y1 + 0.005, y1 + 0.05, 0, room + 0.2, CAP, nil, "Cap")
+end
+
+-- the floor's finishes: a band along the walls, and the walkway round the shaft with an inlaid line
+local function finishes(floor: Instance, y0: number, th: Themes.Theme)
+	local border = th.border
+	if border then
+		local b = 2.6
+		local c, m = border.color, border.mat
+		decor(box(floor, "Border", -FACE, FACE, y0, y0 + 0.03, FACE - b, FACE, c, m))
+		decor(box(floor, "Border", -FACE, FACE, y0, y0 + 0.03, -FACE, -FACE + b, c, m))
+		decor(box(floor, "Border", FACE - b, FACE, y0, y0 + 0.03, -FACE + b, FACE - b, c, m))
+		decor(box(floor, "Border", -FACE, -FACE + b, y0, y0 + 0.03, -FACE + b, FACE - b, c, m))
+	end
+	local walk = th.walk
+	if walk then
+		local a, b = H + 0.25 * M, Config.SHAFT_CLEAR - 0.3
+		local c, m = walk.color, walk.mat
+		for _, s in { 1, -1 } do
+			decor(box(floor, "Walk", -b, b, y0, y0 + 0.03, math.min(s * a, s * b), math.max(s * a, s * b), c, m))
+			decor(box(floor, "Walk", math.min(s * a, s * b), math.max(s * a, s * b), y0, y0 + 0.03, -a, a, c, m))
+			decor(
+				box(
+					floor,
+					"Walk",
+					-b - 0.2,
+					b + 0.2,
+					y0,
+					y0 + 0.04,
+					math.min(s * b, s * (b + 0.2)),
+					math.max(s * b, s * (b + 0.2)),
+					th.trim,
+					th.trimMat
+				)
+			)
+			decor(
+				box(
+					floor,
+					"Walk",
+					math.min(s * b, s * (b + 0.2)),
+					math.max(s * b, s * (b + 0.2)),
+					y0,
+					y0 + 0.04,
+					-b,
+					b,
+					th.trim,
+					th.trimMat
+				)
+			)
+		end
+	end
 end
 
 -- painted on the floor, big: the floor's number and its name (the camera looks down on it)
@@ -216,21 +339,21 @@ local function floorPaint(parent: Instance, i: number, y0: number, th: Themes.Th
 	return { x0 = cx - size / 2, x1 = cx + size / 2, z0 = cz - size / 2, z1 = cz + size / 2 }
 end
 
--- where the furniture goes on one floor: off the walkway round the shaft, off the painted number and
--- off each other; some pieces stand against a wall, facing into the room
-type Placed = Rect & { h: number, kind: string, name: string, cf: CFrame }
-local function placeProps(th: Themes.Theme, y0: number, reserved: { Rect }): { Placed }
-	local placed: { Placed } = {}
-	local inner = F - WALL - 0.1
-	local function ok(b: Rect): boolean
+-- where the furniture goes on one floor: the theme's plan first (its spots, if they fit), then its other
+-- pieces wherever they fit, some against a wall facing into the room. Nothing on the walkway round the
+-- shaft, the painted number or the booster pad, and nothing on top of anything else.
+local INNER = FACE - 0.02
+local GAP = 1.4 * M -- between pieces dropped at random
+local function placeProps(th: Themes.Theme, y0: number, reserved: { Rect }): { Kit.Placed }
+	local placed: { Kit.Placed } = {}
+	local function fits(b: Rect, gap: number): boolean
 		local clear = Config.SHAFT_CLEAR
 		if b.x1 > -clear and b.x0 < clear and b.z1 > -clear and b.z0 < clear then
 			return false
 		end
-		if b.x0 < -inner or b.x1 > inner or b.z0 < -inner or b.z1 > inner then
+		if b.x0 < -INNER - 0.05 or b.x1 > INNER + 0.05 or b.z0 < -INNER - 0.05 or b.z1 > INNER + 0.05 then
 			return false
 		end
-		local gap = 1.4 * M
 		for _, o in placed do
 			if b.x1 + gap > o.x0 and b.x0 - gap < o.x1 and b.z1 + gap > o.z0 and b.z0 - gap < o.z1 then
 				return false
@@ -243,46 +366,69 @@ local function placeProps(th: Themes.Theme, y0: number, reserved: { Rect }): { P
 		end
 		return true
 	end
+	local function add(name: string, x: number, z: number, yaw: number, gap: number): boolean
+		local prop = Props[name]
+		assert(prop, `there's no prop called {name}`)
+		local quarter = math.abs(math.sin(yaw)) > 0.5
+		local sx = if quarter then prop.d else prop.w
+		local sz = if quarter then prop.w else prop.d
+		local b: Kit.Placed = {
+			x0 = x - sx / 2,
+			x1 = x + sx / 2,
+			z0 = z - sz / 2,
+			z1 = z + sz / 2,
+			h = prop.h,
+			kind = prop.kind,
+			name = name,
+			cf = CFrame.new(x, y0, z) * CFrame.Angles(0, yaw, 0),
+		}
+		if fits(b, gap) then
+			table.insert(placed, b)
+			return true
+		end
+		return false
+	end
+	-- its back to a wall, facing into the room
+	local function against(name: string, side: string, u: number, gap: number): boolean
+		local prop = Props[name]
+		assert(prop, `there's no prop called {name}`)
+		local off = INNER - prop.d / 2
+		if side == "+x" then
+			return add(name, off, u, math.pi / 2, gap)
+		elseif side == "-x" then
+			return add(name, -off, u, -math.pi / 2, gap)
+		elseif side == "+z" then
+			return add(name, u, off, 0, gap)
+		end
+		return add(name, u, -off, math.pi, gap)
+	end
+	local plan = th.plan
+	if plan then
+		plan({
+			th = th,
+			rng = rng,
+			inner = INNER,
+			clear = Config.SHAFT_CLEAR,
+			put = function(name: string, x: number, z: number, yaw: number?, gap: number?): boolean
+				return add(name, x, z, yaw or 0, gap or 2)
+			end,
+			against = function(name: string, side: string, u: number, gap: number?): boolean
+				return against(name, side, u, gap or 2)
+			end,
+		})
+	end
 	for _, entry in th.props do
 		local name = entry[1] :: string
-		local prop = Themes.PROPS[name]
-		local count = rng:NextInteger(entry[2] :: number, entry[3] :: number)
-		for _ = 1, count do
+		local prop = Props[name]
+		assert(prop, `there's no prop called {name}`)
+		for _ = 1, rng:NextInteger(entry[2] :: number, entry[3] :: number) do
 			for _ = 1, 50 do
-				local yaw, x, z
 				if prop.wall then
-					-- its back to a wall, facing into the room
-					local side = rng:NextInteger(1, 4)
-					local along = rr(-inner + prop.w / 2 + 1, inner - prop.w / 2 - 1)
-					local off = inner - prop.d / 2 - 0.05
-					if side == 1 then
-						yaw, x, z = math.pi / 2, off, along
-					elseif side == 2 then
-						yaw, x, z = -math.pi / 2, -off, along
-					elseif side == 3 then
-						yaw, x, z = 0, along, off
-					else
-						yaw, x, z = math.pi, along, -off
+					local side = ({ "+x", "-x", "+z", "-z" })[rng:NextInteger(1, 4)]
+					if against(name, side, rr(-INNER + prop.w / 2 + 1, INNER - prop.w / 2 - 1), GAP) then
+						break
 					end
-				else
-					yaw = rng:NextInteger(0, 3) * math.pi / 2
-					x, z = rr(-inner, inner), rr(-inner, inner)
-				end
-				local quarter = math.abs(math.sin(yaw)) > 0.5
-				local sx = if quarter then prop.d else prop.w
-				local sz = if quarter then prop.w else prop.d
-				local b = {
-					x0 = x - sx / 2,
-					x1 = x + sx / 2,
-					z0 = z - sz / 2,
-					z1 = z + sz / 2,
-					h = prop.h,
-					kind = prop.kind,
-					name = name,
-					cf = CFrame.new(x, y0, z) * CFrame.Angles(0, yaw, 0),
-				}
-				if ok(b) then
-					table.insert(placed, b)
+				elseif add(name, rr(-INNER, INNER), rr(-INNER, INNER), rng:NextInteger(0, 3) * math.pi / 2, GAP) then
 					break
 				end
 			end
@@ -291,7 +437,88 @@ local function placeProps(th: Themes.Theme, y0: number, reserved: { Rect }): { P
 	return placed
 end
 
-local function buildFloor(root: Model, i: number): (Model, { Rect }, BasePart)
+-- the frame on a wall's room face at u along it, at floor level: x runs along the wall, -z out into the room
+local function wallFrame(side: string, u: number, y0: number): CFrame
+	local pos, dir
+	if side == "+x" then
+		pos, dir = Vector3.new(FACE, y0, u), Vector3.new(-1, 0, 0)
+	elseif side == "-x" then
+		pos, dir = Vector3.new(-FACE, y0, u), Vector3.new(1, 0, 0)
+	elseif side == "+z" then
+		pos, dir = Vector3.new(u, y0, FACE), Vector3.new(0, 0, -1)
+	else
+		pos, dir = Vector3.new(u, y0, -FACE), Vector3.new(0, 0, 1)
+	end
+	return CFrame.lookAt(pos, pos + dir)
+end
+
+-- the room a theme dresses (Kit.Room)
+local function roomOf(
+	floor: Instance,
+	th: Themes.Theme,
+	y0: number,
+	y1: number,
+	placed: { Kit.Placed },
+	reserved: { Rect }
+): Kit.Room
+	local model = Instance.new("Model")
+	model.Name = "Dressing"
+	model.Parent = floor
+	local function overlaps(list: { any }, x0: number, x1: number, z0: number, z1: number): boolean
+		for _, o in list do
+			if x1 + 0.5 > o.x0 and x0 - 0.5 < o.x1 and z1 + 0.5 > o.z0 and z0 - 0.5 < o.z1 then
+				return true
+			end
+		end
+		return false
+	end
+	return {
+		th = th,
+		rng = rng,
+		model = model,
+		y0 = y0,
+		y1 = y1,
+		inner = FACE,
+		clear = Config.SHAFT_CLEAR,
+		floor = Kit.on(model, CFrame.new(0, y0, 0)),
+		wall = function(side: string, u: number): Kit.Builder
+			return Kit.on(model, wallFrame(side, u, y0), side)
+		end,
+		free = function(side: string, u: number, half: number): boolean
+			for _, p in placed do
+				local near, a0, a1
+				if side == "+x" then
+					near, a0, a1 = p.x1 > FACE - 3, p.z0, p.z1
+				elseif side == "-x" then
+					near, a0, a1 = p.x0 < -FACE + 3, p.z0, p.z1
+				elseif side == "+z" then
+					near, a0, a1 = p.z1 > FACE - 3, p.x0, p.x1
+				else
+					near, a0, a1 = p.z0 < -FACE + 3, p.x0, p.x1
+				end
+				if near and a1 > u - half and a0 < u + half then
+					return false
+				end
+			end
+			return true
+		end,
+		open = function(x0: number, x1: number, z0: number, z1: number): boolean
+			local clear = Config.SHAFT_CLEAR
+			if x1 > -clear and x0 < clear and z1 > -clear and z0 < clear then
+				return false
+			end
+			if x0 < -FACE or x1 > FACE or z0 < -FACE or z1 > FACE then
+				return false
+			end
+			return not overlaps(placed, x0, x1, z0, z1) and not overlaps(reserved, x0, x1, z0, z1)
+		end,
+		placed = placed,
+		pillars = PILLARS,
+		windows = WINDOWS,
+	}
+end
+
+local function buildFloor(root: Model, i: number, interiors: boolean): (Model, { Rect }, BasePart)
 	local th = Themes.forFloor(i)
 	local floor = Instance.new("Model")
 	floor.Name = string.format("Floor%02d", i + 1)
@@ -303,6 +530,7 @@ local function buildFloor(root: Model, i: number): (Model, { Rect }, BasePart)
 	for _, side in { "+x", "-x", "+z", "-z" } do
 		wall(floor, side, y0, y1, th)
 	end
+	finishes(floor, y0, th)
 	-- a lip round the shaft, its edge glowing in the floor's colour, so the hole reads from above
 	local lip = 0.25 * M
 	for _, s in { 1, -1 } do
@@ -334,33 +562,45 @@ local function buildFloor(root: Model, i: number): (Model, { Rect }, BasePart)
 		local r = Booster.PAD_R + 0.5
 		table.insert(reserved, { x0 = bx - r, x1 = bx + r, z0 = bz - r, z1 = bz + r })
 	end
-	local furniture = Instance.new("Model")
-	furniture.Name = "Furniture"
-	furniture.Parent = floor
-	for _, c in placeProps(th, y0, reserved) do
-		if c.kind == "crate" then
-			local crate = box(
-				floor,
-				"Crate",
-				c.x0,
-				c.x1,
-				y0,
-				y0 + c.h,
-				c.z0,
-				c.z1,
-				Color3.fromRGB(150, 108, 66),
-				Enum.Material.WoodPlanks
-			)
-			crate.Anchored = false
-			crate.CollisionGroup = "Crates"
-			crate.CustomPhysicalProperties = PhysicalProperties.new(0.5, 0.5, 0, 1, 1)
-		else
-			local m = Instance.new("Model")
-			m.Name = c.name
-			Themes.PROPS[c.name].build(m, c.cf, th, rng)
-			m.Parent = furniture
+	if interiors then
+		local furniture = Instance.new("Model")
+		furniture.Name = "Furniture"
+		furniture.Parent = floor
+		local placed = placeProps(th, y0, reserved)
+		for _, c in placed do
+			if c.kind == "crate" then
+				local crate = box(
+					floor,
+					"Crate",
+					c.x0,
+					c.x1,
+					y0,
+					y0 + c.h,
+					c.z0,
+					c.z1,
+					Color3.fromRGB(150, 108, 66),
+					Enum.Material.WoodPlanks
+				)
+				crate.Anchored = false
+				crate.CollisionGroup = "Crates"
+				crate.CustomPhysicalProperties = PhysicalProperties.new(0.5, 0.5, 0, 1, 1)
+			else
+				local m = Instance.new("Model")
+				m.Name = c.name
+				local prop = Props[c.name]
+				if prop.set then
+					-- (its pieces ghost one by one when they're in the camera's way: client/race/Cutaway)
+					m:SetAttribute("Set", true)
+				end
+				prop.build(Kit.on(m, c.cf), th, rng)
+				m.Parent = furniture
+			end
+			table.insert(rects, c)
 		end
-		table.insert(rects, c)
+		local dress = th.dress
+		if dress then
+			dress(roomOf(floor, th, y0, y1, placed, reserved))
+		end
 	end
 	-- four lights under the ceiling, in the floor's colour (no visible fixtures: the ceiling above you is
 	-- cut away, so a lamp would hang in the air). Soft accents: the moonlight and the ambient light the room
@@ -400,7 +640,8 @@ local function buildFloor(root: Model, i: number): (Model, { Rect }, BasePart)
 	return floor, rects, gate
 end
 
-function Tower.build(): Tower
+function Tower.build(options: Options?): Tower
+	local interiors = not (options and options.interiors == false)
 	local old = workspace:FindFirstChild("Tower")
 	if old then
 		old:Destroy()
@@ -432,7 +673,7 @@ function Tower.build(): Tower
 	local covers: { [number]: { Rect } } = {}
 	local gates: { [number]: BasePart } = {}
 	for i = 0, FLOORS - 1 do
-		floors[i], covers[i], gates[i] = buildFloor(root, i)
+		floors[i], covers[i], gates[i] = buildFloor(root, i, interiors)
 	end
 
 	-- the roof: a slab with the hatch over the shaft, and a low parapet

@@ -13,6 +13,10 @@ What's left is mostly the user's: looking, playing and publishing. Claude's code
       reload (the magazine drop, the shotgun's shells and pump), melee swings and guards, being shot from
       each side, a boost and its landing, the skydive, a knock-out and coming to, the end of a race. The
       numbers to tune are in `client/race/Poser` (STANCE, RELOADS, the springs) and `client/race/Gunwork`
+- [ ] **Look round the redesigned floors** (2026-10-21, built and checked by script in Studio, not yet
+      seen): walk every floor (T wins, `RooftopDev` skips; a race starts you on floors 1–5) and say what
+      to change. Each floor's design is one entry in `server/common/Themes` (finishes, plan, dressing);
+      the furniture is in `PropsHome` / `PropsWork` / `PropsFun`
 - [ ] **Check the camera in tight spots** (2026-10-19): backed against a wall, behind shelves, the roof's
       units; props ghost, walls don't, your silhouette shows if a wall still hides you
 - [ ] **The user's look** (screenshots) and the pick of a look preset (Neon Night is the default)
@@ -169,6 +173,20 @@ Camera, look, sound
 
 ## Done
 
+- [x] 2026-10-21 — **Every floor redesigned, BOOST UP only on your floor, one-colour walls** (the user's
+  asks): the booster's label (and every floor's signs, screens, particles and beams) shows only on the
+  floor you're on (`Cutaway`; it floated over the cut-away floors above). The walls' room side is one
+  finish all over, round the window reveals too (the piers were bare concrete between coloured bands),
+  with a skirting and its glowing line, a sill, a cornice, framed windows (transom and mullions) and a
+  dark cap on the cut top. Floors get a border and a walkway finish. Each theme now has a plan (furniture
+  placed by design: cars in painted bays, racking along walls, desk pods, rack rows facing over their
+  aisles, a boxing ring, a dance floor under a lighting rig...) and dressing (signs, neon, paintings with
+  lamps, sconces, pipes, cable trays, mirrors, hatched zones, floor patterns, splats), and ~110 new
+  detailed pieces (`Kit` builder and SurfaceGui art, `Pieces`, `Props*`). Checked in Studio: built in
+  0.64 s, 10.8 k tower parts (was 3.4 k), no errors, no part through a wall, floor or ceiling or on the
+  walkway, every planned piece placed. To pay for it the client doesn't draw furniture and dressing on
+  floors two or more below you (LocalTransparencyModifier, as the cut floors: 60 fps in play-solo); the
+  lobby builds the floors' shells only (`Tower.build({ interiors = false })`).
 - [x] 2026-10-20 — **Fenced roof and plaza, a 20 s lobby countdown** (the user's asks): an invisible fence
   on the roof parapet's inner face, from the roof up 60 studs (the floors below don't have it), and round
   the lobby plaza's kerbs and across the walkway (see Decisions). Checked in a Studio playtest of the race:

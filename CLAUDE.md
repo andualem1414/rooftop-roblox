@@ -19,7 +19,9 @@ One Roblox experience, two places, one repo:
   modules (works in both Roblox and Lune); avoid `init.luau` in `src/shared`.
 - `src/server/race`, `src/server/lobby` → `ServerScriptService.Race` / `.Lobby`.
 - `src/server/common` → `ServerScriptService.Common` in both places: the tower, the valley world, collision
-  groups, saved profiles (`ProfileStore`), looks (`LookService`) and teleports (`Travel`).
+  groups, saved profiles (`ProfileStore`), looks (`LookService`) and teleports (`Travel`). Each floor's
+  design is an entry in `Themes` (finishes, a plan placing its furniture, dressing); the furniture is in
+  `PropsHome` / `PropsWork` / `PropsFun`, built with `Kit` (parts in a frame, SurfaceGui art) and `Pieces`.
 - `src/client/race`, `src/client/lobby` → `StarterPlayer.StarterPlayerScripts.Race` / `.Lobby`.
 - `src/client/common` → `StarterPlayerScripts.Common` in both places: the UI kit, settings and audio.
 - `src/client/first` → `ReplicatedFirst.Loading` in both places (the loading screen).
