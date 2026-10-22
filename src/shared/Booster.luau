@@ -17,10 +17,10 @@ Booster.REACH = 3.2 * Config.M -- how near the pad's centre counts as standing o
 -- The Developer Product for each size, from Creator Hub (the experience → Monetization → Developer
 -- Products). 0 = not set up: then boosts can't be bought (in Studio the pad hands out free test boosts).
 Booster.PRODUCTS = table.freeze({
-	[1] = 0,
-	[3] = 0,
-	[5] = 0,
-	[10] = 0,
+	[1] = 3721071953,
+	[3] = 3721073562,
+	[5] = 3721074287,
+	[10] = 3721075481,
 })
 
 -- the size a product id buys, or nil

@@ -32,8 +32,8 @@ What's left is mostly the user's: looking, playing and publishing. Claude's code
       R15 only, max 20 per place, Studio API access on, access private
 - [ ] **Release test** in the published game (`publish/RELEASE.md` §3): teleports, saving, leaderboards,
       friends together
-- [ ] **Phase 6 boosters**: create the four Developer Products on Creator Hub (+1, +3, +5, +10 floors), put
-      their ids in `src/shared/Booster.luau`; until then they're not for sale (Studio: free test boosts)
+- [x] **Phase 6 boosters** (2026-10-22): the four Developer Products are on Creator Hub (+1, +3, +5, +10 floors at 15, 40, 60, 100 Robux, Managed Pricing off), put
+      their ids are in `src/shared/Booster.luau`
 - [ ] Then: the maturity questionnaire (expected Mild), the game page, icon and thumbnails, going public
 
 ## Roadmap
