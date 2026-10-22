@@ -148,7 +148,7 @@ Moderate.
 > • Leaderboards: most escapes, most knock-outs, fastest escape
 > • Play on computer, phone, tablet or console
 
-**Genre:** Fighting (or Obby & Platformer). **Max players:** 20.
+**Genre:** Action (set 2026-10-22; Roblox allows a change every 3 months). **Max players:** 20.
 
 ## 6. Icon and thumbnails
 
