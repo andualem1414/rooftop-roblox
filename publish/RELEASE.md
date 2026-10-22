@@ -162,6 +162,13 @@ Take them in Studio with the place playing (a big viewport, the HUD hidden by th
 
 No real gun brand names, no blood, no text that promises anything the game doesn't have.
 
+**Uploaded 2026-10-22** (files in `publish/art/`): the icon is the roof's ROOFTOP sign under crossed
+searchlights; the thumbnails are the tower at night from the valley, a climber riding the platform up into
+the gym, and the open roof under the searchlights, on both the Home Page and the Experience Detail Page
+tabs. How they were shot: a playtest with a client-side camera rig (scriptable camera, HUD and prompts off,
+the cut-away floors shown again), Studio's panels closed for a wide viewport, the screen grabbed at full
+resolution and cropped to 16:9. Still worth adding: a real fight with muzzle flashes, and the lobby plaza.
+
 ## 7. Going public
 
 When the release test passes: Creator Hub → Rooftop → Access → **Public**. Bump `src/shared/Version.luau`
