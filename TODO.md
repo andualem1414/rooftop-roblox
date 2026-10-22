@@ -35,7 +35,7 @@ What's left is mostly the user's: looking, playing and publishing. Claude's code
 - [x] **Phase 6 boosters** (2026-10-22): the four Developer Products are on Creator Hub (+1, +3, +5, +10 floors at 15, 40, 60, 100 Robux, Managed Pricing off);
       their ids are in `src/shared/Booster.luau`
 - [x] Game page (2026-10-22): description from `publish/RELEASE.md` §5, genre **Action** (locked until 2027-01)
-- [x] Icon and thumbnails (2026-10-22): `publish/art/` (icon: the roof sign under crossed searchlights; thumbnails: the tower at night, a climber riding up into the gym, the open roof), uploaded for the home page and the detail page
+- [x] Icon and thumbnails (2026-10-22): `publish/art/` (icon: the roof sign under crossed searchlights; thumbnails: the tower at night, a climber riding up into the gym, the open roof, the Arcade, the Nightclub), uploaded for the home page and the detail page
 - [ ] Then: the maturity questionnaire (expected Mild), ID + 2-step verification, going public
 
 ## Roadmap

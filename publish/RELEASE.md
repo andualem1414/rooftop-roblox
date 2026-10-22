@@ -164,7 +164,8 @@ No real gun brand names, no blood, no text that promises anything the game doesn
 
 **Uploaded 2026-10-22** (files in `publish/art/`): the icon is the roof's ROOFTOP sign under crossed
 searchlights; the thumbnails are the tower at night from the valley, a climber riding the platform up into
-the gym, and the open roof under the searchlights, on both the Home Page and the Experience Detail Page
+the gym, the open roof under the searchlights, and two floors seen from above (the Arcade, and the Nightclub
+with a fight at the shaft), on both the Home Page and the Experience Detail Page
 tabs. How they were shot: a playtest with a client-side camera rig (scriptable camera, HUD and prompts off,
 the cut-away floors shown again), Studio's panels closed for a wide viewport, the screen grabbed at full
 resolution and cropped to 16:9. Still worth adding: a real fight with muzzle flashes, and the lobby plaza.
