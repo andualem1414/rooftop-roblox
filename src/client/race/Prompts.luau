@@ -61,7 +61,9 @@ local function show(prompt: ProximityPrompt, input: Enum.ProximityPromptInputTyp
 	gui.Size = UDim2.fromOffset(300, tall + 4)
 	gui.StudsOffsetWorldSpace = Vector3.new(0, if prompt.Name == "Booster" then 2.8 else 1.5, 0)
 	gui.Active = touch
-	gui.MaxDistance = prompt.MaxActivationDistance + 6
+	-- (no limit of its own: it shows exactly while Roblox shows the prompt. A billboard's MaxDistance is
+	-- from the camera, which sits well behind you: the prompt's reach plus a little drew it only zoomed in)
+	gui.MaxDistance = math.huge
 
 	local pill = Instance.new(if touch then "TextButton" else "Frame") :: GuiObject
 	pill.Name = "Pill"
@@ -128,10 +130,12 @@ local function show(prompt: ProximityPrompt, input: Enum.ProximityPromptInputTyp
 	text.Text = lineOf(prompt)
 	text.Parent = pill
 
-	-- (a pickup's own name tag steps aside meanwhile)
+	-- (a pickup's own name tag steps aside meanwhile: its text, as client/race/Cutaway switches the tag
+	-- itself on and off by floor)
 	local tag = holder and holder:FindFirstChild("Tag")
-	if tag and tag:IsA("BillboardGui") then
-		tag.Enabled = false
+	local tagText = tag and tag:FindFirstChild("Text")
+	if tagText and tagText:IsA("GuiObject") then
+		tagText.Visible = false
 	end
 	gui.Parent = player:WaitForChild("PlayerGui")
 
@@ -158,8 +162,8 @@ local function show(prompt: ProximityPrompt, input: Enum.ProximityPromptInputTyp
 		if pressed then
 			pressed:Disconnect()
 		end
-		if tag and tag:IsA("BillboardGui") and tag.Parent then
-			tag.Enabled = true
+		if tagText and tagText:IsA("GuiObject") and tagText.Parent then
+			tagText.Visible = true
 		end
 		gui:Destroy()
 	end
