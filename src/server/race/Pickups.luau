@@ -165,6 +165,7 @@ function Pickups.spawn(kind: string, cf: CFrame, carrier: BasePart?, floor: numb
 	prompt.HoldDuration = 0
 	prompt.MaxActivationDistance = 9
 	prompt.RequiresLineOfSight = false
+	prompt.Style = Enum.ProximityPromptStyle.Custom -- (drawn small by each client: client/race/Prompts)
 	prompt.Parent = p
 	local pk: Pickup = { kind = kind, part = p, prompt = prompt, floor = floor, gone = false, onTaken = nil }
 	dress(pk)

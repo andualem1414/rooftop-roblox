@@ -1290,7 +1290,9 @@ PROPS.vault = {
 
 ---------------------------------------------------------------- the machine room
 
--- the lift's hoist: a motor, a gearbox and a sheave on a plinth, its ropes going up, a rail round it
+-- the lift's hoist: a motor, a gearbox and a sheave on a plinth, its ropes going up, a rail round it.
+-- (The rail is lower than a jump, and inside it there's less room than a body: anyone who jumped or was
+-- knocked over it was wedged in there. Nobody gets past the rail now.)
 PROPS.hoist = {
 	w = 9,
 	d = 9,
@@ -1326,6 +1328,7 @@ PROPS.hoist = {
 			k.box(s, 3.5, 0, 0.2, 0.2, 8.4, rail, M.Metal, true)
 			k.box(0, 1.8, s, 8.4, 0.15, 0.15, rail, M.Metal)
 		end
+		k.keepOut(0, 0, 8.8, 8.8, 6.5)
 	end,
 }
 

@@ -11,6 +11,9 @@
 --   k.rod(a, b, d, ...)                    a cylinder from point a to point b
 --   k.ball(x, y, z, d, ...)                a sphere
 --   k.wedge(cf, size, ...)                 a wedge: full height at its back (+Z), sloping down to its front (-Z)
+--   k.keepOut(x, z, w, d, h)               an invisible block only climbers bump into, w by d, h high: round
+--                                          a piece with a low rail or gaps a body could drop into and be
+--                                          wedged in (shots, the camera and sight lines pass through it)
 -- Every one takes (color, material?, solid?) last. solid: false (the default here: for show, nothing bumps
 -- into it or shoots it), true (collides and stops shots) or "cover" (walked through, stops shots: shots are
 -- raycasts).
@@ -68,6 +71,7 @@ export type Builder = {
 	rod: (a: Vector3, b: Vector3, d: number, color: Color3, mat: Enum.Material?, solid: Solid?) -> Part,
 	ball: (x: number, y: number, z: number, d: number, color: Color3, mat: Enum.Material?, solid: Solid?) -> Part,
 	wedge: (cf: CFrame, size: Vector3, color: Color3, mat: Enum.Material?, solid: Solid?) -> WedgePart,
+	keepOut: (x: number, z: number, w: number, d: number, h: number) -> Part,
 	-- a disc facing the front (its axis along z), e.g. a dial, a washer's door, a speaker cone
 	face: (
 		x: number,
@@ -333,6 +337,19 @@ function Kit.on(model: Instance, frame: CFrame, side: string?): Builder
 		if side then
 			p:SetAttribute("Side", side)
 		end
+		return p
+	end
+	function k.keepOut(x: number, z: number, w: number, d: number, h: number): Part
+		local p = Instance.new("Part")
+		p.Name = "KeepOut"
+		p.Size = Vector3.new(w, h, d)
+		p.CFrame = frame * CFrame.new(x, h / 2, z)
+		p.Anchored = true
+		p.Transparency = 1
+		p.CastShadow = false
+		p.CanTouch = false
+		p.CollisionGroup = "Barrier" -- (server/common/CollisionGroups: only climbers bump into it)
+		p.Parent = model
 		return p
 	end
 	function k.sub(x: number, z: number, yaw: number?, name: string?): Builder

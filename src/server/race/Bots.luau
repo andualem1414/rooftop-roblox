@@ -9,8 +9,9 @@
 -- planting and pushing off to reverse, easing off as they arrive, stepping round anyone in the way. With
 -- nothing going on they walk (and stop at the end for a look round); anything that matters, they run.
 -- They walk straight where the way is open and take a path (PathfindingService) round walls and furniture
--- where it isn't; stuck anyway, they hop or sidestep, and give up on a spot they can't reach. They turn
--- smoothly to face whoever they're fighting (an AlignOrientation, not a snap of the body).
+-- where it isn't; stuck anyway, they hop or sidestep, and give up on a spot they can't reach; wedged or
+-- boxed in for good (shared/Unstuck), they're set down on open floor nearby. They turn smoothly to face
+-- whoever they're fighting (an AlignOrientation, not a snap of the body).
 --
 -- How they fight:
 --   who:     whoever hit them; a teammate's attacker (they back each other up); someone they hear shooting
@@ -46,6 +47,7 @@ local Weapons = require(ReplicatedStorage.Shared.Weapons)
 local Looks = require(ReplicatedStorage.Shared.Looks)
 local LookService = require(script.Parent.Parent.Common.LookService)
 local Platforms = require(ReplicatedStorage.Shared.Platforms)
+local Unstuck = require(ReplicatedStorage.Shared.Unstuck)
 local Climbers = require(script.Parent.Climbers)
 local Tools = require(script.Parent.Tools)
 local Pickups = require(script.Parent.Pickups)
@@ -309,6 +311,7 @@ function Bots.create(i: number): Climber
 		lastPos = Vector3.zero,
 		stuck = 0,
 		stuckN = 0, -- sidesteps lately without getting anywhere
+		wedgedT = 0, -- seconds trying to move and getting nowhere (shared/Unstuck, past a few)
 		detour = nil :: Vector3?, -- sidestepping that way
 		detourT = 0,
 		stage = nil :: Vector3?, -- its place by the shaft while a platform is due
@@ -386,6 +389,7 @@ function Bots.spawn(c: Climber, floor: number)
 	b.move = Vector3.zero
 	b.sep = Vector3.zero
 	b.stuckN = 0
+	b.wedgedT = 0
 	loadAnims(c, model)
 	Tools.equip(c, "gun")
 end
@@ -1303,6 +1307,25 @@ local function think(c: Climber)
 	-- stuck against something: hop it, then sidestep for a moment; still stuck, give the spot up
 	local trying = b.move.Magnitude > 0.3 and flat(target - pos).Magnitude > 3
 	if trying and (pos - b.lastPos).Magnitude < 0.4 * b.pace then
+		-- (wedged somewhere it can't get out of, however it tries: set down on open floor nearby)
+		b.wedgedT += THINK
+		if b.wedgedT >= 2.5 and not riding then
+			b.wedgedT = 0
+			local skip = bodies()
+			for _, name in { "Fx", "Pickups", "Platforms" } do
+				local held = workspace:FindFirstChild(name)
+				if held then
+					table.insert(skip, held)
+				end
+			end
+			local cf = Unstuck.trapped(root, hum, skip) and Unstuck.freeSpot(root, hum, skip)
+			if cf and c.model then
+				c.model:PivotTo(cf)
+				root.AssemblyLinearVelocity = Vector3.zero
+				b.nav = nil
+				b.stuckN = 0
+			end
+		end
 		b.stuck += THINK
 		if b.stuck > 0.5 then
 			b.stuck = 0
@@ -1324,6 +1347,7 @@ local function think(c: Climber)
 	else
 		b.stuck = 0
 		b.stuckN = math.max(0, b.stuckN - THINK / 2)
+		b.wedgedT = 0
 	end
 	b.lastPos = pos
 end

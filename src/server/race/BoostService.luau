@@ -137,6 +137,7 @@ local function buildPad(floor: number, parent: Instance)
 	prompt.HoldDuration = 0
 	prompt.MaxActivationDistance = Booster.REACH + 2
 	prompt.RequiresLineOfSight = false
+	prompt.Style = Enum.ProximityPromptStyle.Custom -- (drawn small by each client: client/race/Prompts)
 	prompt:SetAttribute("Floor", floor)
 	prompt.Parent = base
 	model.Parent = parent

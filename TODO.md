@@ -193,6 +193,16 @@ Camera, look, sound
 
 ## Done
 
+- [x] 2026-10-23 — **No more getting stuck; small prompts** (the user's playtest): the Machine Room's hoist had a
+  solid rail lower than a jump with less room inside than a body: anyone who jumped or was knocked over it
+  was wedged there for good (no reset). It now has an invisible keep-out block only climbers bump into
+  (`Kit` `k.keepOut`; shots and the camera pass). A scan of every floor in Studio (standing spots you can't
+  get back from, sealed slots a body could drop into) found no other trap; a dummy dropped into each
+  flagged slot walked out. Safety net: `shared/Unstuck` + `client/race/Unstick` (and bots in
+  `server/race/Bots`): held a direction 1.5 s, got nowhere and boxed in, you're set down on the nearest
+  open spot on the same floor. The pickup and booster prompts are our own small pill (`client/race/Prompts`:
+  key chip + "Pick up Rifle"; tap it on touch). Not yet seen by the user
+
 - [x] 2026-10-23 — **Polish pass** (the user's ask: bugs, speed, natural bots, a real pistol sound). Checked
   in Studio play-solo (scripts pushed by the MCP; every script then matched the repo):
   - Bots (`server/race/Bots`): steered every frame (ease up to speed, curve round, plant to reverse,
