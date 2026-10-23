@@ -155,7 +155,7 @@ end
 -- Models are built along -Z from the handle. Grips: a gun's barrel runs along your forearm with its
 -- top toward your thumb (an unrotated grip on R15); a bat or sword sticks out of your fist, so its grip
 -- is turned -90° about X, offset so your hand sits near the knob.
-function Tools.make(name: string): Tool
+local function build(name: string): Tool
 	local w = Weapons[name]
 	local tool = Instance.new("Tool")
 	tool.Name = w.label
@@ -322,6 +322,17 @@ function Tools.make(name: string): Tool
 	return tool
 end
 
+-- a weapon's tool: each is built once and copied from then on (a body coming to, a pickup, a swap)
+local built: { [string]: Tool } = {}
+function Tools.make(name: string): Tool
+	local template = built[name]
+	if not template then
+		template = build(name)
+		built[name] = template
+	end
+	return template:Clone()
+end
+
 -- the tool of a slot a climber has (in hand or in the backpack)
 local function findTool(c: Climber, slot: string): Tool?
 	local places: { Instance } = {}
@@ -452,14 +463,20 @@ function Tools.publish(c: Climber)
 		return
 	end
 	local f = c.fighter
-	p:SetAttribute("Melee", f.melee)
-	p:SetAttribute("Gun", f.gun or "")
-	p:SetAttribute("Mag", f.mag)
-	p:SetAttribute("Reserve", f.reserve)
-	p:SetAttribute("Reloading", f.reloadT > 0)
-	p:SetAttribute("Health", math.floor(f.hp + 0.5))
-	p:SetAttribute("Floor", c.floor)
-	p:SetAttribute("Knockouts", c.knockouts)
+	-- (only what changed: ten times a second for every player, each change sent to everyone)
+	local function set(name: string, value: any)
+		if p:GetAttribute(name) ~= value then
+			p:SetAttribute(name, value)
+		end
+	end
+	set("Melee", f.melee)
+	set("Gun", f.gun or "")
+	set("Mag", f.mag)
+	set("Reserve", f.reserve)
+	set("Reloading", f.reloadT > 0)
+	set("Health", math.floor(f.hp + 0.5))
+	set("Floor", c.floor)
+	set("Knockouts", c.knockouts)
 end
 
 -- the starting loadout, as tools

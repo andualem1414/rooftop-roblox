@@ -69,6 +69,7 @@ local winTeam = 0 -- their team: everyone on it wins
 local robloxTeams: { Team } = {}
 local skipCelebration = false -- (Studio test hook)
 local readyPlayers: { [Player]: boolean } = {} -- clients that are running
+local gathered = false -- this race's climbers are picked: anyone arriving now joins it as a latecomer
 local leaving: { [Player]: boolean } = {} -- pressed to go back to the main screen
 local againAsked = false -- (Studio) someone pressed Play again
 local LOSER_LINGER = 90 -- seconds after the end before someone who didn't press is sent back anyway
@@ -351,6 +352,28 @@ local function freezeAll(on: boolean)
 	end
 end
 
+-- Who's friends with whom, asked of Roblox as each player arrives (by the time the race picks its teams
+-- the answers are in: it doesn't wait on dozens of web calls). Keyed by the pair's user ids.
+local friends: { [string]: boolean } = {}
+local asking: { [string]: boolean } = {}
+local function pairKey(a: Player, b: Player): string
+	return `{math.min(a.UserId, b.UserId)}:{math.max(a.UserId, b.UserId)}`
+end
+local function askFriends(a: Player, b: Player)
+	local key = pairKey(a, b)
+	if friends[key] ~= nil or asking[key] then
+		return
+	end
+	asking[key] = true
+	task.spawn(function()
+		local ok, yes = pcall(function()
+			return a:IsFriendsWithAsync(b.UserId)
+		end)
+		friends[key] = ok and yes == true
+		asking[key] = nil
+	end)
+end
+
 local function playerAdded(p: Player)
 	task.spawn(ProfileStore.load, p)
 	if not STUDIO and not RESERVED then
@@ -361,14 +384,24 @@ local function playerAdded(p: Player)
 			return
 		end
 	end
+	for _, o in Players:GetPlayers() do
+		if o ~= p then
+			askFriends(p, o)
+		end
+	end
 	if RESERVED and groupSize == 0 then
 		groupSize = Lobby.groupSize(p:GetJoinData().TeleportData)
 	end
 	local phase = state:GetAttribute("Phase")
-	if phase == "ready" or phase == "climb" or phase == "roof" then
+	if (phase == "over" or phase == "leaving") and RESERVED then
+		-- (the race is already over: nothing to join, straight back to the main screen)
+		goHome(p)
+	elseif Climbers.forPlayer(p) then
+		return -- (already in it)
+	elseif phase == "ready" or phase == "climb" or phase == "roof" or (phase == "waiting" and gathered) then
 		-- (in Studio, or a straggler: in the live game the lobby sends everyone at once)
 		local c = Climbers.add(p.DisplayName, "player", p)
-		c.frozen = phase == "ready"
+		c.frozen = phase == "ready" or phase == "waiting"
 		local counts = table.create(Teams.COUNT, 0)
 		for _, o in Climbers.all() do
 			if o.team > 0 then
@@ -397,36 +430,34 @@ local function playerRemoving(p: Player)
 	end
 end
 
--- which of these players are friends (asked of Roblox all at once; a pair that hasn't answered within a
--- few seconds counts as not friends)
+-- which of these players are friends (mostly known already: asked as they arrived; a pair that hasn't
+-- answered within a couple of seconds counts as not friends)
 local function friendships(players: { Player }): (number, number) -> boolean
-	local known: { [number]: { [number]: boolean } } = {}
-	local asked, answered = 0, 0
-	for i = 1, #players do
-		known[i] = {}
-		for j = i + 1, #players do
-			asked += 1
-			task.spawn(function()
-				local ok, yes = pcall(function()
-					return players[i]:IsFriendsWith(players[j].UserId)
-				end)
-				known[i][j] = ok and yes == true
-				answered += 1
-			end)
+	local function pending(): boolean
+		local any = false
+		for i = 1, #players do
+			for j = i + 1, #players do
+				if friends[pairKey(players[i], players[j])] == nil then
+					askFriends(players[i], players[j])
+					any = true
+				end
+			end
 		end
+		return any
 	end
 	local waited = 0
-	while answered < asked and waited < 4 do
+	while pending() and waited < 2.5 do
 		waited += task.wait(0.1)
 	end
 	return function(i: number, j: number): boolean
-		return known[math.min(i, j)][math.max(i, j)] == true
+		return friends[pairKey(players[i], players[j])] == true
 	end
 end
 
 local function runRace()
 	raceNo += 1
 	finished, winners, winTeam, roofOpen, startAt, winTime = false, {}, 0, false, math.huge, nil
+	gathered = false
 	table.clear(skydiveRings)
 	table.clear(recorded)
 	table.clear(leaving)
@@ -471,10 +502,12 @@ local function runRace()
 
 	local list: { Climber } = {}
 	local players = Players:GetPlayers()
+	local groups = Teams.friendGroups(#players, friendships(players))
+	-- (from here on, anyone arriving joins this race as a latecomer: playerAdded)
 	for _, p in players do
 		table.insert(list, Climbers.add(p.DisplayName, "player", p))
 	end
-	local groups = Teams.friendGroups(#players, friendships(players))
+	gathered = true
 	-- Studio only: a Workspace attribute TestBots (a number) sets how many bots join, for small tests
 	local bots = Rules.botsFor(#list)
 	local testBots = workspace:GetAttribute("TestBots")
@@ -531,6 +564,7 @@ local function runRace()
 	startAt = now() + Config.GET_READY
 	state:SetAttribute("StartAt", startAt)
 	setPhase("ready")
+	gathered = false
 	while now() < startAt do
 		PlatformService.step(0, false)
 		RunService.Heartbeat:Wait()
@@ -762,6 +796,10 @@ function RaceService.start(t: Tower.Tower)
 	Net.event("Finish").OnServerEvent:Connect(onFinish)
 
 	Players.PlayerAdded:Connect(playerAdded)
+	-- (anyone who arrived while the tower was being built)
+	for _, p in Players:GetPlayers() do
+		task.spawn(playerAdded, p)
+	end
 	Players.PlayerRemoving:Connect(function(p: Player)
 		readyPlayers[p] = nil
 		playerRemoving(p)

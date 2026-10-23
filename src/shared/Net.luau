@@ -20,8 +20,9 @@
 --   Lobby("play" / "menu")         the lobby: join the next race from the main screen, or leave it
 -- Server -> clients:
 --   Knock(velocity)                you were hit: get pushed this way (your client owns your body)
---   ShotFx(model, from, to, kind, weapon)  draw a shot: muzzle flash, streak, impact (kind: "body",
---                                  "wall", "none")
+--   ShotFx(model, from, ends, kinds, weapon)  (unreliable) draw a shot: muzzle flash, streaks, impacts;
+--                                  one message per shot: each pellet's end point, and in kinds a letter
+--                                  each for what it struck ("b" a body, "w" a wall, "n" nothing)
 --   SwingFx(model, weapon, side)   a swing started (the arms play it on every screen)
 --   HitFx(position, damage, kind, victim, attacker, weapon)  a hit landed (kind: "hit", "block", "head")
 --   Notice(text, kind)             a banner line for everyone (or one player)
@@ -45,7 +46,6 @@ local NAMES = {
 	"Crouch",
 	"Ready",
 	"Knock",
-	"ShotFx",
 	"SwingFx",
 	"HitFx",
 	"Notice",
@@ -59,7 +59,7 @@ local NAMES = {
 	"Dev",
 	"Lobby",
 }
-local UNRELIABLE = { "Look" }
+local UNRELIABLE = { "Look", "ShotFx" }
 
 local Net = {}
 

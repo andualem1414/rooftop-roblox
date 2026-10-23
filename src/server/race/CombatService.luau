@@ -29,6 +29,8 @@ export type Hooks = {
 }
 
 local CombatService = {}
+-- someone fired from here (the bots listen: server/race/Bots)
+CombatService.onShot = nil :: ((shooter: Climber, from: Vector3) -> ())?
 
 local hooks: Hooks
 local rng = Random.new()
@@ -41,7 +43,7 @@ local MAX_CAMERA_DISTANCE = 40 -- how far a shot's camera ray may start from you
 local CHEST = 1.5 * Config.M -- melee line of sight is checked at chest height (low cover doesn't block it)
 
 local KnockEvent = Net.event("Knock")
-local ShotFx = Net.event("ShotFx")
+local ShotFx = Net.unreliable("ShotFx")
 local SwingFx = Net.event("SwingFx")
 local HitFx = Net.event("HitFx")
 local Feed = Net.event("Feed")
@@ -241,13 +243,17 @@ local function fire(c: Climber, aimPoint: Vector3, err: number)
 	-- every pellet flies on its own; those that land on the same climber count as one blow (a shotgun)
 	local hits: { [Climber]: Landed } = {}
 	local order: { Climber } = {}
+	-- (what every screen draws: one message for the whole shot, each pellet's end and what it struck)
+	local ends: { Vector3 } = {}
+	local kinds: { string } = {}
 	for _ = 1, math.max(1, w.pellets) do
 		local yaw, pitch = Combat.spread(w, err, rand)
 		local dir = (base * CFrame.Angles(pitch, yaw, 0)).LookVector
 		local hit = workspace:Raycast(start, dir * w.range, skip)
 		local stop = if hit then hit.Position else start + dir * w.range
 		local vic = if hit then Climbers.fromPart(hit.Instance) else nil
-		ShotFx:FireAllClients(c.model, start, stop, if vic then "body" elseif hit then "wall" else "none", w.name)
+		table.insert(ends, stop)
+		table.insert(kinds, if vic then "b" elseif hit then "w" else "n")
 		if
 			not vic
 			or vic == c
@@ -272,6 +278,10 @@ local function fire(c: Climber, aimPoint: Vector3, err: number)
 			l.body += 1
 		end
 		l.at = stop
+	end
+	ShotFx:FireAllClients(c.model, start, ends, table.concat(kinds), w.name)
+	if CombatService.onShot then
+		CombatService.onShot(c, start)
 	end
 	for _, vic in order do
 		local l = hits[vic]
@@ -428,8 +438,15 @@ local function step(dt: number)
 			if hum.Health ~= f.hp then
 				hum.Health = f.hp
 			end
-			hum.WalkSpeed = if c.frozen then 0 else Config.WALK_SPEED * Combat.moveScale(f)
-			hum.JumpHeight = if c.frozen or f.crouch then 0 else Config.JUMP_HEIGHT
+			-- (only real changes: each one is sent to every player)
+			local speed = if c.frozen then 0 else Config.WALK_SPEED * Combat.moveScale(f)
+			if hum.WalkSpeed ~= speed then
+				hum.WalkSpeed = speed
+			end
+			local jump = if c.frozen or f.crouch then 0 else Config.JUMP_HEIGHT
+			if hum.JumpHeight ~= jump then
+				hum.JumpHeight = jump
+			end
 			-- fell out of the tower (or down the pit)
 			if root.Position.Y < -2 * Config.FLOOR_HEIGHT - 10 then
 				CombatService.knockOut(c, nil, "fell out")
@@ -463,7 +480,11 @@ function CombatService.init(h: Hooks)
 	Net.unreliable("Look").OnServerEvent:Connect(function(player: Player, pitch: unknown, aiming: unknown)
 		local c = Climbers.forPlayer(player)
 		if c and c.model and type(pitch) == "number" and pitch == pitch then
-			c.model:SetAttribute("Aim", math.clamp(pitch, -1.3, 1.3))
+			-- (to a fiftieth of a radian: finer than anyone sees, and fewer changes to send everyone)
+			local aim = math.floor(math.clamp(pitch, -1.3, 1.3) * 50 + 0.5) / 50
+			if c.model:GetAttribute("Aim") ~= aim then
+				c.model:SetAttribute("Aim", aim)
+			end
 			local ads = aiming == true and c.fighter.equipped == "gun"
 			if c.model:GetAttribute("ADS") ~= ads then
 				c.model:SetAttribute("ADS", ads)

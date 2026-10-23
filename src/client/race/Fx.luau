@@ -131,7 +131,9 @@ local function star(at: Vector3, facing: Vector3, color: Color3, size: number, l
 	)
 end
 
--- a tracer: a beam that's hot at the barrel and fades out toward where it struck
+-- a tracer: a beam that's hot at the barrel and fades out toward where it struck, thinning to nothing
+-- (a tween: no script running for it every frame)
+local TRACER_FADE = TweenInfo.new(0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.In)
 local function tracer(from: Vector3, to: Vector3, color: Color3)
 	local a0, a1 = Instance.new("Attachment"), Instance.new("Attachment")
 	a0.WorldPosition, a1.WorldPosition = from, to
@@ -143,18 +145,47 @@ local function tracer(from: Vector3, to: Vector3, color: Color3)
 	beam.LightInfluence = 0
 	beam.Width0, beam.Width1 = 0.22, 0.08
 	beam.Color = ColorSequence.new(Color3.new(1, 0.97, 0.85), color)
-	beam.Transparency = NumberSequence.new(0, 0.35)
+	beam.Transparency = NumberSequence.new(0, 0.45)
 	beam.Segments = 1
 	beam.Parent = a0
-	task.spawn(function()
-		local t = 0
-		while t < 0.1 do
-			t += task.wait()
-			local k = math.min(1, t / 0.1)
-			beam.Transparency = NumberSequence.new(k, math.min(1, 0.35 + k))
+	TweenService:Create(beam, TRACER_FADE, { Width0 = 0, Width1 = 0 }):Play()
+	Debris:AddItem(a0, 0.12)
+	Debris:AddItem(a1, 0.12)
+end
+
+-- how far from the camera (the far-off parts of a shot are drawn more simply)
+local function seen(at: Vector3): number
+	return (workspace.CurrentCamera.CFrame.Position - at).Magnitude
+end
+local NEAR = 55 -- studs: brass flies and rings
+local MID = 120 -- lights, smoke and marks on the walls
+local FAR = 220 -- past this, only a tracer and the sound
+
+-- the marks bullets leave on walls: the oldest goes once there are this many
+local MAX_MARKS = 80
+local marks: { BasePart } = {}
+local function mark(at: Vector3, normal: Vector3)
+	local p = bit(
+		Vector3.new(0.12, 0.42, 0.42),
+		CFrame.lookAt(at + normal * 0.02, at + normal) * CFrame.Angles(0, math.rad(90), 0),
+		Color3.fromRGB(26, 22, 28),
+		6,
+		1,
+		Enum.PartType.Cylinder
+	)
+	p.Material = Enum.Material.SmoothPlastic
+	table.insert(marks, p)
+	if #marks > MAX_MARKS then
+		local old = table.remove(marks, 1)
+		if old then
+			old:Destroy()
 		end
-		a0:Destroy()
-		a1:Destroy()
+	end
+	task.delay(6.1, function()
+		local i = table.find(marks, p)
+		if i then
+			table.remove(marks, i)
+		end
 	end)
 end
 
@@ -213,17 +244,24 @@ local function muzzle(model: Instance?, weapon: string?, fallback: Vector3?, fac
 		return
 	end
 	local color = ACCENT[weapon or ""] or ACCENT.pistol
+	local far = seen(at)
 	Audio.play(weapon or "pistol", at, nil, model)
-	if weapon == "shotgun" and model then
+	if weapon == "shotgun" and model and far < MID then
 		-- racked as the pump goes back (client/race/Poser)
 		task.delay(0.18, function()
 			Audio.play("pump", model:FindFirstChild("HumanoidRootPart"))
 		end)
 	end
-	star(at + (look :: Vector3) * 0.3, look :: Vector3, color, 1.3, 0.06)
-	flashLight(at, color, 7, 16, 0.09)
-	burst(at, Color3.fromRGB(120, 116, 112), 3, 4, 0.8, 0.5, SMOKE_TEX, -2)
-	casing(model, weapon)
+	if far < FAR then
+		star(at + (look :: Vector3) * 0.3, look :: Vector3, color, 1.3, 0.06)
+	end
+	if far < MID then
+		flashLight(at, color, 7, 16, 0.09)
+		burst(at, Color3.fromRGB(120, 116, 112), 3, 4, 0.8, 0.5, SMOKE_TEX, -2)
+	end
+	if far < NEAR then
+		casing(model, weapon)
+	end
 	Poser.shot(model, weapon)
 end
 
@@ -256,48 +294,63 @@ function Fx.ownShot(w: Weapons.Weapon)
 	CameraAim.kick(0.018 + w.damage * math.max(1, w.pellets) * 0.0006)
 end
 
-local function shot(model: Instance, from: Vector3, to: Vector3, kind: string, weapon: string?)
-	if typeof(from) ~= "Vector3" or typeof(to) ~= "Vector3" then
+-- one shot from someone's gun: every pellet's end point (`ends`) and what each struck (`kinds`, a letter
+-- each: "b" a body, "w" a wall, "n" nothing). A shotgun's pellets share one flash, one bang and a few
+-- impact sounds between them, not eight of each.
+local function shot(model: Instance, from: Vector3, ends: { Vector3 }, kinds: string, weapon: string?)
+	if typeof(from) ~= "Vector3" or type(ends) ~= "table" or type(kinds) ~= "string" or #ends == 0 then
 		return
 	end
-	local d = to - from
-	if d.Magnitude < 0.05 then
+	local first = ends[1]
+	if typeof(first) ~= "Vector3" then
 		return
 	end
 	local color = ACCENT[weapon or ""] or ACCENT.pistol
-	-- (your own flash was already shown when you clicked; a shotgun's pellets share one flash)
+	-- (your own flash was already shown when you clicked)
 	local now = os.clock()
-	local own = model == player.Character and now - ownShotAt < 0.4
+	local mine = model == player.Character
+	local own = mine and now - ownShotAt < 0.4
 	if not own and now - (lastMuzzle[model] or 0) > 0.03 then
 		lastMuzzle[model] = now
-		muzzle(model, weapon, from, d.Unit)
+		local d = first - from
+		muzzle(model, weapon, from, if d.Magnitude > 0.05 then d.Unit else nil)
 	end
 	-- your own streak leaves the gun as you see it (on your screen it's held out to the right:
 	-- client/race/Poser), not where the server has it
-	local seenFrom = if model == player.Character then muzzleOf(model) else nil
-	tracer(seenFrom or from, to, color)
-	whiz(model, from, to)
-	if kind == "wall" then
-		Audio.play("impact", to)
-		if rng:NextNumber() < 0.2 then
-			Audio.play("ricochet", to)
+	local seenFrom = if mine then muzzleOf(model) else nil
+	local sounds, lit = 0, false
+	for i, to in ends do
+		local d = if typeof(to) == "Vector3" then to - from else Vector3.zero
+		if d.Magnitude < 0.05 then
+			continue
 		end
-		local n = -d.Unit
-		bit(
-			Vector3.new(0.12, 0.42, 0.42),
-			CFrame.lookAt(to + n * 0.02, to + n) * CFrame.Angles(0, math.rad(90), 0),
-			Color3.fromRGB(26, 22, 28),
-			6,
-			1,
-			Enum.PartType.Cylinder
-		).Material =
-			Enum.Material.SmoothPlastic
-		burst(to, Color3.fromRGB(255, 170, 60), 10, 22, 0.35, 0.35)
-		burst(to, Color3.fromRGB(150, 140, 130), 3, 3, 1.2, 0.7, SMOKE_TEX, -1)
-		flashLight(to, Color3.fromRGB(255, 190, 110), 3, 8, 0.08)
-	elseif kind == "body" then
-		star(to, -d.Unit, Color3.fromRGB(255, 245, 210), 1.2, 0.09)
-		burst(to, Color3.fromRGB(255, 230, 160), 8, 16, 0.3, 0.3)
+		local kind = string.sub(kinds, i, i)
+		tracer(seenFrom or from, to, color)
+		whiz(model, from, to)
+		local far = seen(to)
+		if kind == "w" then
+			if sounds < 3 then
+				sounds += 1
+				Audio.play("impact", to)
+				if rng:NextNumber() < 0.2 then
+					Audio.play("ricochet", to)
+				end
+			end
+			if far < FAR then
+				burst(to, Color3.fromRGB(255, 170, 60), 10, 22, 0.35, 0.35)
+			end
+			if far < MID then
+				mark(to, -d.Unit)
+				burst(to, Color3.fromRGB(150, 140, 130), 3, 3, 1.2, 0.7, SMOKE_TEX, -1)
+				if not lit then
+					lit = true
+					flashLight(to, Color3.fromRGB(255, 190, 110), 3, 8, 0.08)
+				end
+			end
+		elseif kind == "b" and far < FAR then
+			star(to, -d.Unit, Color3.fromRGB(255, 245, 210), 1.2, 0.09)
+			burst(to, Color3.fromRGB(255, 230, 160), 8, 16, 0.3, 0.3)
+		end
 	end
 end
 
@@ -514,7 +567,7 @@ function Fx.init()
 	folder = Instance.new("Folder")
 	folder.Name = "Fx"
 	folder.Parent = workspace
-	Net.event("ShotFx").OnClientEvent:Connect(shot)
+	Net.unreliable("ShotFx").OnClientEvent:Connect(shot)
 	Net.event("HitFx").OnClientEvent:Connect(hit)
 	-- knock-outs: everyone's characters, players and bots
 	local function onPlayer(p: Player)
