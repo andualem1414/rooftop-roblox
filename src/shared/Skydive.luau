@@ -73,8 +73,11 @@ function Skydive.onPad(x: number, z: number): boolean
 	return math.sqrt(dx * dx + dz * dz) < Skydive.PAD.r
 end
 
--- The rings: from where the launch arc tops out, curving out into the valley and down, spaced so a steady
--- glide (and the last ring's lift) reaches each one. `seed` makes them the same on every screen.
+-- The rings: from where the launch arc tops out, curving out into the valley and down. The height left
+-- above the end is shared out over the rings to come, never steeper than a straight glide drops between
+-- two rings (the last ring's lift and all) nor gentler than a flare holds, so every one can be reached;
+-- where the ground leaves no room for the rest, the trail ends early (it used to push those up out of
+-- reach). `seed` makes them the same on every screen.
 function Skydive.layRings(x: number, y: number, z: number, yaw: number, seed: number): { Ring }
 	-- (a small seeded generator: the same numbers in Roblox and in the tests)
 	local st = math.max(1, math.floor(math.abs(seed)) % 2147483646 + 1)
@@ -90,11 +93,21 @@ function Skydive.layRings(x: number, y: number, z: number, yaw: number, seed: nu
 		if i > 1 then
 			a += math.clamp(want - a, -0.5, 0.5) * 0.6
 		end
-		local step = if i == 1 then 22 * M else rr(23, 27) * M
+		local step = if i == 1 then 22 * M else rr(18, 20) * M
 		x += math.sin(a) * step
 		z += math.cos(a) * step
-		y -= step * (Skydive.CRUISE.sink / Skydive.CRUISE.speed) - (if i > 1 then LIFT_H else 0) + rr(-1.8, 1.8) * M
-		y = math.max(y, ground(x, z) + Skydive.END_ALT + 8 * M + (Skydive.RINGS - i) * 0.5 * M)
+		local floor = ground(x, z) + Skydive.END_ALT + 5 * M
+		local glide = step * (Skydive.CRUISE.sink / Skydive.CRUISE.speed)
+		if i == 1 then
+			y -= glide
+		else
+			local flare = step * (Skydive.FLARE.sink / Skydive.FLARE.speed)
+			local share = (y - floor) / (Skydive.RINGS - i + 1)
+			y -= math.clamp(share, flare - LIFT_H + 0.6 * M, glide - LIFT_H) + rr(-1, 1) * M
+		end
+		if y < floor then
+			break
+		end
 		table.insert(out, { x = x, y = y, z = z, dx = math.sin(a), dz = math.cos(a), state = "ahead" })
 	end
 	return out

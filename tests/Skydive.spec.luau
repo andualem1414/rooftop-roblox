@@ -70,6 +70,13 @@ describe("Skydive", function()
 		local f = fly(11, chase)
 		expect(f.got >= 6).toBe(true)
 	end)
+	it("lays every ring where a flyer steering for it can reach it (the last ones were out of reach)", function()
+		for seed = 1, 60 do
+			local f = fly(seed, chase)
+			expect(#f.rings).toBe(Skydive.RINGS)
+			expect(f.got).toBe(#f.rings)
+		end
+	end)
 	it("never flies through the tower", function()
 		local x, y, z = Skydive.padAt()
 		local f = Skydive.launch(x, y, z, math.pi, 1) -- launched the wrong way, back over the roof

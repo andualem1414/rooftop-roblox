@@ -245,6 +245,7 @@ local function onThrow(riders: { Climber }, _floor: number)
 end
 
 -- the winner on the skydive pad: launch them (everyone lays the same rings from the seed)
+local skydiveRings = Skydive.RINGS
 local function onSkydive(player: Player, what: unknown, rings: unknown)
 	local c = Climbers.forPlayer(player)
 	if not c or c ~= winner or state:GetAttribute("Phase") ~= "over" or not c.model or not c.root then
@@ -261,12 +262,15 @@ local function onSkydive(player: Player, what: unknown, rings: unknown)
 		end
 		state:SetAttribute("Skydive", "flying")
 		c.model:SetAttribute("Gliding", true)
-		SkydiveEvent:FireAllClients(c.model, x, y + 3, z, 0, rng:NextInteger(1, 2 ^ 30))
+		local seed = rng:NextInteger(1, 2 ^ 30)
+		-- (how many rings this flight has: the trail ends early where the ground leaves no room)
+		skydiveRings = #Skydive.launch(x, y + 3, z, 0, seed).rings
+		SkydiveEvent:FireAllClients(c.model, x, y + 3, z, 0, seed)
 	elseif what == "done" and sky == "flying" then
 		state:SetAttribute("Skydive", "done")
 		c.model:SetAttribute("Gliding", false)
-		local got = if type(rings) == "number" then math.clamp(math.floor(rings), 0, Skydive.RINGS) else 0
-		Feed:FireAllClients(`{c.name} took {got} / {Skydive.RINGS} rings on the skydive`, "win")
+		local got = if type(rings) == "number" then math.clamp(math.floor(rings), 0, skydiveRings) else 0
+		Feed:FireAllClients(`{c.name} took {got} / {skydiveRings} rings on the skydive`, "win")
 	end
 end
 

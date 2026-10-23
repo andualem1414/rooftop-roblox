@@ -346,7 +346,7 @@ local function fly(model: Model, x: number, y: number, z: number, yaw: number, s
 		for i, v in views do
 			show(v, i == f.next)
 		end
-		label.Text = `Rings {f.got} / {Skydive.RINGS}`
+		label.Text = `Rings {f.got} / {#f.rings}`
 		if event == "ring" then
 			Audio.play("go")
 		elseif event == "end" then
@@ -358,10 +358,10 @@ local function fly(model: Model, x: number, y: number, z: number, yaw: number, s
 			label.Position = UDim2.fromScale(0.5, 0.36)
 			label.Size = UDim2.fromOffset(700, 90)
 			label.TextSize = 72
-			label.Text = `RINGS {f.got} / {Skydive.RINGS}`
+			label.Text = `RINGS {f.got} / {#f.rings}`
 			local sub = Ui.label(
 				gui,
-				if f.got >= Skydive.RINGS then "Every one!" elseif f.got >= 8 then "Great flying!" else "Nice flying!",
+				if f.got >= #f.rings then "Every one!" elseif f.got >= 8 then "Great flying!" else "Nice flying!",
 				26,
 				Ui.TEXT,
 				Ui.CHALK
