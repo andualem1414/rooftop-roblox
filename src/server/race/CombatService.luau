@@ -7,6 +7,7 @@
 --           from YOUR gun (or head) toward where that ray points, with the server's own spread, and hits
 --           the first thing in its way: no shooting through walls, no hitting from out of range
 -- Health lives in the fighter state and is mirrored onto the Humanoid; 0 hp is a knock-out.
+-- Teammates can't hurt each other: swings pass them by and bullets fly through them.
 -- Crouching (the client asks; standing up again too): the body really goes down (the Humanoid's hip
 -- height, so shots go over it behind cover), slower, and its gun doesn't fire till it stands.
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -186,7 +187,7 @@ local function snapHeading(c: Climber, yaw: number): number
 	local best, bd = yaw, w.reach + Config.BODY_R + 2
 	for _, o in Climbers.all() do
 		local g = o.fighter
-		if o == c or g.dead or o.frozen or math.abs(g.y - f.y) > Config.SAME_LEVEL then
+		if o == c or g.dead or o.frozen or Climbers.allies(c, o) or math.abs(g.y - f.y) > Config.SAME_LEVEL then
 			continue
 		end
 		local dx, dz = g.x - f.x, g.z - f.z
@@ -218,7 +219,14 @@ local function fire(c: Climber, aimPoint: Vector3, err: number)
 	if not w or w.slot ~= "gun" or not head or not c.model then
 		return
 	end
-	local skip = params({ c.model })
+	-- (bullets fly through teammates)
+	local through: { Instance } = { c.model }
+	for _, o in Climbers.all() do
+		if o.model and Climbers.allies(c, o) then
+			table.insert(through, o.model)
+		end
+	end
+	local skip = params(through)
 	local start = head.Position
 	local muzzle = Tools.muzzle(c)
 	-- the barrel can poke through a wall you stand against: then the shot starts from your head
@@ -240,7 +248,14 @@ local function fire(c: Climber, aimPoint: Vector3, err: number)
 		local stop = if hit then hit.Position else start + dir * w.range
 		local vic = if hit then Climbers.fromPart(hit.Instance) else nil
 		ShotFx:FireAllClients(c.model, start, stop, if vic then "body" elseif hit then "wall" else "none", w.name)
-		if not vic or vic == c or vic.frozen or vic.fighter.dead or vic.fighter.invuln > 0 then
+		if
+			not vic
+			or vic == c
+			or vic.frozen
+			or vic.fighter.dead
+			or vic.fighter.invuln > 0
+			or Climbers.allies(c, vic)
+		then
 			continue
 		end
 		local vh = headOf(vic)

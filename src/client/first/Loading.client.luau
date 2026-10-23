@@ -19,11 +19,13 @@ local INK = Color3.fromRGB(14, 12, 24)
 local CHALK = Color3.fromRGB(240, 236, 226)
 
 local TIPS = {
-	"Only one can escape: the platform through the roof takes one climber, alone.",
+	"Only one team can escape: the platform through the roof takes your team, and nobody else.",
+	"Your teammates glow in your team's colour, even through walls. You can't hurt each other.",
 	"The roof opens at 4:00. Be on the top floor when it does.",
 	"Low cover you can jump over. Half walls and shelves stop bullets.",
 	"Right click aims a gun, or guards with a bat or sword.",
 	"Knocked out? You come to a few floors lower. Keep climbing.",
+	"The first platform starts at the bottom: the higher you are, the longer it takes to reach you.",
 	"Ammo boxes lie on every floor. Platforms carry guns, swords and ammo.",
 	"Headshots hit half as hard again.",
 	"Booster pads by the shaft fly you up to floor 18. Only until the roof opens.",

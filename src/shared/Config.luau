@@ -29,7 +29,9 @@ Config.LOBBY_COUNTDOWN = 20 -- seconds, from the first player in the lobby
 Config.LOBBY_FULL_COUNTDOWN = 5 -- seconds left once 20 are waiting
 Config.GROUP_WAIT = 20 -- seconds a race server waits for the rest of its group before it starts
 Config.TELEPORT_TRIES = 4 -- a teleport that fails is tried again this many times
-Config.START_FLOORS = { 0, 4 } -- everyone starts spread over these floors (floors 1–5)
+Config.TEAM_SIZE = 4 -- climbers play in teams of four...
+Config.TEAMS = Config.CLIMBERS // Config.TEAM_SIZE -- ...five of them (shared/Teams)
+Config.START_FLOORS = { 0, 4 } -- each team starts on its own floor of these (team 1 on floor 1 … team 5 on 5)
 Config.GET_READY = 10 -- seconds frozen in place before the race starts (the intro flies in meanwhile)
 Config.ROOF_SCENE = 5.8 -- seconds everyone stops to watch the roof open (the last 3.2 behind a title card
 -- while the lighting builds back round each player: client/race/Cinematic)
@@ -38,7 +40,7 @@ Config.RACE_LIMIT = 8 * 60 -- nobody out by then: the race ends with no winner
 Config.CELEBRATION = 15 -- seconds of fireworks for the winner before everyone goes back
 
 -- platforms
-Config.PLATFORM_INTERVAL = 17 -- a new platform launches from the bottom this often
+Config.PLATFORM_INTERVAL = 17 -- a new platform launches from the bottom this often (the first as the climb starts)
 Config.PLATFORM_MOVE = 0.6 -- seconds to travel one floor
 Config.PLATFORM_STOP = 3 -- seconds it stops at each floor
 Config.PLATFORM_CYCLE = Config.PLATFORM_MOVE + Config.PLATFORM_STOP

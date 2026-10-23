@@ -1,9 +1,10 @@
 --!strict
 -- The end of a race, on this client (nothing restarts by itself: server/race/RaceService waits for these):
---   lost (or nobody got out): a card with who got out and a button back to the main screen (the lobby
---     place); in Studio, where there's no lobby, the button is Play again and starts the next race
---   won: a strip along the bottom: explore the roof, take the skydive from the pad by the sign, or End game
---     (the button, G, or the controller's Y); the skydive itself ends on its own card (SkydiveFlight)
+--   still inside (your team won, another did, or nobody got out): a card with which team got out and a
+--     button back to the main screen (the lobby place); in Studio, where there's no lobby, the button is
+--     Play again and starts the next race
+--   got out: a strip along the bottom: explore the roof, take the skydive from the pad by the sign, or End
+--     game (the button, G, or the controller's Y); the skydive itself ends on its own card (SkydiveFlight)
 --   Studio only: T while racing puts you on the roof as the winner, to try all of this
 local ContextActionService = game:GetService("ContextActionService")
 local Players = game:GetService("Players")
@@ -117,7 +118,7 @@ function EndScreen.init()
 	local function refresh()
 		local phase = state:GetAttribute("Phase")
 		local winner = state:GetAttribute("Winner")
-		local sky = state:GetAttribute("Skydive")
+		local sky = player:GetAttribute("Skydive")
 		if phase ~= "over" then
 			card.Visible = false
 			strip.Visible = false
@@ -129,18 +130,22 @@ function EndScreen.init()
 			return
 		end
 		local race = (state:GetAttribute("Race") :: number?) or 0
-		local iWon = type(winner) == "string" and winner ~= "" and state:GetAttribute("WinnerId") == player.UserId
-		if iWon then
+		local winTeam = state:GetAttribute("WinnerTeam")
+		local ourTeam = type(winTeam) == "number" and winTeam ~= 0 and winTeam == player:GetAttribute("Team")
+		if player:GetAttribute("Escaped") == true then
 			-- (the skydive has its own screen while it flies)
 			strip.Visible = sky ~= "flying" and sky ~= "done"
 			card.Visible = false
 			bindEnd(strip.Visible)
 		elseif shownFor ~= race then
 			shownFor = race
-			title.Text = if type(winner) == "string" and winner ~= ""
-				then `{string.upper(winner)} GOT OUT`
+			title.Text = if ourTeam
+				then "YOUR TEAM GOT OUT"
+				elseif type(winner) == "string" and winner ~= "" then `{string.upper(winner)} GOT OUT`
 				else "NOBODY GOT OUT"
-			sub.Text = "Better luck next climb."
+			sub.Text = if ourTeam
+				then "You win: it counts as an escape for the whole team."
+				else "Better luck next climb."
 			home.Text = if STUDIO then "Play again" else "Main screen"
 			home.Active = true
 			-- (a moment to see the winner first)
@@ -152,8 +157,11 @@ function EndScreen.init()
 			end)
 		end
 	end
-	for _, a in { "Phase", "Winner", "Skydive" } do
+	for _, a in { "Phase", "Winner", "WinnerTeam" } do
 		state:GetAttributeChangedSignal(a):Connect(refresh)
+	end
+	for _, a in { "Escaped", "Skydive" } do
+		player:GetAttributeChangedSignal(a):Connect(refresh)
 	end
 	refresh()
 end

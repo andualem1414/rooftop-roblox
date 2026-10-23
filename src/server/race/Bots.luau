@@ -11,7 +11,7 @@
 --
 -- Who they fight is the original's: whoever hit them, else now and then the nearest one (all the time on
 -- the top floor waiting for the roof, and whoever's next to them crowding the shaft), for a while, and
--- never someone two others are already on.
+-- never someone two others are already on. Never a teammate: they shoot past (through) their own team.
 -- They walk straight where the way is open and take a path (PathfindingService) round walls and
 -- furniture where it isn't; stuck anyway, they hop or sidestep, and give up on a spot they can't reach.
 -- They turn smoothly to face whoever they're fighting (an AlignOrientation, not a snap of the body).
@@ -344,7 +344,7 @@ local function flat(v: Vector3): Vector3
 end
 
 local function valid(c: Climber, o: Climber?): boolean
-	if not o or o == c or not o.root or o.fighter.dead or o.frozen or o.fighter.invuln > 0 then
+	if not o or o == c or not o.root or o.fighter.dead or o.frozen or o.fighter.invuln > 0 or Climbers.allies(c, o) then
 		return false
 	end
 	return o.floor == c.floor
@@ -506,6 +506,11 @@ local function fight(c: Climber, foe: Climber, goal: Vector3?): Vector3?
 	local d = flat(froot.Position - root.Position).Magnitude
 	local hasAmmo = f.gun ~= nil and (f.mag > 0 or f.reserve > 0)
 	local skip = { c.model :: Model, foe.model :: Model }
+	for _, o in Climbers.all() do
+		if o.model and Climbers.allies(c, o) then
+			table.insert(skip, o.model) -- (its bullets fly through teammates)
+		end
+	end
 	if hasAmmo and d > 3.5 * M then
 		Tools.equip(c, "gun")
 		local gw = Weapons[f.gun :: string]
@@ -611,7 +616,7 @@ local function pickTarget(c: Climber, riding: any, t: number, roofOpen: boolean)
 	elseif b.target and (not valid(c, b.target) or b.fightT <= 0) then
 		b.target = nil
 	end
-	-- only one can escape: on the top-floor platform with the roof open, clear everyone else off it
+	-- only one team can escape: on the top-floor platform with the roof open, clear the other teams off it
 	if riding and roofOpen and riding.stop == FLOORS - 1 then
 		local root0 = (c.root :: BasePart).Position
 		local best, bd = nil, math.huge

@@ -1,7 +1,8 @@
 # Rooftop (Roblox)
 
 The Roblox version of Rooftop, the browser game live at https://imaginatingg.itch.io/rooftop. Climbers race up a
-20-floor tower on moving platforms, fight on the way, and the first one alone on a platform through the roof wins.
+20-floor tower on moving platforms in five teams of four, fight the other teams on the way, and the first team
+alone on a platform through the roof wins (unlike the original, where it was one climber alone).
 The plan, the history and every decision are in `TODO.md`.
 
 **The original is a read-only reference:** `C:\Users\Andualem\Documents\Projects\rooftop` (three.js + Rapier +

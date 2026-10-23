@@ -6,16 +6,6 @@ local Rules = require("../src/shared/Rules")
 local describe, it, expect = Test.describe, Test.it, Test.expect
 
 describe("Rules", function()
-	it("spreads 20 climbers over floors 1-5, four each", function()
-		local count = {}
-		for i = 1, 20 do
-			local f = Rules.startFloor(i)
-			count[f] = (count[f] or 0) + 1
-		end
-		for f = 0, 4 do
-			expect(count[f]).toBe(4)
-		end
-	end)
 	it("comes to 2-5 floors lower, never below the ground floor", function()
 		expect(Rules.comeToFloor(10, function(a, _b)
 			return a
@@ -42,10 +32,12 @@ describe("Rules", function()
 			return 0.9
 		end)).toBe("ammo")
 	end)
-	it("only one can escape", function()
-		expect(Rules.escape(1)).toBe("escape")
-		expect(Rules.escape(2)).toBe("throw")
-		expect(Rules.escape(0)).toBe("empty")
+	it("only one team can escape", function()
+		expect(Rules.escape({ 3 })).toBe("escape")
+		expect(Rules.escape({ 2, 2, 2, 2 })).toBe("escape")
+		expect(Rules.escape({ 2, 2, 4 })).toBe("throw")
+		expect(Rules.escape({ 1, 5 })).toBe("throw")
+		expect(Rules.escape({})).toBe("empty")
 	end)
 	it("phases: ready, climb, roof (from 4:00), over (winner or 8:00)", function()
 		expect(Rules.phase(-1, false)).toBe("ready")

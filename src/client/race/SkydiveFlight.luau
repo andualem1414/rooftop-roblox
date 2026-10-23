@@ -430,7 +430,8 @@ function SkydiveFlight.init()
 		local char = player.Character
 		local root = char and char:FindFirstChild("HumanoidRootPart") :: BasePart?
 		local hum = char and char:FindFirstChildOfClass("Humanoid")
-		if not root or not hum or state:GetAttribute("WinnerId") ~= player.UserId then
+		-- (one flight each for those who got out)
+		if not root or not hum or player:GetAttribute("Escaped") ~= true or player:GetAttribute("Skydive") ~= nil then
 			return
 		end
 		local _, y = Skydive.padAt()

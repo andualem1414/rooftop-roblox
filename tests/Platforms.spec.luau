@@ -42,11 +42,28 @@ describe("Platforms.nextArrival", function()
 	it("is 0 while one is stopped there", function()
 		expect(Platforms.nextArrival(5 * CYCLE + MOVE + 1, 5, false)).toBeNear(0)
 	end)
-	it("is at most one interval away", function()
+	it("starts empty: the first platform has to climb to you", function()
+		-- floor 10 (on screen 11) at the start: the first platform reaches it after its climb, not sooner
+		expect(Platforms.nextArrival(0, 10, false)).toBeNear(10 * CYCLE + MOVE)
+		-- and the next one is an interval behind it
+		expect(Platforms.nextArrival(10 * CYCLE + MOVE + Config.PLATFORM_STOP + 0.01, 10, false)).toBeNear(
+			Config.PLATFORM_INTERVAL - Config.PLATFORM_STOP - 0.01
+		)
+	end)
+	it("has no platforms launched before the race", function()
+		local first, last = Platforms.launchRange(0)
+		expect(first).toBe(0)
+		expect(last).toBe(0)
+		local _, before = Platforms.launchRange(-1)
+		expect(before < 0).toBe(true)
+	end)
+	it("is at most one interval away once the first platform has passed", function()
 		for t = 0, 200, 7 do
 			for floor = 0, FLOORS - 1 do
-				local a = Platforms.nextArrival(t, floor, false)
-				expect(a >= 0 and a <= Config.PLATFORM_INTERVAL).toBeTruthy()
+				if t > floor * CYCLE + MOVE then
+					local a = Platforms.nextArrival(t, floor, false)
+					expect(a >= 0 and a <= Config.PLATFORM_INTERVAL).toBeTruthy()
+				end
 			end
 		end
 	end)
@@ -73,8 +90,9 @@ describe("Platforms.shaftOpen", function()
 		expect(Platforms.shaftOpen(4, t, false)).toBe(true)
 	end)
 	it("is shut where no platform is near", function()
-		-- platform 0 at floor 4; platform -1 (17 s earlier) is ~4.7 floors higher: floor 12 is clear
+		-- platform 0 at floor 4, the first one: nothing above it yet
 		local t = 4 * CYCLE + MOVE + 1
 		expect(Platforms.shaftOpen(12, t, false)).toBe(false)
+		expect(Platforms.shaftOpen(6, t, false)).toBe(false)
 	end)
 end)

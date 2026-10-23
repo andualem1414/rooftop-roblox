@@ -19,6 +19,7 @@ local BoostPad = require(script.Parent.BoostPad)
 local SkydiveFlight = require(script.Parent.SkydiveFlight)
 local EndScreen = require(script.Parent.EndScreen)
 local Spectate = require(script.Parent.Spectate)
+local Teammates = require(script.Parent.Teammates)
 
 Audio.init()
 CameraAim.init()
@@ -34,6 +35,7 @@ BoostPad.init()
 SkydiveFlight.init()
 EndScreen.init()
 Spectate.init()
+Teammates.init()
 
 -- once the loading screen has everything in place, tell the server we're ready (the race doesn't count
 -- down until everyone's client is)

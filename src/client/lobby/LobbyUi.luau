@@ -66,15 +66,31 @@ local function howToPlay(gui: ScreenGui)
 	Ui.column(body, 6)
 	local lines = {
 		{ "The race", Ui.ACCENT, 20 },
-		{ `{Config.CLIMBERS} climbers start on floors 1–5 of a {Config.FLOORS}-floor tower.`, nil, 16 },
-		{ "Platforms rise up the shaft in the middle: ride them up. They stop at every floor.", nil, 16 },
-		{ "Fight the others with the bat, a sword or a gun. Knocked out? You come to a few floors lower.", nil, 16 },
 		{
-			"The roof opens at 4:00. Only one can escape: be alone on a platform as it rises through the roof.",
+			`{Config.CLIMBERS} climbers in {Config.TEAMS} teams of {Config.TEAM_SIZE}, each team on its own floor`
+				.. ` (1–5) of a {Config.FLOORS}-floor tower. Friends play on the same team.`,
 			nil,
 			16,
 		},
-		{ "Two or more on it, and it throws everyone off.", nil, 16 },
+		{
+			"Platforms rise up the shaft in the middle, one every 17 s, starting at the bottom. They stop at"
+				.. " every floor.",
+			nil,
+			16,
+		},
+		{
+			"Fight the other teams with the bat, a sword or a gun; teammates can't hurt each other. Knocked out?"
+				.. " You come to a few floors lower.",
+			nil,
+			16,
+		},
+		{
+			"The roof opens at 4:00. Only one team can escape: ride a platform up through the roof with only your"
+				.. " team on it, and your whole team wins.",
+			nil,
+			16,
+		},
+		{ "Anyone from another team on it, and it throws everyone off.", nil, 16 },
 		{ "Guns and ammo", Ui.ACCENT, 20 },
 		{
 			"Everyone starts with a bat and a pistol. Rifles, SMGs and shotguns ride the platforms and lie on floors.",

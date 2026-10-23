@@ -1,14 +1,15 @@
 --!strict
 -- The race HUD, chalk on ink like the lobby and the menus (client/common/Ui):
 --   top:          a plate with the race clock ("Roof opens in 3:12"), your floor and the next platform
---   middle:       the crosshair (gun in hand), banners ("Only one can escape!")
+--   middle:       the crosshair (gun in hand), banners ("Only one team can escape!")
 --   top right:    the kill feed
 --   bottom left:  health, the only health bar (Roblox's own, top right, is off): green, yellow as it
 --                 goes, red when low; bottom right: a plate with the weapon and ammo (top right on a touch
 --                 screen, where the thumb buttons aren't)
 --   under the crosshair: a short hint now and then ("Stand up to shoot"); the crosshair dims while you
 --                 crouch (no shooting till you stand)
---   bottom left:  Settings (or P / the controller's View button), above health: the settings panel
+--   bottom left:  Settings (or P / the controller's View button), above health: the settings panel; above
+--                 that your team (client/race/Teammates; top left on a touch screen)
 -- With the countdown's last seconds ticking, and a chime under each banner.
 local ContextActionService = game:GetService("ContextActionService")
 local UserInputService = game:GetService("UserInputService")
@@ -24,6 +25,7 @@ local Rules = require(ReplicatedStorage.Shared.Rules)
 local Weapons = require(ReplicatedStorage.Shared.Weapons)
 local Net = require(ReplicatedStorage.Shared.Net)
 local CameraAim = require(script.Parent.CameraAim)
+local Teammates = require(script.Parent.Teammates)
 local Common = script.Parent.Parent:WaitForChild("Common")
 local Ui = require(Common:WaitForChild("Ui")) :: any
 local Audio = require(Common:WaitForChild("Audio")) :: any
@@ -288,6 +290,7 @@ function Hud.init()
 	gear.Size = UDim2.fromOffset(96, 32)
 	gear.Position = UDim2.new(0, 20, 1, -100) -- (above the health bar: the chat has the top left)
 	gear.TextSize = 15
+	Teammates.panel(gui)
 	ContextActionService:BindAction("RooftopSettings", function(_, s: Enum.UserInputState)
 		if s == Enum.UserInputState.Begin then
 			settings.toggle()

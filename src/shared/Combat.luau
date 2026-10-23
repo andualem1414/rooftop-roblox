@@ -34,6 +34,7 @@ export type Fighter = {
 	combo: number,
 	comboT: number,
 	dmgScale: number,
+	team: number, -- teammates can't hurt each other (0: no team)
 	-- where they are (filled in by the server every step)
 	x: number,
 	y: number,
@@ -85,6 +86,7 @@ function Combat.newFighter(dmgScale: number?): Fighter
 		combo = 0,
 		comboT = 0,
 		dmgScale = dmgScale or 1,
+		team = 0,
 		x = 0,
 		y = 0,
 		z = 0,
@@ -280,7 +282,12 @@ function Combat.tick(f: Fighter, dt: number): Attack?
 	return blow
 end
 
--- Who a melee blow catches: in reach, in the arc, on the same level, not behind a wall.
+-- on the same team: their blows and bullets don't touch each other
+function Combat.allies(a: Fighter, b: Fighter): boolean
+	return a.team ~= 0 and a.team == b.team
+end
+
+-- Who a melee blow catches: in reach, in the arc, on the same level, not behind a wall, not a teammate.
 -- losBlocked(a, b) is true if something tall stands between them.
 function Combat.findVictims(
 	att: Fighter,
@@ -292,7 +299,7 @@ function Combat.findVictims(
 	local hx, hz = math.sin(a.heading), math.cos(a.heading)
 	local out: { Hit } = {}
 	for _, v in others do
-		if v == att or v.dead or v.invuln > 0 then
+		if v == att or v.dead or v.invuln > 0 or Combat.allies(att, v) then
 			continue
 		end
 		if math.abs(v.y - att.y) > Config.SAME_LEVEL then

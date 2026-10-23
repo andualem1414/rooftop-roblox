@@ -1,7 +1,11 @@
 --!strict
 -- One race, start to finish, owned by the server:
---   waiting -> ready (everyone frozen on floors 1–5, bots fill to 20) -> climb -> roof (the roof opens
---   at 4:00) -> over (someone got out alone, or 8:00 passed) -> 15 s celebration
+--   waiting -> ready (bots fill to 20, five teams of four, each team frozen on its own floor of 1–5) ->
+--   climb -> roof (the roof opens at 4:00) -> over (a team got out, or 8:00 passed) -> 15 s celebration
+-- Teams (shared/Teams): friends together, everyone else spread out, bots fill the gaps; players are on
+-- Roblox's teams too (the player list, team chat). Teammates can't hurt each other. A platform takes its
+-- riders up through the roof only if they're all on one team, and then that whole team wins, the ones
+-- still inside included.
 -- In the live game each race has its own reserved server: the lobby sends a group here (its size rides
 -- in the teleport data), the race waits for them all (not forever), runs once, saves everyone's result
 -- (server/common/ProfileStore) and sends them all back to the lobby. Anyone who lands in a public race
@@ -9,25 +13,29 @@
 --
 -- Clients follow along through attributes on ReplicatedStorage.RaceState:
 --   Phase ("waiting" / "ready" / "climb" / "roof" / "over" / "leaving"), StartAt (server time the climb
---   starts), RoofOpen, Winner (name, "" if nobody), WinnerId (the winner's UserId, 0 for a bot or nobody:
---   display names aren't unique), Race (a number, +1 each race), Skydive ("" / "ready" / "flying" / "done":
---   the winner's skydive, shared/Skydive). The winner's body carries Escaped = true.
+--   starts), RoofOpen, Winner (the winning team's label, "Red team"; "" if nobody), WinnerTeam (its number,
+--   0 if nobody), Race (a number, +1 each race), Skydive ("" / "ready": the pad is out on the roof for the
+--   ones who got out, shared/Skydive). Everyone's team, floor and state are in RaceState.Roster
+--   (Climbers.publish). Players carry Team; those who got out carry Escaped = true (their body too) and
+--   their own Skydive ("flying" / "done").
 -- Once the roof is open a knock-out is final: the climber is out of the race (a bot is gone; a player
 -- watches the others, client/race/Spectate, and may leave), their player carrying Out = true. With
 -- nobody left in, the race ends with no winner.
--- A player who wins gets the skydive: a pad on the roof flings them out over the valley to glide through
--- rings. Nothing restarts by itself: once the race is over the winner explores the roof, takes the skydive
+-- A player who got out gets the skydive: a pad on the roof flings them out over the valley to glide through
+-- rings. Nothing restarts by itself: once the race is over the winners explore the roof, take the skydive
 -- or ends the game, and everyone else sees the result and goes back to the main screen (the lobby place)
 -- when they press, or after a while. In Studio (no lobby) the next race starts when someone presses Play
 -- again; in Studio, T (and RooftopDev "win") puts you on the roof as the winner.
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
+local TeamsService = game:GetService("Teams")
 
 local Config = require(ReplicatedStorage.Shared.Config)
 local Combat = require(ReplicatedStorage.Shared.Combat)
 local Weapons = require(ReplicatedStorage.Shared.Weapons)
 local Rules = require(ReplicatedStorage.Shared.Rules)
+local Teams = require(ReplicatedStorage.Shared.Teams)
 local Lobby = require(ReplicatedStorage.Shared.Lobby)
 local Skydive = require(ReplicatedStorage.Shared.Skydive)
 local Net = require(ReplicatedStorage.Shared.Net)
@@ -56,14 +64,16 @@ local raceNo = 0
 local startAt = math.huge
 local roofOpen = false
 local finished = false
-local winner: Climber? = nil
+local winners: { Climber } = {} -- the ones who rode up through the roof (one team)
+local winTeam = 0 -- their team: everyone on it wins
+local robloxTeams: { Team } = {}
 local skipCelebration = false -- (Studio test hook)
 local readyPlayers: { [Player]: boolean } = {} -- clients that are running
 local leaving: { [Player]: boolean } = {} -- pressed to go back to the main screen
 local againAsked = false -- (Studio) someone pressed Play again
 local LOSER_LINGER = 90 -- seconds after the end before someone who didn't press is sent back anyway
-local WINNER_LINGER = 600 -- the winner may explore the roof for this long
-local winTime: number? = nil -- race time the winner got out
+local WINNER_LINGER = 600 -- the ones who got out may explore the roof for this long
+local winTime: number? = nil -- race time the winners got out
 local recorded: { [Player]: boolean } = {} -- this race's result is saved for them
 
 local STUDIO = RunService:IsStudio()
@@ -203,13 +213,25 @@ local function onKnockedOut(c: Climber, _by: Climber?)
 	end)
 end
 
-local function onEscape(c: Climber)
-	if finished then
+local function onEscape(riders: { Climber })
+	if finished or #riders == 0 then
 		return
 	end
 	finished = true
-	winner = c
+	winners = riders
+	winTeam = riders[1].team
 	winTime = RaceService.time()
+	for _, c in riders do
+		c.escaped = true
+	end
+end
+
+-- put a climber on a team (a player joins Roblox's team of that colour too)
+local function joinTeam(c: Climber, team: number)
+	Climbers.setTeam(c, team)
+	if c.player then
+		c.player.Team = robloxTeams[team]
+	end
 end
 
 -- save one player's race (once): their stats, and a line for each look it unlocked
@@ -219,7 +241,7 @@ local function record(c: Climber)
 		return
 	end
 	recorded[p] = true
-	local won = winner == c
+	local won = winTeam ~= 0 and c.team == winTeam
 	local result = {
 		won = won,
 		time = if won then winTime else nil,
@@ -238,21 +260,22 @@ local function record(c: Climber)
 end
 
 local function onThrow(riders: { Climber }, _floor: number)
-	Notice:FireAllClients("Only one can escape!", "throw")
+	Notice:FireAllClients("Only one team can escape!", "throw")
 	for _, c in riders do
 		Feed:FireAllClients(`{c.name} was thrown off the platform`, "throw")
 	end
 end
 
--- the winner on the skydive pad: launch them (everyone lays the same rings from the seed)
-local skydiveRings = Skydive.RINGS
+-- one who got out, on the skydive pad: launch them (everyone lays the same rings from the seed); each of
+-- them gets one flight
+local skydiveRings: { [Player]: number } = {}
 local function onSkydive(player: Player, what: unknown, rings: unknown)
 	local c = Climbers.forPlayer(player)
-	if not c or c ~= winner or state:GetAttribute("Phase") ~= "over" or not c.model or not c.root then
+	if not c or not c.escaped or state:GetAttribute("Phase") ~= "over" or not c.model or not c.root then
 		return
 	end
-	local sky = state:GetAttribute("Skydive")
-	if what == "launch" and sky == "ready" then
+	local sky = player:GetAttribute("Skydive")
+	if what == "launch" and sky == nil and state:GetAttribute("Skydive") == "ready" then
 		-- on the pad, as this server sees them (a few studs' slack: their own screen is a moment ahead)
 		local p = c.root.Position
 		local x, y, z = Skydive.padAt()
@@ -260,17 +283,18 @@ local function onSkydive(player: Player, what: unknown, rings: unknown)
 		if not near or math.abs(p.Y - 3 - y) > 6 then
 			return
 		end
-		state:SetAttribute("Skydive", "flying")
+		player:SetAttribute("Skydive", "flying")
 		c.model:SetAttribute("Gliding", true)
 		local seed = rng:NextInteger(1, 2 ^ 30)
 		-- (how many rings this flight has: the trail ends early where the ground leaves no room)
-		skydiveRings = #Skydive.launch(x, y + 3, z, 0, seed).rings
+		skydiveRings[player] = #Skydive.launch(x, y + 3, z, 0, seed).rings
 		SkydiveEvent:FireAllClients(c.model, x, y + 3, z, 0, seed)
 	elseif what == "done" and sky == "flying" then
-		state:SetAttribute("Skydive", "done")
+		player:SetAttribute("Skydive", "done")
 		c.model:SetAttribute("Gliding", false)
-		local got = if type(rings) == "number" then math.clamp(math.floor(rings), 0, skydiveRings) else 0
-		Feed:FireAllClients(`{c.name} took {got} / {skydiveRings} rings on the skydive`, "win")
+		local of = skydiveRings[player] or Skydive.RINGS
+		local got = if type(rings) == "number" then math.clamp(math.floor(rings), 0, of) else 0
+		Feed:FireAllClients(`{c.name} took {got} / {of} rings on the skydive`, "win")
 	end
 end
 
@@ -310,7 +334,7 @@ local function onFinish(p: Player, what: unknown)
 	end
 end
 
--- (Studio) put a player on the roof as the winner, to try the end
+-- (Studio) put a player on the roof as the winner (their team wins), to try the end
 local function devWin(p: Player)
 	local c = Climbers.forPlayer(p)
 	local phase = state:GetAttribute("Phase")
@@ -318,7 +342,7 @@ local function devWin(p: Player)
 		return
 	end
 	c.model:PivotTo(CFrame.new(10, Config.FLOORS * Config.FLOOR_HEIGHT + 3.5, 2))
-	onEscape(c)
+	onEscape({ c })
 end
 
 local function freezeAll(on: boolean)
@@ -345,7 +369,19 @@ local function playerAdded(p: Player)
 		-- (in Studio, or a straggler: in the live game the lobby sends everyone at once)
 		local c = Climbers.add(p.DisplayName, "player", p)
 		c.frozen = phase == "ready"
-		spawnPlayer(c, Rules.startFloor(rng:NextInteger(1, 5)))
+		local counts = table.create(Teams.COUNT, 0)
+		for _, o in Climbers.all() do
+			if o.team > 0 then
+				counts[o.team] += 1
+			end
+		end
+		joinTeam(
+			c,
+			Teams.forLatecomer(counts, function(a, b)
+				return rng:NextInteger(a, b)
+			end)
+		)
+		spawnPlayer(c, Teams.startFloor(c.team))
 	end
 end
 
@@ -361,28 +397,51 @@ local function playerRemoving(p: Player)
 	end
 end
 
-local function shuffle<T>(list: { T })
-	for i = #list, 2, -1 do
-		local j = rng:NextInteger(1, i)
-		list[i], list[j] = list[j], list[i]
+-- which of these players are friends (asked of Roblox all at once; a pair that hasn't answered within a
+-- few seconds counts as not friends)
+local function friendships(players: { Player }): (number, number) -> boolean
+	local known: { [number]: { [number]: boolean } } = {}
+	local asked, answered = 0, 0
+	for i = 1, #players do
+		known[i] = {}
+		for j = i + 1, #players do
+			asked += 1
+			task.spawn(function()
+				local ok, yes = pcall(function()
+					return players[i]:IsFriendsWith(players[j].UserId)
+				end)
+				known[i][j] = ok and yes == true
+				answered += 1
+			end)
+		end
+	end
+	local waited = 0
+	while answered < asked and waited < 4 do
+		waited += task.wait(0.1)
+	end
+	return function(i: number, j: number): boolean
+		return known[math.min(i, j)][math.max(i, j)] == true
 	end
 end
 
 local function runRace()
 	raceNo += 1
-	finished, winner, roofOpen, startAt, winTime = false, nil, false, math.huge, nil
+	finished, winners, winTeam, roofOpen, startAt, winTime = false, {}, 0, false, math.huge, nil
+	table.clear(skydiveRings)
 	table.clear(recorded)
 	table.clear(leaving)
 	againAsked = false
 	state:SetAttribute("Race", raceNo)
 	state:SetAttribute("RoofOpen", false)
 	state:SetAttribute("Winner", "")
-	state:SetAttribute("WinnerId", 0)
+	state:SetAttribute("WinnerTeam", 0)
 	state:SetAttribute("StartAt", 0)
 	state:SetAttribute("RoofSceneAt", nil)
 	state:SetAttribute("Skydive", "")
 	for _, p in Players:GetPlayers() do
 		p:SetAttribute("Out", nil)
+		p:SetAttribute("Escaped", nil)
+		p:SetAttribute("Skydive", nil)
 	end
 	setPhase("waiting")
 	while #Players:GetPlayers() == 0 do
@@ -411,24 +470,42 @@ local function runRace()
 	Pickups.reset(tower)
 
 	local list: { Climber } = {}
-	for _, p in Players:GetPlayers() do
+	local players = Players:GetPlayers()
+	for _, p in players do
 		table.insert(list, Climbers.add(p.DisplayName, "player", p))
 	end
+	local groups = Teams.friendGroups(#players, friendships(players))
 	-- Studio only: a Workspace attribute TestBots (a number) sets how many bots join, for small tests
 	local bots = Rules.botsFor(#list)
 	local testBots = workspace:GetAttribute("TestBots")
 	if RunService:IsStudio() and type(testBots) == "number" then
 		bots = math.clamp(math.floor(testBots), 0, bots)
 	end
-	for i = 1, bots do
-		table.insert(list, Bots.create(i))
+	-- into teams: friends together, the other players spread out, the bots filling the gaps
+	local sizes = table.create(#groups, 0)
+	for g, members in groups do
+		sizes[g] = #members
 	end
-	shuffle(list)
+	local groupTeams, botTeams = Teams.assign(sizes, bots, function(a, b)
+		return rng:NextInteger(a, b)
+	end)
+	for g, members in groups do
+		for j, i in members do
+			joinTeam(list[i], groupTeams[g][j])
+		end
+	end
+	for i = 1, bots do
+		local c = Bots.create(i)
+		joinTeam(c, botTeams[i])
+		table.insert(list, c)
+	end
+	Climbers.publish()
+	-- each team on its own floor
 	local pending = #list
-	for i, c in list do
+	for _, c in list do
 		c.frozen = true
 		task.spawn(function()
-			spawn(c, Rules.startFloor(i))
+			spawn(c, Teams.startFloor(c.team))
 			pending -= 1
 		end)
 	end
@@ -461,7 +538,7 @@ local function runRace()
 
 	freezeAll(false)
 	setPhase("climb")
-	Notice:FireAllClients("Climb! The first one alone on a platform through the roof wins.", "info")
+	Notice:FireAllClients("Climb! The first team alone on a platform through the roof wins.", "info")
 	while true do
 		local t = RaceService.time()
 		if not roofOpen and t >= Config.ROOF_OPENS_AFTER then
@@ -499,30 +576,47 @@ local function runRace()
 		RunService.Heartbeat:Wait()
 	end
 
-	-- over: everything stops, only the winner moves
+	-- over: everything stops, only the ones who got out move
 	PlatformService.freeze()
 	freezeAll(true)
-	local w = winner
-	if w then
-		w.frozen = false
-		if w.model then
-			w.model:SetAttribute("Escaped", true)
+	local skydivers = false
+	if winTeam ~= 0 then
+		local label = Teams.label(winTeam)
+		local names = {}
+		for _, c in winners do
+			c.frozen = false
+			table.insert(names, c.name)
+			if c.model then
+				c.model:SetAttribute("Escaped", true)
+			end
+			if c.player then
+				c.player:SetAttribute("Escaped", true)
+				skydivers = true
+			end
 		end
-		state:SetAttribute("WinnerId", if w.player then w.player.UserId else 0)
-		state:SetAttribute("Winner", w.name)
-		Notice:FireAllClients(`{w.name} got out first!`, "win")
-		Feed:FireAllClients(`{w.name} got out first ({Rules.clock(RaceService.time())})`, "win")
+		state:SetAttribute("WinnerTeam", winTeam)
+		state:SetAttribute("Winner", label)
+		Notice:FireAllClients(`{label} got out first!`, "win")
+		Feed:FireAllClients(
+			`{label} got out first ({Rules.clock(RaceService.time())}): {table.concat(names, ", ")}`,
+			"win"
+		)
 	else
 		Notice:FireAllClients("Nobody got out.", "over")
 	end
 	setPhase("over")
+	Climbers.publish()
 	for _, c in Climbers.all() do
 		record(c)
 	end
-	if w and w.player and not skipCelebration then
-		-- the winner's roof: the skydive pad comes out
+	if skydivers and not skipCelebration then
+		-- the winners' roof: the skydive pad comes out
 		state:SetAttribute("Skydive", "ready")
-		Notice:FireClient(w.player, "You got out! Explore the roof, or take the skydive by the sign.", "info")
+		for _, c in winners do
+			if c.player then
+				Notice:FireClient(c.player, "You got out! Explore the roof, or take the skydive by the sign.", "info")
+			end
+		end
 	end
 	if skipCelebration then
 		skipCelebration = false
@@ -534,7 +628,7 @@ local function runRace()
 		while true do
 			if RESERVED then
 				for _, p in Players:GetPlayers() do
-					local isWinner = w ~= nil and w.player == p
+					local isWinner = p:GetAttribute("Escaped") == true
 					local due = leaving[p] or os.clock() - overAt > (if isWinner then WINNER_LINGER else LOSER_LINGER)
 					-- (a teleport that didn't take is tried again)
 					if due and os.clock() - (sentAt[p] or -math.huge) > 15 then
@@ -566,6 +660,28 @@ function RaceService.start(t: Tower.Tower)
 	state.Name = "RaceState"
 	state.Parent = ReplicatedStorage
 	setPhase("waiting")
+	local roster = Instance.new("Folder")
+	roster.Name = "Roster"
+	roster.Parent = state
+	Climbers.publish(roster)
+	for n = 1, Teams.COUNT do
+		local team = Instance.new("Team")
+		team.Name = Teams.NAMES[n]
+		team.TeamColor = BrickColor.new(Teams.BRICK[n])
+		team.AutoAssignable = false
+		team:SetAttribute("Team", n)
+		team.Parent = TeamsService
+		robloxTeams[n] = team
+	end
+	-- the roster, a few times a second
+	local publishT = 0
+	RunService.Heartbeat:Connect(function(dt: number)
+		publishT += dt
+		if publishT > 0.25 then
+			publishT = 0
+			Climbers.publish()
+		end
+	end)
 
 	PlatformService.init(tower, { onEscape = onEscape, onThrow = onThrow })
 	CombatService.init({ onKnockedOut = onKnockedOut })
@@ -633,7 +749,7 @@ function RaceService.start(t: Tower.Tower)
 				skipCelebration = true
 				finished = true
 			end
-			return { phase = state:GetAttribute("Phase"), t = RaceService.time(), winner = winner and winner.name }
+			return { phase = state:GetAttribute("Phase"), t = RaceService.time(), winner = Teams.label(winTeam) }
 		end
 		dev.Parent = game:GetService("ServerStorage")
 		-- the T key's win (Studio only: the server never listens to it in a live game)

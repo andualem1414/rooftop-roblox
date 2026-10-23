@@ -1,18 +1,11 @@
 --!strict
--- The race's rules: where you start, where you come to, what platforms carry, who escapes, and what
--- phase the race is in. Pure functions; `rand(a, b)` is a random integer a..b (inclusive) and
--- `roll()` a random number 0..1, passed in so the tests can pin them.
+-- The race's rules: where you come to, what platforms carry, who escapes, and what phase the race is
+-- in (where each team starts, and who is on which: shared/Teams). Pure functions; `rand(a, b)` is a
+-- random integer a..b (inclusive) and `roll()` a random number 0..1, passed in so the tests can pin them.
 
 local Config = require("./Config")
 
 local Rules = {}
-
--- the floor the i-th climber starts on: spread evenly over START_FLOORS (the caller shuffles who is i)
-function Rules.startFloor(i: number): number
-	local lo, hi = Config.START_FLOORS[1], Config.START_FLOORS[2]
-	local span = hi - lo + 1
-	return lo + ((i - 1) % span)
-end
 
 -- knocked out on `floor`: you come to 2–5 floors lower (never below the ground floor)
 function Rules.comeToFloor(floor: number, rand: (number, number) -> number): number
@@ -54,18 +47,21 @@ function Rules.floorWeapon(roll: () -> number): string
 	return Rules.foundGun(roll)
 end
 
--- A platform about to rise through the roof: only one can escape.
---   "escape": exactly one rider, up they go
---   "throw": more than one, it throws them all off ("Only one can escape")
+-- A platform about to rise through the roof: only one team can escape. `teams` is each rider's team.
+--   "escape": everyone on it is on the same team (one to four of them), up they go and their team wins
+--   "throw": riders from more than one team, it throws them all off ("Only one team can escape")
 --   "empty": nobody on it
 export type Escape = "escape" | "throw" | "empty"
-function Rules.escape(riders: number): Escape
-	if riders == 1 then
-		return "escape"
-	elseif riders > 1 then
-		return "throw"
+function Rules.escape(teams: { number }): Escape
+	if #teams == 0 then
+		return "empty"
 	end
-	return "empty"
+	for _, t in teams do
+		if t ~= teams[1] then
+			return "throw"
+		end
+	end
+	return "escape"
 end
 
 -- the race's phase at race time t (seconds since the start; negative while getting ready)

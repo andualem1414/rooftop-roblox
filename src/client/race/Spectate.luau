@@ -30,7 +30,7 @@ local function alive(model: Instance?): boolean
 	return hum ~= nil and hum.Health > 0 and model:FindFirstChild("HumanoidRootPart") ~= nil
 end
 
--- the climbers still in: players first, then the bots, each by name
+-- the climbers still in: your team first, players before bots, each by name
 local function candidates(): { Model }
 	local people, bots = {}, {}
 	for _, p in Players:GetPlayers() do
@@ -55,7 +55,15 @@ local function candidates(): { Model }
 	for _, m in bots do
 		table.insert(people, m)
 	end
-	return people
+	local mine = player:GetAttribute("Team")
+	local ours, theirs = {}, {}
+	for _, m in people do
+		table.insert(if mine ~= nil and m:GetAttribute("Team") == mine then ours else theirs, m)
+	end
+	for _, m in theirs do
+		table.insert(ours, m)
+	end
+	return ours
 end
 
 local function nameOf(model: Model): string

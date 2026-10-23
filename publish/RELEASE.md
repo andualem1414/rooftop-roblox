@@ -88,9 +88,14 @@ Teleports and data stores only work there. With 2–4 accounts (or friends) on d
 - [ ] A friend who joins you from the friends list lands in your lobby and goes in the same race
 - [ ] Guns: pistol, rifle and SMG (hold to fire), shotgun; pickups, ammo, reload; melee and guard
 - [ ] Touch: Fire / Aim / Reload / Swap buttons; controller: R2 / L2 / X / Y / B / View
-- [ ] The roof opens at 4:00 (or skip ahead in Studio first); one alone through the roof wins
-- [ ] A player who wins gets the skydive pad by the roof sign: the glide through the rings works with keys,
-      a stick and a phone's thumbpad; the celebration waits until they land
+- [ ] Teams: five teams of four, each starting on its own floor (1–5); friends in the same race share a
+      team; teammates glow through walls, can't hurt each other; the team panel shows their floors
+- [ ] The first platform starts from the bottom when the climb starts; nobody higher up gets one until it
+      climbs to them
+- [ ] The roof opens at 4:00 (or skip ahead in Studio first); a platform with only one team on it takes
+      them through the roof and that team wins; riders from two teams are thrown off
+- [ ] Players who got out get the skydive pad by the roof sign (one flight each): the glide through the
+      rings works with keys, a stick and a phone's thumbpad; the celebration waits until they land
 - [ ] Losing shows a result card; Main screen takes you back to the main screen (or after 90 s); the
       winner's End game (G) and the end of the skydive do too
 - [ ] Back in the lobby: Stats show the race, Escapes / KOs in the player list, leaderboards fill in
@@ -133,16 +138,16 @@ Moderate.
 
 **Description:**
 
-> Twenty climbers. One tower. Only one can escape.
+> Five teams. One tower. Only one team can escape.
 >
-> Race up a 20-floor tower at night, riding the platforms that rise up the shaft. Fight your way past
-> everyone else with a bat, a sword or a pistol, or grab the rifles, SMGs and shotguns that turn up on
-> the platforms. Knocked out? You come to a few floors lower. Keep climbing.
+> Race up a 20-floor tower at night in a team of four, riding the platforms that rise up the shaft. Fight
+> your way past the other teams with a bat, a sword or a pistol, or grab the rifles, SMGs and shotguns
+> that turn up on the platforms. Knocked out? You come to a few floors lower. Keep climbing.
 >
-> At 4:00 the roof opens. The first climber to ride a platform up through the roof ALONE wins. Two on the
-> platform and it throws you both off.
+> At 4:00 the roof opens. The first team to ride a platform up through the roof with nobody else on it
+> wins. Anyone from another team on the platform and it throws you all off.
 >
-> • Races of 20: friends who join you race with you, bots fill the rest
+> • Races of 20 in teams of four: friends who join you are on your team, bots fill the rest
 > • Booster pads fly you up the shaft (up to floor 18, until the roof opens)
 > • Unlock 10 climber looks by playing
 > • Leaderboards: most escapes, most knock-outs, fastest escape

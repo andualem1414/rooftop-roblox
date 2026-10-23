@@ -154,6 +154,24 @@ Camera, look, sound
   so the camera, shots, platforms, debris, a boost and the skydive pass through; the lobby's bodies are
   climbers too.
 
+## Decisions (2026-10-23)
+
+- **Teams of four** (the user's design): the 20 climbers play as five teams of four (Red, Blue, Green, Gold,
+  Violet), each team starting together on its own floor (team 1 on floor 1 … team 5 on floor 5). Teammates
+  can't hurt each other (swings pass them, bullets fly through them). The user's picks: **one team
+  escapes** (a platform goes through the roof only with riders from a single team on it, 1–4 of them;
+  riders from two teams are all thrown off, "Only one team can escape!"; that whole team wins, the ones
+  still inside too: an escape on everyone's stats) and **friends together, the rest spread** (friends in
+  the same race share a team, a bigger group split in fours; other players spread over the teams so they
+  fight each other; bots fill the gaps). Players are on Roblox's teams too (player list, team chat). On
+  screen: teammates' outlines in the team's colour through walls with their names; a colour chip over
+  enemies; a team panel (each member's floor, Down / Out / Got out). Everyone who got out gets one skydive.
+  Code: `shared/Teams`, the roster in `server/race/Climbers`, `client/race/Teammates`.
+- **Platforms start from the bottom** (the user, 2026-10-23): the shaft is empty when the climb starts; the
+  first platform leaves the bottom then, the next every 17 s behind it. Someone higher up (a team on floor
+  5, a boost) waits for the first one to climb to them (floor 11: ~37 s) before the 17 s rhythm reaches
+  them. Before, the shaft started full, as if platforms had been running before the race.
+
 ## Inbox
 
 - Floors "double the size": read as 24 × 24 m (each side doubled; 4× the area). The other reading is double the
@@ -174,6 +192,14 @@ Camera, look, sound
 - **Maturity:** repeated unrealistic violence with no blood = Mild; realistic injuries would make it Moderate.
 
 ## Done
+
+- [x] 2026-10-23 — **Team mode and platforms from the bottom** (see Decisions 2026-10-23). Checked in Studio
+  (scripts pushed by the MCP: Rojo wasn't connected): five teams of four on floors 1–5; at 21 s only two
+  platforms in the shaft (floor 6 and just off the ground); a rifle burst through a teammate left them
+  unhurt and hit the enemy behind (100 → 22); a bat swing at a teammate did nothing; Win now gave "Blue
+  team got out first", the roof strip and skydive pad, and the teammates inside counted as winners; the
+  team panel and teammates' outlines and name tags on the client; no errors. Not yet seen: how the
+  outlines and panel look, a real roof escape by a team of bots, friends grouping (live only)
 
 - [x] 2026-10-21 — **Every floor redesigned, BOOST UP only on your floor, one-colour walls** (the user's
   asks): the booster's label (and every floor's signs, screens, particles and beams) shows only on the

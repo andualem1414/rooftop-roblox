@@ -219,13 +219,13 @@ function Forecourt.build()
 	text(rules, "HOW IT GOES", 40, Enum.Font.LuckiestGuy, CHALK, 0)
 	for i, line in
 		{
-			"20 climbers race up a 20-floor tower.",
+			"5 teams of 4 race up a 20-floor tower.",
 			"Ride the platforms up the shaft.",
-			"Fight your way past the others.",
+			"Fight your way past the other teams.",
 			"The roof opens at 4:00.",
-			"Only one can escape:",
-			"be alone on a platform",
-			"through the roof to win.",
+			"Only one team can escape:",
+			"ride a platform with only",
+			"your team through the roof.",
 		}
 	do
 		text(rules, line, 26, Enum.Font.GothamBold, if i == 5 then ACCENT else CHALK, i)

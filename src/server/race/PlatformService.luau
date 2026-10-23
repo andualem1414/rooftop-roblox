@@ -1,8 +1,8 @@
 --!strict
 -- Moves the platforms up the shaft on the shared timetable (shared/Platforms), opens and shuts each
 -- floor's shaft gate, hands out the loot each platform carries, and applies the roof rule: a platform
--- only takes one climber up through the roof. More than one on it as it leaves the top floor and it
--- throws them all off ("Only one can escape").
+-- only takes one team up through the roof. Riders from more than one team on it as it leaves the top
+-- floor and it throws them all off ("Only one team can escape").
 --
 -- The decks are physical parts pulled along by an AlignPosition, so climbers standing on them ride
 -- along smoothly; the server owns them.
@@ -37,7 +37,7 @@ export type Slot = {
 }
 
 export type Hooks = {
-	onEscape: (c: Climber) -> (),
+	onEscape: (riders: { Climber }) -> (),
 	onThrow: (riders: { Climber }, floor: number) -> (),
 }
 
@@ -209,6 +209,15 @@ local function retire(s: Slot)
 	park(s)
 end
 
+-- each rider's team, for the roof rule
+local function teams(riders: { Climber }): { number }
+	local out = table.create(#riders, 0)
+	for i, c in riders do
+		out[i] = c.team
+	end
+	return out
+end
+
 -- move everything to race time t
 function PlatformService.step(t: number, roofOpen: boolean)
 	local used: { [Slot]: boolean } = {}
@@ -236,16 +245,16 @@ function PlatformService.step(t: number, roofOpen: boolean)
 		-- the roof rule, as it leaves the top floor...
 		if roofOpen and s.prevStop == FLOORS - 1 and st.stop == nil then
 			local riders = PlatformService.riders(s)
-			if Rules.escape(#riders) == "throw" then
+			if Rules.escape(teams(riders)) == "throw" then
 				throwOff(riders, FLOORS - 1)
 			end
 		end
 		-- ...and as it arrives at the roof (in case someone jumped on on the way)
 		if st.stop == FLOORS and s.prevStop ~= FLOORS then
 			local riders = PlatformService.riders(s)
-			local verdict = Rules.escape(#riders)
+			local verdict = Rules.escape(teams(riders))
 			if verdict == "escape" then
-				hooks.onEscape(riders[1])
+				hooks.onEscape(riders)
 			elseif verdict == "throw" then
 				throwOff(riders, FLOORS - 1)
 			end
