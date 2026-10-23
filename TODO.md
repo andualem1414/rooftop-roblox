@@ -193,6 +193,22 @@ Camera, look, sound
 
 ## Done
 
+- [x] 2026-10-23 — **Polish pass** (the user's ask: bugs, speed, natural bots, a real pistol sound). Checked
+  in Studio play-solo (scripts pushed by the MCP; every script then matched the repo):
+  - Bots (`server/race/Bots`): steered every frame (ease up to speed, curve round, plant to reverse,
+    walk when idle and stop to look round); gunfights at each gun's preferred range with burst strafing,
+    reloading crouched behind cover (`Tower.covers`), hearing shots, backing up teammates, fighting only
+    who they can see. Seen: the stroll / look round / stage / board / ride cycle, cover and crouch
+  - Pistol: the 9mm takes rang 30 ms (measured with an AudioAnalyzer); now five .45 Grizzly takes
+    (~0.6 s tail). Quiet recordings turned up (bat whoosh, thuds, knock-out fall). Not heard yet
+  - Loading 10.1 s -> 7.7 s in Studio (terrain built during the download; no blocking preload of the
+    tower, which has nothing to fetch). The live gain from overlapping the download isn't measured
+  - Race server: players arriving before it listened / during setup / after the end are handled;
+    friend checks asked as players arrive. Shots are one unreliable message; unchanged values not resent
+  - `server/race/FairPlay`: no going up floors without a platform or a boost (a teleport was put back,
+    a ride left alone). End card shows your climb. Full auto keeps its rate at any frame rate
+  - Left: pure-logic specs for the bots' steering and the climb rule; listen to the pistol in play
+
 - [x] 2026-10-23 — **Team mode and platforms from the bottom** (see Decisions 2026-10-23). Checked in Studio
   (scripts pushed by the MCP: Rojo wasn't connected): five teams of four on floors 1–5; at 21 s only two
   platforms in the shaft (floor 6 and just off the ground); a rifle burst through a teammate left them
