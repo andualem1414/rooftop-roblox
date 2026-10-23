@@ -1,8 +1,9 @@
 --!strict
 -- The end of a race, on this client (nothing restarts by itself: server/race/RaceService waits for these):
---   still inside (your team won, another did, or nobody got out): a card with which team got out and a
---     button back to the main screen (the lobby place); in Studio, where there's no lobby, the button is
---     Play again and starts the next race
+--   still inside (your team won, another did, or nobody got out): a card with which team got out, how
+--     your own climb went (the highest floor you reached, your knock-outs) and a button back to the main
+--     screen (the lobby place); in Studio, where there's no lobby, the button is Play again and starts
+--     the next race
 --   got out: a strip along the bottom: explore the roof, take the skydive from the pad by the sign, or End
 --     game (the button, G, or the controller's Y); the skydive itself ends on its own card (SkydiveFlight)
 --   Studio only: T while racing puts you on the roof as the winner, to try all of this
@@ -12,6 +13,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
 
+local Config = require(ReplicatedStorage.Shared.Config)
 local Net = require(ReplicatedStorage.Shared.Net)
 local Common = script.Parent.Parent:WaitForChild("Common")
 local Ui = require(Common:WaitForChild("Ui")) :: any
@@ -39,7 +41,7 @@ function EndScreen.init()
 	local card = Instance.new("Frame")
 	card.AnchorPoint = Vector2.new(0.5, 1)
 	card.Position = UDim2.new(0.5, 0, 1, -110)
-	card.Size = UDim2.fromOffset(460, 170)
+	card.Size = UDim2.fromOffset(460, 190)
 	card.BackgroundColor3 = Ui.INK
 	card.BackgroundTransparency = 0.1
 	card.Visible = false
@@ -54,6 +56,10 @@ function EndScreen.init()
 	sub.Position = UDim2.fromOffset(20, 56)
 	sub.Size = UDim2.new(1, -40, 0, 22)
 	sub.TextXAlignment = Enum.TextXAlignment.Center
+	local mine = Ui.label(card, "", 15, Ui.TEXT, Ui.GOLD)
+	mine.Position = UDim2.fromOffset(20, 82)
+	mine.Size = UDim2.new(1, -40, 0, 22)
+	mine.TextXAlignment = Enum.TextXAlignment.Center
 	local home = Ui.button(card, if STUDIO then "Play again" else "Main screen", function() end, Ui.ACCENT)
 	home.AnchorPoint = Vector2.new(0.5, 1)
 	home.Position = UDim2.new(0.5, 0, 1, -16)
@@ -146,6 +152,10 @@ function EndScreen.init()
 			sub.Text = if ourTeam
 				then "You win: it counts as an escape for the whole team."
 				else "Better luck next climb."
+			local highest = (player:GetAttribute("Highest") :: number?) or 0
+			local kos = (player:GetAttribute("Knockouts") :: number?) or 0
+			local reached = if highest >= Config.FLOORS then "the roof" else `floor {highest + 1}`
+			mine.Text = `Your climb: up to {reached}  ·  {kos} knock-out{if kos == 1 then "" else "s"}`
 			home.Text = if STUDIO then "Play again" else "Main screen"
 			home.Active = true
 			-- (a moment to see the winner first)

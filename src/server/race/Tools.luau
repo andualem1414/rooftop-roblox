@@ -476,6 +476,7 @@ function Tools.publish(c: Climber)
 	set("Reloading", f.reloadT > 0)
 	set("Health", math.floor(f.hp + 0.5))
 	set("Floor", c.floor)
+	set("Highest", c.highest)
 	set("Knockouts", c.knockouts)
 end
 

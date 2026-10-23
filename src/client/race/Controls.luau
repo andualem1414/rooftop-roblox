@@ -69,7 +69,8 @@ local function use()
 	end
 	-- don't ask faster than the weapon allows (the server checks this too)
 	local now = os.clock()
-	if now - lastUse < (w.windup + w.strike + w.recover) * 0.97 then
+	local interval = w.windup + w.strike + w.recover
+	if now - lastUse < interval * 0.97 then
 		return
 	end
 	if w.slot == "gun" and (crouched or char:GetAttribute("Crouch") ~= nil) then
@@ -82,7 +83,9 @@ local function use()
 		)
 		return
 	end
-	lastUse = now
+	-- (a full-auto trigger held down keeps the gun's own rhythm, not the frame rate's: at 30 fps a rifle
+	-- waiting for the next frame after each interval fired an eighth slower)
+	lastUse = if w.auto and now - lastUse < interval * 1.5 then lastUse + interval else now
 	if w.slot == "gun" then
 		-- a round in the gun: the kick and the flash show at once (the server decides what it hits)
 		local mag = player:GetAttribute("Mag")

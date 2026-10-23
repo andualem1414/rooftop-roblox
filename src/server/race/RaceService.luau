@@ -50,6 +50,7 @@ local PlatformService = require(script.Parent.PlatformService)
 local CombatService = require(script.Parent.CombatService)
 local Bots = require(script.Parent.Bots)
 local BoostService = require(script.Parent.BoostService)
+local FairPlay = require(script.Parent.FairPlay)
 local Purchases = require(script.Parent.Parent.Common.Purchases)
 local Tower = require(script.Parent.Parent.Common.Tower)
 
@@ -736,6 +737,9 @@ function RaceService.start(t: Tower.Tower)
 		end,
 	})
 	Purchases.init(BoostService.onCredit)
+	FairPlay.init(function(): string
+		return (state:GetAttribute("Phase") :: string?) or "waiting"
+	end)
 
 	-- Studio only: test hooks (`RooftopDev:Invoke(...)`): "skip" seconds of the race clock, "win" (the first
 	-- player gets out), "restart" the race, "give" the first player a weapon, "ko" knocks someone out (the
