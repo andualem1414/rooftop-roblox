@@ -97,7 +97,7 @@ function Skydive.layRings(x: number, y: number, z: number, yaw: number, seed: nu
 		x += math.sin(a) * step
 		z += math.cos(a) * step
 		local floor = ground(x, z) + Skydive.END_ALT + 5 * M
-		local glide = step * (Skydive.CRUISE.sink / Skydive.CRUISE.speed)
+		local glide = step * (Skydive.CRUISE.sink / (Skydive.CRUISE.speed + 1.5 * M))
 		if i == 1 then
 			y -= glide
 		else
@@ -111,6 +111,35 @@ function Skydive.layRings(x: number, y: number, z: number, yaw: number, seed: nu
 		table.insert(out, { x = x, y = y, z = z, dx = math.sin(a), dz = math.cos(a), state = "ahead" })
 	end
 	return out
+end
+
+-- how high a straight glide from (x, y, z), climbing at vy and flying at speed, will be when it reaches
+-- (rx, rz) (vy eases to the glide's sink as in Skydive.step)
+local function glideTo(x: number, y: number, z: number, vy: number, speed: number, rx: number, rz: number): number
+	local t = math.sqrt((rx - x) ^ 2 + (rz - z) ^ 2) / math.max(speed, 1)
+	local sink = Skydive.CRUISE.sink
+	return y - sink * t + (vy + sink) / 1.6 * (1 - math.exp(-1.6 * t))
+end
+
+-- The next ring, and the rest of the trail with it, comes down to where you can still reach it: never
+-- above where a straight glide from here meets it (give or take). The trail is laid for taking every ring,
+-- and each one lifts you: miss one and nothing climbs back up to the rest (they hung out of reach above
+-- you). Rings are never raised: one below you is a dive (W) away. Called as each ring is taken or passed,
+-- on every screen (watchers with the flyer's position as they see it).
+function Skydive.settle(rings: { Ring }, next: number, x: number, y: number, z: number, vy: number, speed: number)
+	local r = rings[next]
+	if not r then
+		return
+	end
+	local drop = r.y - (glideTo(x, y, z, vy, speed, r.x, r.z) + 0.4 * Skydive.RING_R)
+	if drop <= 0 then
+		return
+	end
+	for i = next, #rings do
+		local q = rings[i]
+		-- (not under the end height: no lower than the flight goes, or where it already is)
+		q.y = math.max(q.y - drop, math.min(q.y, ground(q.x, q.z) + Skydive.END_ALT + 2 * M))
+	end
 end
 
 -- a new flight off the pad from (x, y, z), out along yaw; the rings come from `seed`
@@ -151,6 +180,7 @@ function Skydive.step(f: Flyer, dt: number, steer: number, pitch: number): strin
 		f.vy -= Skydive.LAUNCH_G * dt
 		if f.vy <= 2 * M then
 			f.phase = "glide"
+			Skydive.settle(f.rings, f.next, f.x, f.y, f.z, f.vy, Skydive.CRUISE.speed)
 		end
 	else
 		f.turn += (steer - f.turn) * damp(5, dt)
@@ -193,9 +223,11 @@ function Skydive.step(f: Flyer, dt: number, steer: number, pitch: number): strin
 			f.vy += Skydive.RING_LIFT
 			f.boost = math.min(4 * M, f.boost + 2 * M)
 			event = "ring"
+			Skydive.settle(f.rings, f.next, f.x, f.y, f.z, f.vy, f.speed)
 		elseif dx * r.dx + dz * r.dz > 4 * M then
 			r.state = "missed"
 			f.next += 1
+			Skydive.settle(f.rings, f.next, f.x, f.y, f.z, f.vy, f.speed)
 		end
 	end
 

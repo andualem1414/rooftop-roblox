@@ -139,7 +139,7 @@ end
 
 ---------------------------------------------------------------- the rings
 
-type RingView = { ring: Skydive.Ring, model: Model, parts: { BasePart }, shown: string }
+type RingView = { ring: Skydive.Ring, model: Model, parts: { BasePart }, shown: string, y: number }
 
 local function buildRing(r: Skydive.Ring): RingView
 	local model = Instance.new("Model")
@@ -154,7 +154,7 @@ local function buildRing(r: Skydive.Ring): RingView
 		table.insert(parts, neon("Bit", Vector3.new(seg * 1.05, 0.7, 0.7), at, PALE, model))
 	end
 	model.Parent = holder()
-	return { ring = r, model = model, parts = parts, shown = "" }
+	return { ring = r, model = model, parts = parts, shown = "", y = r.y }
 end
 
 local function sparkle(at: Vector3)
@@ -202,6 +202,17 @@ local function show(v: RingView, next: boolean)
 	end
 end
 
+-- a ring brought down to where you can reach it (Skydive.settle) glides there
+local function place(v: RingView, dt: number)
+	local gap = v.ring.y - v.y
+	if math.abs(gap) < 0.01 then
+		return
+	end
+	local move = if math.abs(gap) < 0.05 then gap else gap * math.min(1, dt * 4)
+	v.model:PivotTo(v.model:GetPivot() + Vector3.new(0, move, 0))
+	v.y += move
+end
+
 ---------------------------------------------------------------- the flight
 
 local function ringsHud(): (TextLabel, ScreenGui)
@@ -228,8 +239,10 @@ local function fly(model: Model, x: number, y: number, z: number, yaw: number, s
 	if not mine then
 		-- watching: follow the winner's ring progress from where they fly
 		local next = 1
+		local lastAt: Vector3? = nil
+		local vy, speed = 0, Skydive.CRUISE.speed
 		local conn: RBXScriptConnection
-		conn = RunService.Heartbeat:Connect(function()
+		conn = RunService.Heartbeat:Connect(function(dt: number)
 			if not model.Parent or not folder then
 				conn:Disconnect()
 				return
@@ -237,17 +250,31 @@ local function fly(model: Model, x: number, y: number, z: number, yaw: number, s
 			local root = model:FindFirstChild("HumanoidRootPart") :: BasePart?
 			local v = views[next]
 			if root and v then
-				local d = root.Position - Vector3.new(v.ring.x, v.ring.y, v.ring.z)
+				-- how they're flying, from how their body moves (for bringing the rings down as they do)
+				local p = root.Position
+				if lastAt and dt > 0 then
+					local k = math.min(1, dt * 6)
+					vy += ((p.Y - lastAt.Y) / dt - vy) * k
+					speed += (Vector3.new(p.X - lastAt.X, 0, p.Z - lastAt.Z).Magnitude / dt - speed) * k
+				end
+				lastAt = p
+				local d = p - Vector3.new(v.ring.x, v.ring.y, v.ring.z)
+				local passed = false
 				if d.Magnitude < Skydive.RING_R + 0.6 * Config.M + 2 then
 					v.ring.state = "got"
-					next += 1
+					passed = true
 				elseif d.X * v.ring.dx + d.Z * v.ring.dz > 12 then
 					v.ring.state = "missed"
+					passed = true
+				end
+				if passed then
 					next += 1
+					Skydive.settle(f.rings, next, p.X, p.Y, p.Z, vy, speed)
 				end
 			end
 			for i, view in views do
 				show(view, i == next)
+				place(view, dt)
 			end
 		end)
 		return
@@ -345,6 +372,7 @@ local function fly(model: Model, x: number, y: number, z: number, yaw: number, s
 		camera.FieldOfView = 70 * (1 + 0.18 * math.clamp((f.speed - 36) / 54, 0, 1))
 		for i, v in views do
 			show(v, i == f.next)
+			place(v, dt)
 		end
 		label.Text = `Rings {f.got} / {#f.rings}`
 		if event == "ring" then

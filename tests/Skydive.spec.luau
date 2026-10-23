@@ -77,6 +77,46 @@ describe("Skydive", function()
 			expect(f.got).toBe(#f.rings)
 		end
 	end)
+	it("gets nearly every ring just steering, never diving or flaring", function()
+		for seed = 1, 60 do
+			local f = fly(seed, function(f: Skydive.Flyer): (number, number)
+				return (chase(f)), 0
+			end)
+			expect(f.got >= Skydive.RINGS - 2).toBe(true)
+		end
+	end)
+	it("brings the rest of the trail within reach after a missed ring", function()
+		for seed = 1, 60 do
+			local f = fly(seed, function(f: Skydive.Flyer): (number, number)
+				local r = f.rings[f.next]
+				if f.next == 3 and r then
+					-- well wide of ring 3, and no lift from it
+					local wx, wz = r.x + r.dz * 5 * Skydive.RING_R, r.z - r.dx * 5 * Skydive.RING_R
+					local want = math.atan2(wx - f.x, wz - f.z)
+					return math.clamp(-math.atan2(math.sin(want - f.yaw), math.cos(want - f.yaw)) * 3, -1, 1), 0
+				end
+				return chase(f)
+			end)
+			expect(f.rings[3].state).toBe("missed")
+			-- (the turn back in can cost the next one or two, sideways; never the rest)
+			expect(f.got >= Skydive.RINGS - 3).toBe(true)
+		end
+	end)
+	it("only ever brings rings down", function()
+		local x, y, z = Skydive.padAt()
+		local f = Skydive.launch(x, y, z, 0, 9)
+		local before = {}
+		for i, r in f.rings do
+			before[i] = r.y
+		end
+		Skydive.settle(f.rings, 4, f.rings[3].x, f.rings[3].y + 50, f.rings[3].z, 0, Skydive.CRUISE.speed)
+		Skydive.settle(f.rings, 4, f.rings[3].x, f.rings[3].y - 8 * Config.M, f.rings[3].z, 0, Skydive.CRUISE.speed)
+		for i, r in f.rings do
+			expect(r.y <= before[i]).toBe(true)
+		end
+		expect(f.rings[4].y < before[4]).toBe(true)
+		expect(f.rings[2].y).toBe(before[2])
+	end)
 	it("never flies through the tower", function()
 		local x, y, z = Skydive.padAt()
 		local f = Skydive.launch(x, y, z, math.pi, 1) -- launched the wrong way, back over the roof
