@@ -9,9 +9,17 @@
 -- and aimed where a moving target was a moment ago. Nobody behind cover gets shot at: they only fire with
 -- a clear line to the body (so crouching behind a sofa hides you; they come round it instead).
 --
+-- Who they fight is the original's: whoever hit them, else now and then the nearest one (all the time on
+-- the top floor waiting for the roof, and whoever's next to them crowding the shaft), for a while, and
+-- never someone two others are already on.
+-- They walk straight where the way is open and take a path (PathfindingService) round walls and
+-- furniture where it isn't; stuck anyway, they hop or sidestep, and give up on a spot they can't reach.
+-- They turn smoothly to face whoever they're fighting (an AlignOrientation, not a snap of the body).
+--
 -- Bots are Roblox avatars built from HumanoidDescriptions, with Roblox's default animations for the legs
 -- and body (the ids are read from the rig's own Animate script and played from the server); their arms
 -- are posed on every client like a player's (client/race/Poser).
+local PathfindingService = game:GetService("PathfindingService")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
@@ -92,6 +100,7 @@ local M = Config.M
 local FLOORS = Config.FLOORS
 local THINK = 0.25
 local STUDIO = RunService:IsStudio()
+local PATH = { AgentRadius = 2, AgentHeight = 5, AgentCanJump = true, WaypointSpacing = 4 }
 
 local Bots = {}
 
@@ -242,6 +251,7 @@ function Bots.create(i: number): Climber
 		lastStop = -1,
 		spot = Vector3.new(rr(-0.6, 0.6) * Config.PLATFORM_HALF, 0, rr(-0.6, 0.6) * Config.PLATFORM_HALF),
 		target = nil :: Climber?,
+		fightT = 0, -- how much longer it keeps at a fight it picked
 		think = rr(0, THINK),
 		fireT = 0,
 		burst = 0, -- shots left in this burst (full-auto guns)
@@ -254,6 +264,16 @@ function Bots.create(i: number): Climber
 		wanderT = 0,
 		lastPos = Vector3.zero,
 		stuck = 0,
+		stuckN = 0, -- sidesteps lately without getting anywhere
+		detour = nil :: Vector3?, -- sidestepping that way
+		detourT = 0,
+		stage = nil :: Vector3?, -- its place by the shaft while a platform is due
+		nav = nil :: any, -- the path it's following: { goal, at, points, i, failed }
+		computing = false,
+		skip = {} :: { [Instance]: number }, -- pickups it couldn't reach (until when)
+		faceAt = Vector3.zero,
+		faceT = 0, -- facing faceAt (not where it walks) while > 0
+		align = nil :: AlignOrientation?,
 	}
 	return c
 end
@@ -279,13 +299,33 @@ function Bots.spawn(c: Climber, floor: number)
 	LookService.apply(model, Looks.forBot(c.id).id)
 	model.Parent = folder
 	ctx.setup(c, model)
+	local b = c.brain
 	local root = c.root
 	if root then
 		root:SetNetworkOwner(nil)
+		-- turns it to face whoever it's fighting (switched on while it does: the Heartbeat in Bots.init)
+		local att = root:FindFirstChild("RootAttachment") :: Attachment?
+		if not att then
+			att = Instance.new("Attachment");
+			(att :: Attachment).Parent = root
+		end
+		local align = Instance.new("AlignOrientation")
+		align.Mode = Enum.OrientationAlignmentMode.OneAttachment
+		align.Attachment0 = att
+		align.Responsiveness = 25
+		align.MaxTorque = math.huge
+		align.Enabled = false
+		align.Parent = root
+		b.align = align
 	end
-	c.brain.target = nil
-	c.brain.rode = 0
-	c.brain.lastStop = -1
+	b.target = nil
+	b.fightT = 0
+	b.rode = 0
+	b.lastStop = -1
+	b.nav = nil
+	b.stage = nil
+	b.detour = nil
+	b.faceT = 0
 	loadAnims(c, model)
 	Tools.equip(c, "gun")
 end
@@ -310,11 +350,23 @@ local function valid(c: Climber, o: Climber?): boolean
 	return o.floor == c.floor
 end
 
-local function nearest(c: Climber, within: number): Climber?
+-- how many bots are after this one
+local function hunters(o: Climber): number
+	local n = 0
+	for _, h in Climbers.all() do
+		if h.brain and h.brain.target == o then
+			n += 1
+		end
+	end
+	return n
+end
+
+-- the nearest one worth fighting (not already mobbed by two others)
+local function nearest(c: Climber, within: number, keep: ((o: Climber) -> boolean)?): Climber?
 	local root = c.root :: BasePart
 	local best, bd = nil, within
 	for _, o in Climbers.all() do
-		if valid(c, o) then
+		if valid(c, o) and (not keep or keep(o)) and hunters(o) < 2 then
 			local d = (flat((o.root :: BasePart).Position - root.Position)).Magnitude
 			if d < bd then
 				best, bd = o, d
@@ -332,14 +384,14 @@ local function clearShot(from: Vector3, to: Vector3, skip: { Instance }): boolea
 	return workspace:Raycast(from, to - from, losParams) == nil
 end
 
+-- face that way for a moment (it turns smoothly: the Heartbeat in Bots.init)
 local function face(c: Climber, at: Vector3)
-	local root, hum = c.root :: BasePart, c.humanoid :: Humanoid
-	hum.AutoRotate = false
-	local p = root.Position
-	root.CFrame = CFrame.lookAt(p, Vector3.new(at.X, p.Y, at.Z))
+	c.brain.faceAt = at
+	c.brain.faceT = 0.6
 end
 
--- the walkway round the shaft, a step back from the edge (where they wait for a platform)
+-- the walkway round the shaft, a step back from the edge (where they wait for a platform), spread out
+-- along the side nearest them
 local function stageSpot(c: Climber): Vector3
 	local root = c.root :: BasePart
 	local p = root.Position
@@ -347,10 +399,106 @@ local function stageSpot(c: Climber): Vector3
 	local along = Config.SHAFT_HALF - 0.3 * M
 	local y = c.floor * Config.FLOOR_HEIGHT
 	if math.abs(p.X) > math.abs(p.Z) then
-		return Vector3.new(math.sign(p.X) * r, y, math.clamp(p.Z, -along, along))
+		return Vector3.new(math.sign(p.X) * r, y, math.clamp(p.Z + rr(-1, 1) * M, -along, along))
 	end
-	return Vector3.new(math.clamp(p.X, -along, along), y, math.sign(p.Z) * r)
+	return Vector3.new(math.clamp(p.X + rr(-1, 1) * M, -along, along), y, math.sign(p.Z) * r)
 end
+
+---------------------------------------------------------------- getting about
+
+local wayParams = RaycastParams.new()
+wayParams.FilterType = Enum.RaycastFilterType.Exclude
+wayParams.CollisionGroup = "Climbers"
+wayParams.RespectCanCollide = true
+
+-- is the way there open (nothing a climber would walk into, at waist height)? (cast from a step back: a
+-- shape cast doesn't see what it starts inside, such as the wall a bot is pressed against)
+local function openWay(from: Vector3, to: Vector3, skip: { Instance }): boolean
+	local dir = flat(to - from)
+	if dir.Magnitude < 1 then
+		return true
+	end
+	wayParams.FilterDescendantsInstances = skip
+	local back = dir.Unit * 1.2
+	return workspace:Spherecast(from - back, 0.9, dir + back, wayParams) == nil
+end
+
+-- the next spot to walk to on the way to a goal: the goal itself when the way is open, else the next
+-- waypoint of a path round whatever's in the way (worked out in the background, again when the goal
+-- moves or every few seconds)
+local function route(c: Climber, goal: Vector3, skip: { Instance }): Vector3
+	local b, root, hum = c.brain, c.root :: BasePart, c.humanoid :: Humanoid
+	local pos = root.Position
+	-- (stuck lately: the way only looked open, so take a path)
+	if b.stuckN < 1 and openWay(pos, goal, skip) then
+		b.nav = nil
+		return goal
+	end
+	local nav = b.nav
+	if (not nav or flat(nav.goal - goal).Magnitude > 4 or os.clock() - nav.at > 3) and not b.computing then
+		b.computing = true
+		local from = pos
+		task.spawn(function()
+			local path = PathfindingService:CreatePath(PATH)
+			local ok = pcall(function()
+				path:ComputeAsync(from, goal)
+			end)
+			b.computing = false
+			local good = ok and path.Status == Enum.PathStatus.Success
+			b.nav = {
+				goal = goal,
+				at = os.clock(),
+				points = if good then path:GetWaypoints() else {},
+				i = 2,
+				failed = not good,
+			}
+		end)
+	end
+	nav = b.nav
+	if not nav or #nav.points < 2 or flat(nav.goal - goal).Magnitude > 6 then
+		return goal
+	end
+	local points = nav.points
+	while nav.i < #points and flat(points[nav.i].Position - pos).Magnitude < 2.5 do
+		nav.i += 1
+	end
+	-- a later waypoint in plain sight: cut the corner
+	while nav.i < #points and openWay(pos, points[nav.i + 1].Position, skip) do
+		nav.i += 1
+	end
+	local wp = points[math.min(nav.i, #points)]
+	if wp.Action == Enum.PathWaypointAction.Jump and flat(wp.Position - pos).Magnitude < 5 then
+		hum.Jump = true
+	end
+	return wp.Position
+end
+
+-- the path to this goal can't be found (it's inside something, or walled off)
+local function unreachable(c: Climber, goal: Vector3): boolean
+	local nav = c.brain.nav
+	return nav ~= nil and nav.failed and flat(nav.goal - goal).Magnitude < 4
+end
+
+-- not right on top of the others where it's going (they bunched up on the same spot)
+local function spread(c: Climber, goal: Vector3): Vector3
+	local root = c.root :: BasePart
+	if flat(goal - root.Position).Magnitude > 6 then
+		return goal
+	end
+	local push = Vector3.zero
+	for _, o in Climbers.all() do
+		if o ~= c and o.root and o.floor == c.floor then
+			local away = flat(goal - o.root.Position)
+			local d = away.Magnitude
+			if d < 3.5 and d > 0.01 then
+				push += away.Unit * (3.5 - d)
+			end
+		end
+	end
+	return goal + push
+end
+
+---------------------------------------------------------------- fighting
 
 local function fight(c: Climber, foe: Climber, goal: Vector3?): Vector3?
 	local b, f = c.brain, c.fighter
@@ -435,7 +583,78 @@ local function fight(c: Climber, foe: Climber, goal: Vector3?): Vector3?
 		f.blocking = true
 		b.guardT = 0.5
 	end
-	return goal or froot.Position
+	if goal then
+		return goal
+	end
+	-- up to them, not into them (walking into someone shoves them about)
+	local reach = if w and w.slot == "melee" then w.reach else 1.5 * M
+	local away = flat(root.Position - froot.Position)
+	if away.Magnitude < 0.01 then
+		return froot.Position
+	end
+	face(c, froot.Position)
+	return froot.Position + away.Unit * math.min(reach * 0.6, d)
+end
+
+---------------------------------------------------------------- thinking
+
+-- who to fight
+local function pickTarget(c: Climber, riding: any, t: number, roofOpen: boolean)
+	local b, f = c.brain, c.fighter
+	-- whoever hurt us lately comes first, and keeps us at it for a while
+	local foe = if f.hitBy and f.hitAge < 7 then CombatService.climberOf(f.hitBy) else nil
+	if foe and valid(c, foe) then
+		if b.target ~= foe then
+			b.fightT = rr(6, 10)
+		end
+		b.target = foe
+	elseif b.target and (not valid(c, b.target) or b.fightT <= 0) then
+		b.target = nil
+	end
+	-- only one can escape: on the top-floor platform with the roof open, clear everyone else off it
+	if riding and roofOpen and riding.stop == FLOORS - 1 then
+		local root0 = (c.root :: BasePart).Position
+		local best, bd = nil, math.huge
+		for _, o in PlatformService.riders(riding) do
+			if o ~= c and o.root and valid(c, o) then
+				local d = (o.root.Position - root0).Magnitude
+				if d < bd then
+					best, bd = o, d
+				end
+			end
+		end
+		if best then
+			b.target = best
+			b.fightT = 3
+		end
+	end
+	if b.target then
+		return
+	end
+	-- pick a fight (the original's odds, per think): a platform is small, so anyone on it is competition;
+	-- the top floor, waiting for the roof, makes everyone restless; crowding the shaft for a platform
+	-- means shoving whoever's next to you
+	local gun = f.gun ~= nil and f.mag + f.reserve > 0
+	local sight = if gun then 1.6 else 1
+	local top = c.floor == FLOORS - 1 and not roofOpen
+	local chance, range, keep = 0.07, 7 * M * sight, nil
+	if riding then
+		chance, range = 0.25, 2.6 * M
+		keep = function(o: Climber): boolean
+			return PlatformService.slotOf(o) == riding
+		end
+	elseif top then
+		chance, range = 0.4, 10 * M * sight
+	elseif Platforms.nextArrival(t, c.floor, roofOpen) < 6 then
+		chance, range = 0.45, 2.5 * M
+	end
+	if rng:NextNumber() < b.aggression * chance then
+		local o = nearest(c, range, keep)
+		if o then
+			b.target = o
+			b.fightT = rr(5, 10)
+		end
+	end
 end
 
 local function think(c: Climber)
@@ -448,7 +667,6 @@ local function think(c: Climber)
 		hum:Move(Vector3.zero)
 		return
 	end
-	hum.AutoRotate = true
 	local t, roofOpen = ctx.time(), ctx.roofOpen()
 	local pos = root.Position
 	local riding = PlatformService.slotOf(c)
@@ -459,33 +677,7 @@ local function think(c: Climber)
 		b.rode = 0
 		b.lastStop = -1
 	end
-
-	-- who to fight: whoever hurt us lately comes first; the aggressive ones pick fights
-	local foe = if f.hitBy and f.hitAge < 7 then CombatService.climberOf(f.hitBy) else nil
-	if foe and valid(c, foe) then
-		b.target = foe
-	elseif b.target and not valid(c, b.target) then
-		b.target = nil
-	end
-	if not b.target and rng:NextNumber() < b.aggression * 0.02 then
-		b.target = nearest(c, 7 * M)
-	end
-	-- only one can escape: on the top-floor platform with the roof open, clear everyone else off it
-	if riding and roofOpen and riding.stop == FLOORS - 1 then
-		local root0 = root.Position
-		local best, bd = nil, math.huge
-		for _, o in PlatformService.riders(riding) do
-			if o ~= c and o.root and valid(c, o) then
-				local d = (o.root.Position - root0).Magnitude
-				if d < bd then
-					best, bd = o, d
-				end
-			end
-		end
-		if best then
-			b.target = best
-		end
-	end
+	pickTarget(c, riding, t, roofOpen)
 	-- badly hurt: run for it (unless riding)
 	local scared = f.hp / f.maxHp < b.courage and not riding
 
@@ -510,9 +702,16 @@ local function think(c: Climber)
 			end
 		end
 		if not goal and Platforms.nextArrival(t, c.floor, roofOpen) < 4 then
-			goal = stageSpot(c)
+			-- (its own place by the shaft, kept while it waits: a new one each think had it shuffling about)
+			if not b.stage or math.abs(b.stage.Y - c.floor * Config.FLOOR_HEIGHT) > 1 then
+				b.stage = stageSpot(c)
+			end
+			goal = b.stage
 			mode = "stage"
 		end
+	end
+	if mode ~= "stage" then
+		b.stage = nil
 	end
 
 	if scared then
@@ -524,32 +723,38 @@ local function think(c: Climber)
 		goal = b.wander
 		mode = "flee"
 	elseif b.target then
-		local close = flat((b.target.root :: BasePart).Position - pos).Magnitude < 8 * M
-		if not goal or close or riding then
-			goal = fight(c, b.target, if riding then goal else nil)
-			mode ..= " + fight " .. b.target.name
-		end
+		-- boarding or riding it keeps going and fights on the way; anywhere else it goes after them
+		local keep = mode == "board" or mode == "ride" or mode == "hop off"
+		goal = fight(c, b.target, if keep then goal else nil)
+		mode ..= " + fight " .. b.target.name
 	else
 		Tools.equip(c, if f.gun and f.mag + f.reserve > 0 then "gun" else "melee")
 	end
 
 	-- things worth picking up on the way
+	local want: Pickups.Pickup? = nil
 	if not goal or not b.target then
-		local want = if f.reserve < 12 then Pickups.nearest(c, 30, "ammo") else nil
-		want = want or (if f.melee == "bat" then Pickups.nearest(c, 25, "sword") else nil)
+		local function reachable(pk: Pickups.Pickup?): Pickups.Pickup?
+			return if pk and (b.skip[pk.part] or 0) < t then pk else nil
+		end
+		want = if f.reserve < 12 then reachable(Pickups.nearest(c, 30, "ammo")) else nil
+		want = want or (if f.melee == "bat" then reachable(Pickups.nearest(c, 25, "sword")) else nil)
 		-- a better gun than the one it carries
 		local mine = if f.gun then Weapons[f.gun].tier else 0
 		want = want
-			or Pickups.nearestWhere(c, 30, function(kind: string): boolean
+			or reachable(Pickups.nearestWhere(c, 30, function(kind: string): boolean
 				local w = Weapons[kind]
 				return w ~= nil and w.slot == "gun" and w.tier > mine
-			end)
+			end))
 		if want then
 			if (want.part.Position - pos).Magnitude < 6 then
 				Pickups.take(c, want)
+				want = nil
 			elseif not goal then
 				goal = want.part.Position
 				mode = "pickup " .. want.kind
+			else
+				want = nil
 			end
 		end
 	end
@@ -561,23 +766,96 @@ local function think(c: Climber)
 		end
 		goal = b.wander
 	end
+	local target = goal :: Vector3
+	if not b.target then
+		target = spread(c, target)
+	end
+
+	-- can't get there: give it up (a new spot to wander to, the pickup left alone for a while)
+	local function giveUp()
+		if want then
+			b.skip[want.part] = t + 15
+		end
+		if mode == "wander" or mode == "flee" then
+			b.wanderT = 0
+		end
+		if b.target and not (f.hitBy and f.hitAge < 7) then
+			b.target = nil
+		end
+		b.nav = nil
+		b.stuckN = 0
+	end
 
 	-- what it's up to, for debugging (Studio only: in the live game it would be replicated for nothing)
 	if STUDIO and c.model and c.model:GetAttribute("BotMode") ~= mode then
 		c.model:SetAttribute("BotMode", mode)
 	end
-	hum:MoveTo(goal :: Vector3)
-	-- stuck against cover: hop
-	if flat(goal :: Vector3 - pos).Magnitude > 3 and (pos - b.lastPos).Magnitude < 0.4 then
+
+	-- on its way: straight onto a platform, round things on the floor
+	local onDeck = mode == "board" or mode == "ride" or mode == "hop off"
+	local step = target
+	if b.detour and b.detourT > 0 then
+		step = pos + b.detour
+	elseif not onDeck then
+		local skip: { Instance } = { folder }
+		for _, o in Climbers.all() do
+			if o.model and o.kind ~= "bot" then
+				table.insert(skip, o.model)
+			end
+		end
+		step = route(c, target, skip)
+		if unreachable(c, target) then
+			giveUp()
+		end
+	end
+	hum:MoveTo(step)
+
+	-- stuck against something: hop it, then sidestep for a moment; still stuck, give the spot up
+	if flat(target - pos).Magnitude > 3 and (pos - b.lastPos).Magnitude < 0.4 then
 		b.stuck += THINK
 		if b.stuck > 0.5 then
-			hum.Jump = true
 			b.stuck = 0
+			b.stuckN += 1
+			if b.stuckN % 2 == 1 then
+				hum.Jump = true
+			else
+				local ahead = flat(target - pos)
+				ahead = if ahead.Magnitude > 0.01 then ahead.Unit else Vector3.xAxis
+				local side = ahead:Cross(Vector3.yAxis) * (if rng:NextNumber() < 0.5 then 1 else -1)
+				b.detour = (side + ahead * 0.3).Unit * 8
+				b.detourT = rr(0.5, 0.9)
+				b.nav = nil
+			end
+			if b.stuckN >= 5 then
+				giveUp()
+			end
 		end
 	else
 		b.stuck = 0
+		b.stuckN = math.max(0, b.stuckN - THINK / 2)
 	end
 	b.lastPos = pos
+end
+
+-- turning to face whoever it's fighting (smoothly: an AlignOrientation), else turning where it walks
+local function turn(c: Climber, dt: number)
+	local b, hum, root = c.brain, c.humanoid, c.root
+	local align = b.align :: AlignOrientation?
+	if not hum or not root or not align or align.Parent == nil then
+		return
+	end
+	b.faceT -= dt
+	local on = b.faceT > 0 and not c.fighter.dead and not c.frozen
+	if on then
+		local dir = flat(b.faceAt - root.Position)
+		if dir.Magnitude > 0.1 then
+			align.CFrame = CFrame.lookAt(Vector3.zero, dir)
+		end
+	end
+	if align.Enabled ~= on then
+		align.Enabled = on
+		hum.AutoRotate = not on
+	end
 end
 
 function Bots.init(context: Context)
@@ -592,6 +870,8 @@ function Bots.init(context: Context)
 			b.fireT -= dt
 			b.swingT -= dt
 			b.wanderT -= dt
+			b.fightT -= dt
+			b.detourT -= dt
 			if b.guardT > 0 then
 				b.guardT -= dt
 				if b.guardT <= 0 then
@@ -603,6 +883,7 @@ function Bots.init(context: Context)
 				b.think = THINK
 				think(c)
 			end
+			turn(c, dt)
 			b.gaitT = (b.gaitT or 0) - dt
 			if b.gaitT <= 0 then
 				b.gaitT = 0.1

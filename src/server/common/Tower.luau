@@ -9,11 +9,11 @@
 -- Floor i's surface is at y = i × FLOOR_HEIGHT (i = 0 is the ground floor). Every floor is a Model
 -- named FloorNN with a Floor attribute (the roof is Floor = FLOORS) so clients can cut away the
 -- floors above them.
-local TweenService = game:GetService("TweenService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Config = require(ReplicatedStorage.Shared.Config)
 local Booster = require(ReplicatedStorage.Shared.Booster)
+local Hatch = require(ReplicatedStorage.Shared.Hatch)
 local Kit = require(script.Parent.Kit)
 local Props = require(script.Parent.Props)
 local Themes = require(script.Parent.Themes)
@@ -687,11 +687,19 @@ function Tower.build(options: Options?): Tower
 	box(roof, "Parapet", -F, F, ry, ry + p, -F, -F + WALL, CONCRETE)
 	box(roof, "Parapet", F - WALL, F, ry, ry + p, -F, F, CONCRETE)
 	box(roof, "Parapet", -F, -F + WALL, ry, ry + p, -F, F, CONCRETE)
+	local doorColor = Color3.fromRGB(70, 74, 80)
 	local doors = {
-		box(roof, "Hatch", -H, 0, ry - 0.6, ry, -H, H, Color3.fromRGB(70, 74, 80), Enum.Material.DiamondPlate),
-		box(roof, "Hatch", 0, H, ry - 0.6, ry, -H, H, Color3.fromRGB(70, 74, 80), Enum.Material.DiamondPlate),
+		box(roof, "Hatch", -H, 0, ry - Hatch.THICK, ry, -H, H, doorColor, Enum.Material.DiamondPlate),
+		box(roof, "Hatch", 0, H, ry - Hatch.THICK, ry, -H, H, doorColor, Enum.Material.DiamondPlate),
 	}
+	local sides = { -1, 1 }
 	local closedAt = { doors[1].CFrame, doors[2].CFrame }
+	for i, d in doors do
+		-- (each client slides its doors open from these: client/race/Ambience)
+		d:SetAttribute("Side", sides[i])
+		d:SetAttribute("Closed", closedAt[i])
+	end
+	local opening = 0
 	roof.Parent = root
 	floors[FLOORS] = roof
 	covers[FLOORS] = Roof.dress(roof, ry)
@@ -753,14 +761,25 @@ function Tower.build(options: Options?): Tower
 		floorOf = function(y: number): number
 			return math.clamp(math.floor(y / FH + 0.3), 0, FLOORS)
 		end,
+		-- every client draws the doors sliding open from HatchOpenAt; here they're simply open once it's done
 		openHatch = function()
-			local info = TweenInfo.new(1.6, Enum.EasingStyle.Quad, Enum.EasingDirection.InOut)
-			TweenService:Create(doors[1], info, { CFrame = closedAt[1] * CFrame.new(-H - 0.3, 0, 0) }):Play()
-			TweenService:Create(doors[2], info, { CFrame = closedAt[2] * CFrame.new(H + 0.3, 0, 0) }):Play()
+			opening += 1
+			local this = opening
+			roof:SetAttribute("HatchOpenAt", workspace:GetServerTimeNow())
+			task.delay(Hatch.OPEN_TIME, function()
+				if this == opening then
+					for i, d in doors do
+						d.CFrame = closedAt[i] * Hatch.offset(sides[i], 1)
+					end
+				end
+			end)
 		end,
 		closeHatch = function()
-			doors[1].CFrame = closedAt[1]
-			doors[2].CFrame = closedAt[2]
+			opening += 1
+			roof:SetAttribute("HatchOpenAt", nil)
+			for i, d in doors do
+				d.CFrame = closedAt[i]
+			end
 		end,
 	}
 	return tower

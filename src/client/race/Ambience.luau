@@ -14,6 +14,7 @@ local TweenService = game:GetService("TweenService")
 
 local Config = require(ReplicatedStorage.Shared.Config)
 local Platforms = require(ReplicatedStorage.Shared.Platforms)
+local Hatch = require(ReplicatedStorage.Shared.Hatch)
 local Audio = require(script.Parent.Parent:WaitForChild("Common"):WaitForChild("Audio")) :: any
 
 local Ambience = {}
@@ -84,6 +85,7 @@ end
 
 local function motion()
 	local t = 0
+	local hatchDone: number? = nil -- the opening (its HatchOpenAt) whose doors are already drawn open
 	RunService.RenderStepped:Connect(function(dt: number)
 		t += dt
 		local state = ReplicatedStorage:FindFirstChild("RaceState")
@@ -93,8 +95,22 @@ local function motion()
 		if not roof then
 			return
 		end
+		-- the hatch sliding open, drawn here every frame (the server only puts the doors where they end up)
+		local openAt = roof:GetAttribute("HatchOpenAt") :: number?
+		local p = if openAt and openAt ~= hatchDone
+			then math.clamp((workspace:GetServerTimeNow() - openAt) / Hatch.OPEN_TIME, 0, 1)
+			else nil
+		if p and p >= 1 then
+			hatchDone = openAt
+		end
 		for _, d in roof:GetChildren() do
-			if d.Name == "Searchlight" and d:IsA("BasePart") then
+			if d.Name == "Hatch" and d:IsA("BasePart") then
+				local closed = d:GetAttribute("Closed") :: CFrame?
+				local side = d:GetAttribute("Side") :: number?
+				if p and closed and side then
+					d.CFrame = closed * Hatch.offset(side, p)
+				end
+			elseif d.Name == "Searchlight" and d:IsA("BasePart") then
 				local phase = (d:GetAttribute("Phase") :: number?) or 0
 				local speed = if open then 1.8 else 1
 				local to = d:FindFirstChild("To") :: Attachment?
