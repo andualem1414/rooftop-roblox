@@ -15,8 +15,9 @@
 -- floor, the magazine out, slapped in, the slide or bolt worked). Heard from far off a shot loses its top
 -- (`far`), and a full-auto burst turns its earlier shots down as the next one fires so only the last one
 -- rings out (client/common/Audio).
---   pistol   a 9mm Beretta, live rounds (three takes)
---   smg      the same 9mm, brighter takes, a little faster
+--   pistol   a .45 Win Mag (an L.A.R. Grizzly, five takes): a hard crack, a heavy body and a tail that
+--            rings for over half a second (the 9mm takes it had rang for 30 ms: a dull, flat pop)
+--   smg      a 9mm Beretta, live rounds, bright takes, a little faster
 --   rifle    a .223 CAR-16 (an M16 carbine) outdoors: a hard crack and a long airy echo
 --   shotgun  a 12 gauge Mossberg pump (five takes); its pump racked after each shot
 
@@ -51,7 +52,13 @@ local function cut(id: number, start: number, length: number, volume: number?): 
 end
 
 -- the guns
-local PISTOL = { cut(9114715210, 0, 0.9), cut(9114715019, 0, 0.9), cut(9114715851, 0, 0.9) } -- Gun Live Ammunition: 9mm Beretta, full flash singles
+local PISTOL = { -- Pistol Single Shots 12, 5, 4, 11, 3: L.A.R. Grizzly Win Mag .45 (measured: each rings ~0.6 s)
+	cut(9117398126, 0, 1.1),
+	cut(9117397547, 0, 1.1),
+	cut(9117397321, 0, 1.1),
+	cut(9117398114, 0, 1.1),
+	cut(9117402315, 0, 1.1, 1.1),
+}
 local SMG = { cut(9114720234, 0, 0.7), cut(9114705401, 0.148, 0.7), cut(9114705646, 0.148, 0.7) } -- 9mm Beretta, live ammunition (single shots, the second of a double)
 local RIFLE = { cut(9116335273, 0, 1.3), cut(9116335315, 0, 1.3) } -- Machine Gun 4 and 5: .223 CAR-16, single shots, exterior
 local SHOTGUN =
@@ -81,7 +88,7 @@ local RICOCHET = { cut(9118168612, 0.188, 0.9), cut(9118168962, 0.182, 0.9), cut
 local WHIZ = { cut(9113634444, 0.09, 0.4) } -- Bullet Whiz, Whoosh By
 local BODY = { cut(9113514100, 0.01, 0.3), cut(9113573371, 0, 0.25), cut(9113573702, 0, 0.25) } -- Body Hits (gut hits), Boxing Hits: body impacts
 -- melee
-local WHOOSH = "rbxassetid://9120972444" -- Wood Whoosh Slicing Air Quick Swings 1 (ProSoundEffects)
+local WHOOSH = "rbxassetid://9120972444" -- Wood Whoosh Slicing Air Quick Swings 1 (ProSoundEffects; peaks at 0.14)
 local SHING = { cut(9119076604, 0.02, 0.7), cut(9119076600, 0.05, 0.7) } -- Shing: a large ringing metal blade swiped
 local BAT_HIT = { cut(9125380870, 0.026, 0.4), cut(9125380595, 0.328, 0.4), cut(9125380871, 0.686, 0.4) } -- Baseball, Wood Bat Hits Hard Ball, Power Whacks
 local CLANG = { -- Shield, Clang As Hit, Metal Sword; Sword Impact, Multiple Metal Hits
@@ -90,23 +97,23 @@ local CLANG = { -- Shield, Clang As Hit, Metal Sword; Sword Impact, Multiple Met
 	cut(9119747138, 0.05, 0.5),
 	cut(9119747138, 0.69, 0.5),
 }
-local FALL = { cut(9113481839, 0.02, 0.7), cut(9113481994, 0.06, 0.6) } -- Body Fall Wood, Interior, On Floor
+local FALL = { cut(9113481839, 0.02, 0.7), cut(9113481994, 0.06, 0.6) } -- Body Fall Wood, Interior, On Floor (quiet)
 -- the screen
 local TINK = 9116651688 -- Metal Hits, With Hammer: a light tap
 local DING = 9116652187 -- the same, a ringing one
 local BEEP = 9117060347 -- NASA Transmission Beep: a short clean tone
 local SWITCH = { cut(9117028855, 0, 0.15), cut(9117029050, 0.01, 0.15) } -- Moviola Toggle Switch: sharp single clicks
 -- built into Roblox
-local THUD = "rbxasset://sounds/action_jump_land.mp3"
+local THUD = "rbxasset://sounds/action_jump_land.mp3" -- (quiet: peaks at 0.10)
 local BOOM = "rbxasset://sounds/impact_explosion_03.mp3"
 
 local CUES: { [string]: Cue } = {
 	-- guns (the shot cue is the gun's name)
 	pistol = {
 		takes = PISTOL,
-		volume = 1,
-		pitch = { 0.97, 1.03 },
-		fade = 0.25,
+		volume = 1.1,
+		pitch = { 0.97, 1.04 },
+		fade = 0.35,
 		range = 260,
 		far = true,
 		kind = "effects",
@@ -197,7 +204,7 @@ local CUES: { [string]: Cue } = {
 		kind = "effects",
 	},
 	-- melee
-	bat = { id = WHOOSH, volume = 0.6, pitch = { 0.85, 1 }, range = 70, kind = "effects" },
+	bat = { id = WHOOSH, volume = 2.2, pitch = { 0.85, 1 }, range = 70, kind = "effects" }, -- (a quiet recording)
 	sword = { takes = SHING, volume = 0.45, pitch = { 1, 1.12 }, fade = 0.25, range = 70, kind = "effects" },
 	batHit = { takes = BAT_HIT, volume = 0.55, pitch = { 0.75, 0.85 }, fade = 0.15, range = 90, kind = "effects" },
 	block = { takes = CLANG, volume = 0.7, pitch = { 0.95, 1.08 }, fade = 0.15, range = 90, kind = "effects" },
@@ -206,13 +213,13 @@ local CUES: { [string]: Cue } = {
 	headshot = { takes = { cut(DING, 0, 0.6) }, volume = 0.5, pitch = { 1.15, 1.15 }, fade = 0.2, kind = "ui" },
 	hurt = { takes = { cut(9113514100, 0.01, 0.35) }, volume = 0.8, pitch = { 0.8, 0.9 }, fade = 0.1, kind = "ui" },
 	pickup = { takes = { SLIDE }, volume = 0.6, pitch = { 1.05, 1.05 }, fade = 0.08, kind = "ui" },
-	knockout = { takes = FALL, volume = 1.4, pitch = { 0.9, 1 }, fade = 0.15, range = 90, kind = "effects" },
+	knockout = { takes = FALL, volume = 3, pitch = { 0.9, 1 }, fade = 0.15, range = 90, kind = "effects" },
 	-- a boost: the jets light, the whoosh up the shaft, the landing
 	boost = { id = BOOM, volume = 0.45, pitch = { 1.9, 2.1 }, range = 140, kind = "effects" },
-	boostWhoosh = { id = WHOOSH, volume = 0.9, pitch = { 0.42, 0.48 }, range = 140, kind = "effects" },
-	land = { id = THUD, volume = 1, pitch = { 0.6, 0.65 }, range = 80, kind = "effects" },
+	boostWhoosh = { id = WHOOSH, volume = 2.6, pitch = { 0.42, 0.48 }, range = 140, kind = "effects" },
+	land = { id = THUD, volume = 2.4, pitch = { 0.6, 0.65 }, range = 80, kind = "effects" },
 	-- the tower
-	platform = { id = THUD, volume = 0.9, pitch = { 0.42, 0.48 }, range = 70, kind = "effects" },
+	platform = { id = THUD, volume = 2.2, pitch = { 0.42, 0.48 }, range = 70, kind = "effects" },
 	roof = { id = BOOM, volume = 0.8, pitch = { 0.45, 0.5 }, range = 600, kind = "effects" },
 	firework = { id = BOOM, volume = 0.45, pitch = { 0.8, 1.2 }, range = 900, kind = "effects" },
 	-- the screen
