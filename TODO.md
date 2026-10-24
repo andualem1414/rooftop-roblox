@@ -30,8 +30,8 @@ What's left is mostly the user's: looking, playing and publishing. Claude's code
 - [x] **Published privately** (2026-10-19): experience **Rooftop** (universe 10771906434), lobby place
       96194017293551 (start place), race place 127585457284186 "Rooftop Race"; ids in `src/shared/Places.luau`;
       R15 only, max 20 per place, Studio API access on, access private
-- [ ] **Bump the version** before the release test (`src/shared/Version.luau` is still 0.2.0, from before
-      teams) and publish the latest build
+- [x] **Version 0.3.0 published** (2026-10-24): teams, platforms from the bottom and the polish since 0.2.0;
+      race place version 13, lobby version 18 (the lobby's corner says 0.3.0)
 - [ ] **Release test** in the published game (`publish/RELEASE.md` §3): teleports, saving, leaderboards,
       friends together
 - [x] **Phase 6 boosters** (2026-10-22): the four Developer Products are on Creator Hub (+1, +3, +5, +10 floors at 15, 40, 60, 100 Robux, Managed Pricing off);
