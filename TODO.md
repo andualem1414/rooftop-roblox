@@ -30,13 +30,21 @@ What's left is mostly the user's: looking, playing and publishing. Claude's code
 - [x] **Published privately** (2026-10-19): experience **Rooftop** (universe 10771906434), lobby place
       96194017293551 (start place), race place 127585457284186 "Rooftop Race"; ids in `src/shared/Places.luau`;
       R15 only, max 20 per place, Studio API access on, access private
+- [ ] **Bump the version** before the release test (`src/shared/Version.luau` is still 0.2.0, from before
+      teams) and publish the latest build
 - [ ] **Release test** in the published game (`publish/RELEASE.md` §3): teleports, saving, leaderboards,
       friends together
 - [x] **Phase 6 boosters** (2026-10-22): the four Developer Products are on Creator Hub (+1, +3, +5, +10 floors at 15, 40, 60, 100 Robux, Managed Pricing off);
       their ids are in `src/shared/Booster.luau`
 - [x] Game page (2026-10-22): description from `publish/RELEASE.md` §5, genre **Action** (locked until 2027-01)
 - [x] Icon and thumbnails (2026-10-22): `publish/art/` (icon: the roof sign under crossed searchlights; thumbnails: the tower at night, a climber riding up into the gym, the open roof, the Arcade, the Nightclub), uploaded for the home page and the detail page
-- [ ] Then: the maturity questionnaire (expected Mild), ID + 2-step verification, going public
+- [ ] Then **public for 16+** (`publish/RELEASE.md` §7): the age check on the owner's account, the maturity
+      questionnaire filled in to the end (expected Mild), Access → Public
+- [ ] Then **all ages** (§7): ID verification, 2-step verification, Roblox Plus / Premium for 2 months or
+      the refundable 1,000 Robux fee; then Roblox's evaluation (250 unique plays from highly engaged 16+
+      players within 60 days; Creator Hub → Audience Reach)
+- [ ] **Getting paid** (§8): a DevEx portal account and the tax form (W-9 / W-8); cash out from 30,000
+      earned Robux (≈ $114), once a month
 
 ## Roadmap
 
@@ -53,7 +61,8 @@ What's left is mostly the user's: looking, playing and publishing. Claude's code
 6. **Robux items**: the user's call (2026-10-19): a paid booster that flies you up the shaft. *Built; the
    products are created on Creator Hub.*
 7. **Publishing**: game page text, icon, thumbnails, maturity questionnaire answers (aim: Mild), release
-   checklist. *Kit ready in `publish/RELEASE.md`; the publishing itself is the user's.*
+   checklist, going public and getting paid. *Kit ready in `publish/RELEASE.md` (§7 going public, §8
+   getting paid); the publishing itself is the user's.*
 
 ## Decisions (2026-10-18)
 
@@ -178,6 +187,10 @@ Camera, look, sound
   area (~17 × 17 m). Confirm in the playtest.
 - The original's own sounds (wind, the platform's clunk, the hatch grinding, confetti cannons), made with Web
   Audio: render them to files for the user to upload, if the library sounds don't fit
+- More ways to earn (2026-10-24, the user's call; only the boosters are built): passes (one-time, e.g. a
+  pack of looks or a cosmetic trail; nothing that wins races), paid private servers (a group's own lobby
+  and race; needs code), immersive ads on the plaza's boards, subscriptions, Managed Pricing back on for
+  regional prices
 
 ## Roblox limits to remember (checked 2026-10-18, create.roblox.com/docs)
 
@@ -190,6 +203,13 @@ Camera, look, sound
 - **Teleports:** server-side `TeleportAsync` with `TeleportOptions.ShouldReserveServer`; don't work in Studio;
   handle `TeleportInitFailed`, retry with pcall; teleport data is visible to the client (nothing secret in it).
 - **Maturity:** repeated unrealistic violence with no blood = Mild; realistic injuries would make it Moderate.
+- **Going public (checked 2026-10-24):** the owner's age check + the questionnaire = public to age-checked
+  16+ only. All ages (Select 9–15, Kids 5–8; Mild reaches both) also needs ID verification, 2-step
+  verification, Plus / Premium 2 months or a refundable 1,000 Robux fee, and 250 unique plays from highly
+  engaged 16+ players within 60 days. Details in `publish/RELEASE.md` §7.
+- **Payouts (checked 2026-10-24):** 70% of each Developer Product sale; Creator Rewards (5 Robux per Active
+  Spender playing 10+ min a day; 35% of new players' first $100); DevEx from 30,000 earned Robux at $0.0038,
+  once a month, 13+, verified email, tax form. Details in `publish/RELEASE.md` §8.
 
 ## Done
 

@@ -132,6 +132,11 @@ release:
 Expected label: **Mild** (repeated mild violence). If realistic-looking violence is ever added it becomes
 Moderate.
 
+Fill it in to the end (checked 2026-10-24): the first question (age-restricted content) answered **No**
+gives the game a *Content May Vary* rating, released only to age-checked users 16+; **Yes** leads to the
+full questionnaire. Minimal and Mild reach every account, Roblox Kids (5–8) too; Moderate reaches 9+.
+Social hangout, Sensitive issues or Free-form user creation make a game 16+, whatever else it is.
+
 ## 5. Game page
 
 **Name:** Rooftop
@@ -179,3 +184,50 @@ resolution and cropped to 16:9. Still worth adding: a real fight with muzzle fla
 
 When the release test passes: Creator Hub → Rooftop → Access → **Public**. Bump `src/shared/Version.luau`
 for every release after that (it shows in the lobby's corner).
+
+Who gets to see it depends on what the owner's account has done (Roblox's rules since 2026, checked
+2026-10-24 on create.roblox.com/docs → *Publish experiences* and *Roblox Kids and Select*; Public and
+Limited access ask for the same):
+
+**16+ only** (age-checked Roblox users 16 and older):
+
+- the owner's account has passed an **age check**, is in good standing and is at least 2 days old;
+- the Maturity & Compliance questionnaire is done (§4).
+
+**All ages** (adds Roblox Select, ages 9–15, and Roblox Kids, 5–8), all of the above and:
+
+- **ID verification** (a government ID at 18 or older, a face age estimate under 18);
+- **2-step verification** on;
+- a Minimal, Mild or Moderate rating (Mild here);
+- **Roblox Plus or Premium for 2 months in a row**, or a one-time **refundable fee of 1,000 Robux** for
+  the experience (the two docs pages word the refund differently; read the terms when paying; no refund if
+  the game is taken down for breaking the Community Standards);
+- Roblox's **evaluation**: the game starts with 16+ players only; it becomes eligible for Kids and Select
+  after **250 unique plays from highly engaged players** (age-checked 16+, by account age, play time and
+  having bought something anywhere on Roblox in the last 60 days) **within 60 days**, plus a safety review
+  of reports and gameplay. Progress: Creator Hub → **Audience Reach**. An expedited review costs a
+  refundable 50,000 Robux.
+
+At most 5 never-public experiences can be made public per day (not a concern with one).
+
+## 8. Getting paid
+
+Checked 2026-10-24 (create.roblox.com/docs → *Developer Exchange*, *Creator Rewards*, *Monetize your
+games*). Robux earned go to the owner's personal account.
+
+- **Boosters** (§2.5): the owner gets 70% of each sale: about 10, 28, 42 and 70 Robux from the 15, 40, 60
+  and 100 Robux boosts.
+- **Creator Rewards**, no sign-up:
+  - *Daily Engagement*: 5 Robux for each Active Spender (spent $9.99+ on Roblox in the last 60 days) who
+    plays Rooftop 10+ minutes that day, when it's one of the first three experiences they open that day.
+  - *Audience Expansion*: 35% of the first $100 of purchases a new player (or one back after 60+ days
+    away) makes in their first 60 days, if they play Rooftop 10+ minutes that day. Needs an ID-verified
+    owner, the DevEx terms, and an average of 100+ daily players for those 60 days. Eligibility shows on
+    the Creator Dashboard.
+- **Cashing out: Developer Exchange (DevEx)**: 13 or older, a verified email, **30,000 earned Robux** at
+  least, a DevEx portal account and a tax form on file (W-9 in the US, W-8 elsewhere). Once per calendar
+  month, at **$0.0038 per Robux** (30,000 ≈ $114; Robux from US players verified 18+ can get $0.0054).
+  Sales can take up to 24 hours to show in the earned balance.
+
+For scale: 30,000 Robux is about 1,070 of the 40-Robux boost, or 100 Active Spenders playing every day
+for two months. Other ways to earn are listed in `TODO.md` → Inbox (each is the owner's call).
