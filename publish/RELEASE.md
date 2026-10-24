@@ -145,18 +145,24 @@ Social hangout, Sensitive issues or Free-form user creation make a game 16+, wha
 
 > Five teams. One tower. Only one team can escape.
 >
-> Race up a 20-floor tower at night in a team of four, riding the platforms that rise up the shaft. Fight
-> your way past the other teams with a bat, a sword or a pistol, or grab the rifles, SMGs and shotguns
-> that turn up on the platforms. Knocked out? You come to a few floors lower. Keep climbing.
+> Climb a 20-floor tower at night in a team of four. Ride the platforms up the shaft and fight the other
+> teams floor by floor: bats and swords up close, pistols, rifles, SMGs and shotguns found on the way.
+> Crouch behind sofas, desks and cars for cover. Knocked out? You come to a few floors lower. Keep
+> climbing.
 >
-> At 4:00 the roof opens. The first team to ride a platform up through the roof with nobody else on it
-> wins. Anyone from another team on the platform and it throws you all off.
+> At 4:00 the roof opens. The first team to ride a platform through the roof wins, but only if nobody from
+> another team is on it: mixed platforms throw everyone off. Whoever gets out skydives off the roof
+> through the rings.
 >
-> • Races of 20 in teams of four: friends who join you are on your team, bots fill the rest
+> • 20 per race in five teams of four: friends who join you are on your team, bots fill the rest
+> • Teammates glow through walls
+> • 20 themed floors, from the Gym to the Arcade and the Nightclub
 > • Booster pads fly you up the shaft (up to floor 18, until the roof opens)
 > • Unlock 10 climber looks by playing
 > • Leaderboards: most escapes, most knock-outs, fastest escape
 > • Play on computer, phone, tablet or console
+
+On Creator Hub since 2026-10-24 (994 of the 1,000 characters Roblox allows).
 
 **Genre:** Action (set 2026-10-22; Roblox allows a change every 3 months). **Max players:** 20.
 
@@ -178,7 +184,15 @@ the gym, the open roof under the searchlights, and two floors seen from above (t
 with a fight at the shaft), on both the Home Page and the Experience Detail Page
 tabs. How they were shot: a playtest with a client-side camera rig (scriptable camera, HUD and prompts off,
 the cut-away floors shown again), Studio's panels closed for a wide viewport, the screen grabbed at full
-resolution and cropped to 16:9. Still worth adding: a real fight with muzzle flashes, and the lobby plaza.
+resolution and cropped to 16:9.
+
+**Replaced 2026-10-24** for the teams (the gym, Arcade and Nightclub shots showed no teams or fights).
+Both tabs now show, in order: `thumb2-fight` (a Green team firing across the Nightclub, tracers and
+muzzle flashes, teammates outlined and named), `thumb5-cover` (Gold fighting round an arcade cabinet),
+`thumb4-ride` (three armed climbers riding a platform into the Arcade, enemies waiting at the boost pad),
+then the tower and the roof. Shot in a Studio playtest: bots of two teams placed facing each other on a
+floor, the camera fixed by a client-side rig with the HUD hidden, and a burst of frames grabbed to catch
+the shots firing. Still worth adding: the lobby plaza; the skydive came out too dark to use.
 
 ## 7. Going public
 

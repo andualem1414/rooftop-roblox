@@ -37,7 +37,10 @@ What's left is mostly the user's: looking, playing and publishing. Claude's code
 - [x] **Phase 6 boosters** (2026-10-22): the four Developer Products are on Creator Hub (+1, +3, +5, +10 floors at 15, 40, 60, 100 Robux, Managed Pricing off);
       their ids are in `src/shared/Booster.luau`
 - [x] Game page (2026-10-22): description from `publish/RELEASE.md` §5, genre **Action** (locked until 2027-01)
-- [x] Icon and thumbnails (2026-10-22): `publish/art/` (icon: the roof sign under crossed searchlights; thumbnails: the tower at night, a climber riding up into the gym, the open roof, the Arcade, the Nightclub), uploaded for the home page and the detail page
+- [x] Icon and thumbnails (2026-10-22): `publish/art/` (icon: the roof sign under crossed searchlights), uploaded for the home page and the detail page
+- [x] Game page updated for teams (2026-10-24): the new description (`publish/RELEASE.md` §5) and three new
+      thumbnails (a team firefight in the Nightclub, a fight round cover in the Arcade, a team riding a
+      platform into the Arcade) in place of the gym, Arcade and Nightclub shots; the tower and roof stay
 - [ ] Then **public for 16+** (`publish/RELEASE.md` §7): the age check on the owner's account, the maturity
       questionnaire filled in to the end (expected Mild), Access → Public
 - [ ] Then **all ages** (§7): ID verification, 2-step verification, Roblox Plus / Premium for 2 months or
