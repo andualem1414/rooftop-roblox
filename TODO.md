@@ -40,7 +40,7 @@ What's left is mostly the user's: looking, playing and publishing. Claude's code
 - [x] Icon and thumbnails (2026-10-22): `publish/art/` (icon: the roof sign under crossed searchlights), uploaded for the home page and the detail page
 - [x] Game page updated for teams (2026-10-24): the new description (`publish/RELEASE.md` §5) and three new
       thumbnails (a team firefight in the Nightclub, a fight round cover in the Arcade, a team riding a
-      platform into the Arcade) in place of the gym, Arcade and Nightclub shots; the tower and roof stay
+      platform into the Arcade) and the winning team at the roof hatch behind the ROOFTOP sign, in place of the gym, Arcade, Nightclub and empty-roof shots; the tower stays
 - [ ] Then **public for 16+** (`publish/RELEASE.md` §7): the age check on the owner's account, the maturity
       questionnaire filled in to the end (expected Mild), Access → Public
 - [ ] Then **all ages** (§7): ID verification, 2-step verification, Roblox Plus / Premium for 2 months or

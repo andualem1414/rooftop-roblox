@@ -188,11 +188,14 @@ resolution and cropped to 16:9.
 
 **Replaced 2026-10-24** for the teams (the gym, Arcade and Nightclub shots showed no teams or fights).
 Both tabs now show, in order: `thumb2-fight` (a Green team firing across the Nightclub, tracers and
-muzzle flashes, teammates outlined and named), `thumb5-cover` (Gold fighting round an arcade cabinet),
-`thumb4-ride` (three armed climbers riding a platform into the Arcade, enemies waiting at the boost pad),
-then the tower and the roof. Shot in a Studio playtest: bots of two teams placed facing each other on a
-floor, the camera fixed by a client-side rig with the HUD hidden, and a burst of frames grabbed to catch
-the shots firing. Still worth adding: the lobby plaza; the skydive came out too dark to use.
+muzzle flashes, teammates outlined and named), `thumb3-winners` (the winning team on the platform at the
+roof hatch, from above and behind the lit ROOFTOP sign, helipad, water tank and searchlights round them;
+it replaced the empty-roof shot the same day), then the cover fight in the Arcade (`thumb5-cover`), the
+ride into the Arcade (`thumb4-ride`, Detail Page: ride before cover) and the tower. Shot in a Studio
+playtest: bots of two teams placed facing each other on a floor, the camera fixed by a client-side rig
+with the HUD hidden, and a burst of frames grabbed to catch the shots firing (the winners after
+`RooftopDev` skipped to the roof; a stray pointer painted out). New uploads go to the front of both tabs.
+Still worth adding: the lobby plaza; the skydive came out too dark to use.
 
 ## 7. Going public
 
